@@ -1,63 +1,145 @@
-# Data Model & API Contracts
+# Data Model & Protocol
 
-> Entities, schemas, and the API surface. Agents rely on this to avoid inventing
-> incompatible interfaces. Keep it the single source of truth for shapes.
+> The single source of truth for the **WebSocket message protocol** and the
+> canvas state model. Both the skill (server) and the canvas (client) import the
+> shared types in `/shared`. Transport is abstracted (raw WS in the browser,
+> `postMessage` in a VS Code webview) but the message shapes are identical.
 
-## Entities
+## Conventions
 
-### <Entity: e.g. User>
+- All messages are JSON objects with a `type` field (discriminated union).
+- `direction` below is informational: **S→C** = skill/server to canvas,
+  **C→S** = canvas to skill/server.
+- Every message carries a `sessionId` (string) and optional `msgId` (string,
+  for request/response correlation).
 
-| Field | Type | Required | Notes |
-|--------|------|----------|-------|
-| id | UUID | yes | primary key |
-| <field> | <type> | <yes/no> | <constraints> |
+## Core entities
 
-### <Entity: e.g. Item>
+### DiagramState
+| Field | Type | Notes |
+|--------|------|-------|
+| `diagramId` | string | New id per full (re)generation |
+| `mermaid` | string | Mermaid source |
+| `title` | string | Human label, e.g. "Auth flow" |
+| `nodes` | `NodeMeta[]` | Derived index for selection/expand |
+| `version` | number | Increments on patch/regeneration |
 
-| Field | Type | Required | Notes |
-|--------|------|----------|-------|
-| id | UUID | yes | primary key |
-| <field> | <type> | <yes/no> | <constraints> |
+### NodeMeta
+| Field | Type | Notes |
+|--------|------|-------|
+| `nodeId` | string | **Stable** Mermaid node id (selection key) |
+| `label` | string | Display text |
+| `kind` | string | optional: `module` \| `service` \| `entrypoint` \| ... |
+| `codeRefs` | `CodeRef[]` | optional: file/line locations (advanced tier) |
 
-## Relationships
+### CodeRef
+| Field | Type | Notes |
+|--------|------|-------|
+| `path` | string | Repo-relative file path |
+| `range` | `{startLine:number,endLine:number}` | optional |
+| `symbol` | string | optional symbol name |
 
-```mermaid
-erDiagram
-    USER ||--o{ ITEM : owns
-    %% Replace with the real entities and relationships.
-```
+### Selection
+| Field | Type | Notes |
+|--------|------|-------|
+| `nodeIds` | string[] | One or more selected nodes |
+| `diagramId` | string | Diagram the selection belongs to |
 
-## API contracts
+## Messages — S→C (skill drives canvas)
 
-### `POST /api/<resource>`
-
-**Request**
+### `diagram`  — full render / replace
 ```json
-{ "field": "value" }
+{
+  "type": "diagram",
+  "sessionId": "abc",
+  "diagramId": "d1",
+  "title": "Auth flow",
+  "mermaid": "flowchart LR\n  A[Login] --> B[Auth service]",
+  "version": 1
+}
 ```
 
-**Response `201`**
+### `patch` — incremental update (e.g. expand in place)
 ```json
-{ "id": "uuid", "field": "value" }
+{
+  "type": "patch",
+  "sessionId": "abc",
+  "diagramId": "d1",
+  "version": 2,
+  "mermaid": "flowchart LR\n  A[Login] --> B[Auth service]\n  B --> C[Token store]"
+}
 ```
+> Goal 1 may implement `expand` as a full `diagram` replace; `patch` is an
+> optimization for later.
 
-**Errors:** `400` <reason>, `401` <reason>
-
----
-
-### `GET /api/<resource>/{id}`
-
-**Response `200`**
+### `highlight` — focus/annotate nodes (e.g. show callers)
 ```json
-{ "id": "uuid", "field": "value" }
+{ "type": "highlight", "sessionId": "abc", "nodeIds": ["B","C"], "style": "callers" }
 ```
 
-**Errors:** `404` not found
+### `status` — transient feedback for the canvas
+```json
+{ "type": "status", "sessionId": "abc", "state": "thinking", "text": "Expanding node…" }
+```
 
----
+## Messages — C→S (canvas feeds back to skill)
 
-<Add more endpoints as needed.>
+### `hello` — handshake on connect
+```json
+{ "type": "hello", "sessionId": "abc", "client": "browser", "protocol": 1 }
+```
 
-## Enums & constants
+### `node_selected`
+```json
+{ "type": "node_selected", "sessionId": "abc", "diagramId": "d1", "nodeIds": ["B"] }
+```
 
-- `<EnumName>`: `<value1>` | `<value2>` | `<value3>`
+### `interaction` — a user instruction tied to the current selection
+```json
+{
+  "type": "interaction",
+  "sessionId": "abc",
+  "diagramId": "d1",
+  "nodeIds": ["B"],
+  "action": "explain",
+  "text": "explain this node"
+}
+```
+`action` ∈ `explain` | `expand` | `show_callers` | `modify` | `freeform`.
+For `modify` (advanced), `text` is the instruction, e.g. *"add a new entrypoint so
+the user can do X."*
+
+### `diagram_edited` — user edited the diagram directly (advanced)
+```json
+{ "type": "diagram_edited", "sessionId": "abc", "diagramId": "d1", "mermaid": "…edited…" }
+```
+
+### `ack` / `error`
+```json
+{ "type": "ack", "sessionId": "abc", "msgId": "m1" }
+{ "type": "error", "sessionId": "abc", "msgId": "m1", "message": "…" }
+```
+
+## Action → behavior mapping
+
+| `action` | Tier | Skill behavior |
+|----------|------|----------------|
+| `explain` | Intermediate | Prompt Copilot with the node's context; reply in CLI |
+| `expand` | Intermediate | Regenerate a richer subgraph for the node → `diagram`/`patch` |
+| `show_callers` | Intermediate | Find callers → `highlight` + optional diagram |
+| `modify` | Advanced | Gather code context for node, ask clarifying Qs, edit code, re-emit `diagram` |
+| `freeform` | Any | Treat `text` as a Copilot prompt scoped to selection |
+
+## Protocol versioning
+
+- `protocol: 1`. The `hello` message negotiates the version; server rejects
+  mismatches with an `error`.
+
+## Notes for implementers
+
+- **Node id stability:** Copilot must emit deterministic Mermaid node ids so a
+  selection survives an `expand`/regeneration. Prefer semantic ids (`authService`)
+  over autogenerated ones.
+- **Selection key** is `(diagramId, nodeId)`.
+- Keep `/shared/protocol.ts` as the canonical type definitions; do not redefine
+  message shapes in the client or server.

@@ -17,34 +17,50 @@
 
 ## Tech stack
 
-<Mirror docs/ARCHITECTURE.md — list languages, frameworks, key libraries.>
+- **Language:** TypeScript across the board (Node for the skill/server, browser
+  for the canvas). See `docs/DECISIONS.md` ADR-003.
+- **Transport:** `ws` (Node server) + native `WebSocket` (browser).
+- **Diagrams:** Mermaid (ADR-002). Pan/zoom via svg-pan-zoom or equivalent.
+- **Canvas bundling:** Vite or esbuild — output a portable self-contained bundle.
+- **Shared types:** `/shared/protocol.ts` is the canonical protocol definition;
+  import it in both skill and canvas, never redefine message shapes.
 
 ## Project structure
 
-<Where code lives; what goes where.>
+```
+/skill      Copilot CLI skill (Node/TS) + local HTTP/WebSocket server
+/canvas     Browser web app (TS, Mermaid, pan/zoom)
+/shared     Shared protocol types (imported by skill + canvas)
+/extension  (stretch) thin VS Code webview wrapper
+/docs       project documents
+```
 
 ## Coding conventions
 
-- **Language/style:** <e.g. TypeScript strict, PEP 8, Prettier>
-- **Naming:** <files, variables, components>
-- **Libraries to prefer:** <...>
-- **Libraries to avoid:** <...>
+- **Language/style:** TypeScript `strict`; format with Prettier; lint with ESLint.
+- **Naming:** kebab-case files; camelCase variables; PascalCase types/components.
+- **Libraries to prefer:** `ws`, Mermaid, a lightweight bundler (Vite/esbuild).
+- **Libraries to avoid:** heavyweight frameworks for the canvas; anything that
+  binds the server to a non-loopback interface.
 - **Comments:** explain *why*, not *what*; comment only non-obvious code.
 
 ## Build / run / test commands
 
 ```bash
 # install
-<command>
+npm install
 
-# run (dev)
-<command>
+# run (dev) — starts the canvas + skill server
+npm run dev
+
+# build (canvas bundle must build)
+npm run build
 
 # test
-<command>
+npm test
 
 # lint
-<command>
+npm run lint
 ```
 
 ## Git & PR conventions
