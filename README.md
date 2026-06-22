@@ -31,6 +31,7 @@
 | 6 | [`docs/TASKS.md`](docs/TASKS.md) | Decomposed, ordered work items |
 | 7 | [`docs/TEST_PLAN.md`](docs/TEST_PLAN.md) | What to test and how to verify |
 | – | [`docs/DECISIONS.md`](docs/DECISIONS.md) | Log of why choices were made |
+| – | [`docs/COMPETITIVE_LANDSCAPE.md`](docs/COMPETITIVE_LANDSCAPE.md) | Prior art & adjacent tools |
 | – | [`docs/SETUP.md`](docs/SETUP.md) | Env setup & run instructions |
 
 ## Suggested flow
