@@ -64,3 +64,38 @@
   imported by both server and client). Easy path to the VS Code webview later.
 - **Alternatives considered:** Python CLI + JS canvas (two languages, duplicated
   protocol types). Rejected for cohesion.
+
+---
+
+## ADR-004: Use a direct WebSocket bridge — not MCP Apps (SEP-1865) — for the canvas
+
+- **Date:** 2026-06-22
+- **Status:** Accepted
+- **Context:** A standardized alternative exists for embedding interactive UIs in
+  AI agents: the **MCP Apps** extension (**SEP-1865**) to the Model Context
+  Protocol. With MCP Apps, an MCP server declares an HTML UI resource (MIME
+  `text/html;profile=mcp-app`); the host renders it in a sandboxed iframe and
+  opens a bidirectional **JSON-RPC-over-`postMessage`** channel between the UI and
+  the model. This maps almost exactly onto our "bidirectional loop" and is
+  natively supported by VS Code's MCP client and other hosts. Adjacent prior art
+  in this space (reported in background research, individually unverified) includes
+  ChangeGuard, DiagramZu, the Mermaid Chart VS Code extension, RepoArchitectAgent,
+  and AppContext.
+- **Decision:** For the hackathon build, stay with the **CLI skill + local
+  WebSocket bridge + portable browser canvas** (ADR-001), **not** MCP Apps. Keep
+  the message protocol transport-agnostic (see `DATA_MODEL.md`) so an MCP Apps
+  transport could be added later without rewriting the canvas.
+- **Consequences:**
+  - We don't depend on the host's MCP-Apps support, an MCP server lifecycle, or
+    the iframe/CSP host contract — fewer moving parts for the demo.
+  - Copilot CLI remains the brain (consistent with ADR-001's rejection of
+    `vscode.lm`); we are not building an MCP server.
+  - **Future migration path:** because the protocol is transport-agnostic, the
+    same canvas bundle could later be served as an MCP App resource and bridged
+    over `postMessage` instead of raw WebSocket — analogous to the VS Code webview
+    path already anticipated in ADR-001.
+- **Alternatives considered:**
+  - *MCP Apps (SEP-1865) now:* the "correct" long-term standard and portable
+    across MCP hosts, but adds MCP-server scaffolding, host-support assumptions,
+    and the sandbox/CSP contract that aren't needed to prove the loop. Deferred,
+    not rejected.

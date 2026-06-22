@@ -1,7 +1,7 @@
 # Architecture
 
 > The **how**, at a high level. Decisions that pin these choices live in
-> `DECISIONS.md` (ADR-001..003).
+> `DECISIONS.md` (ADR-001..004).
 
 ## Tech stack
 
@@ -96,6 +96,31 @@ flowchart LR
 - **Single user/session:** no auth, no multi-tenant (see brief, out of scope).
 - **Webview CSP (stretch):** if rendered in VS Code, use `asWebviewUri` + a nonce
   for scripts.
+- **Mermaid interactivity is loose by design:** click callbacks require Mermaid's
+  `securityLevel: 'loose'`, which permits inline scripts/HTML and is unsafe for
+  untrusted input. Mitigate by (a) treating diagram source as trusted only after
+  validation, (b) never executing arbitrary JS from a node — route every click
+  through the protocol as a data-only `node_selected` event, and (c) keeping the
+  canvas in a sandboxed surface (browser tab today, sandboxed webview/iframe later).
+
+## Diagram integrity (validation & sync)
+
+- **Validate before render:** LLMs frequently emit invalid Mermaid (bad node ids,
+  unescaped keywords, malformed subgraphs) that breaks the parser and blanks the
+  canvas. The skill should **parse/validate** Mermaid before sending a `diagram`
+  message; on failure, reject and feed the parser error back to Copilot for a
+  self-correction loop rather than pushing broken syntax to the canvas.
+- **Keep code and diagram in sync (advanced tier):** don't rely solely on the
+  model remembering to update the diagram after a code edit. Prefer a
+  deterministic trigger (e.g. a post-edit step/hook that re-derives or reconciles
+  the diagram) so a structural code change always reflects in the canvas.
+
+## Scaling / context
+
+- **Lazy, hierarchical expansion:** mapping a whole repo into one Mermaid graph
+  blows the context window, costs latency, and renders illegibly. Start at
+  high-level entry points/directories and fetch detail only for the node the user
+  expands — this keeps the context window small and diagrams readable.
 
 ## Risks & open questions
 
