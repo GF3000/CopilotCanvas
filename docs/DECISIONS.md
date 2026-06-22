@@ -7,7 +7,9 @@
 ## ADR-001: Ship as a CLI skill first; VS Code extension as a thin webview wrapper later
 
 - **Date:** 2026-06-22
-- **Status:** Accepted
+- **Status:** Partially superseded by ADR-005 — the transport/server choice (local
+  WebSocket server + browser auto-open) is replaced by an **MCP server + MCP App**;
+  the "Copilot is the brain, canvas is portable" principles still hold.
 - **Context:** Canvas for Copilot needs a visual surface connected to a Copilot CLI
   session. Two delivery vehicles were considered: (a) a standalone Copilot CLI
   skill that opens a browser tab and bridges over WebSocket, or (b) a VS Code
@@ -70,7 +72,7 @@
 ## ADR-004: Use a direct WebSocket bridge — not MCP Apps (SEP-1865) — for the canvas
 
 - **Date:** 2026-06-22
-- **Status:** Accepted
+- **Status:** **Superseded by ADR-005** (the team chose MCP Apps)
 - **Context:** A standardized alternative exists for embedding interactive UIs in
   AI agents: the **MCP Apps** extension (**SEP-1865**) to the Model Context
   Protocol. With MCP Apps, an MCP server declares an HTML UI resource (MIME
@@ -99,3 +101,42 @@
     across MCP hosts, but adds MCP-server scaffolding, host-support assumptions,
     and the sandbox/CSP contract that aren't needed to prove the loop. Deferred,
     not rejected.
+
+---
+
+## ADR-005: Build on MCP Apps (SEP-1865) as the canvas transport — supersedes ADR-004
+
+- **Date:** 2026-06-22
+- **Status:** Accepted (supersedes ADR-004)
+- **Context:** ADR-004 deferred MCP Apps in favor of a raw WebSocket bridge for
+  speed. The team has since decided to **prefer MCP** as the foundation: it is the
+  emerging standard for embedding interactive UIs in AI hosts, is natively
+  supported by VS Code's MCP client and other hosts, and its bidirectional
+  **JSON-RPC-over-`postMessage`** channel between a host-rendered sandboxed iframe
+  and the model maps directly onto our "bidirectional loop." Building on the
+  standard now avoids a later migration and makes the canvas portable across MCP
+  hosts from day one.
+- **Decision:** Implement Canvas for Copilot as an **MCP server** that exposes the
+  canvas as an **MCP App** HTML UI resource (MIME `text/html;profile=mcp-app`).
+  The MCP host (Copilot CLI / VS Code) renders it in a sandboxed iframe and opens
+  the JSON-RPC `postMessage` channel. The diagram/interaction **message semantics**
+  defined in `DATA_MODEL.md` are preserved, but framed as **JSON-RPC methods /
+  notifications over the MCP Apps channel** instead of raw WebSocket frames.
+- **Consequences:**
+  - We **build an MCP server** (replaces the standalone CLI skill + local
+    WebSocket server from ADR-001/004). Copilot remains the brain; the MCP server
+    is the tool surface + UI provider.
+  - The canvas is loaded as an MCP App resource and communicates via
+    `postMessage`/JSON-RPC — **no raw WebSocket server** and **no manual browser
+    auto-open** (the host renders the iframe).
+  - Security/sandboxing is largely **provided by the host** (sandboxed iframe +
+    CSP), aligning with the Mermaid `securityLevel:'loose'` mitigations in
+    `ARCHITECTURE.md`.
+  - Adds a dependency on the host's MCP-Apps support and the MCP server lifecycle —
+    accepted as the cost of standardization.
+  - The canvas bundle stays transport-agnostic, so a debugging/browser fallback
+    over WebSocket remains possible but is **not** the primary path.
+- **Alternatives considered:**
+  - *Raw WebSocket bridge (ADR-004):* faster to stand up but non-standard,
+    host-specific glue, and would need migrating later. Superseded by user
+    preference for MCP.

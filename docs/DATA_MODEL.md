@@ -1,15 +1,17 @@
 # Data Model & Protocol
 
-> The single source of truth for the **WebSocket message protocol** and the
-> canvas state model. Both the skill (server) and the canvas (client) import the
-> shared types in `/shared`. Transport is abstracted (raw WS in the browser,
-> `postMessage` in a VS Code webview) but the message shapes are identical.
+> The single source of truth for the **canvas message protocol** and the canvas
+> state model. Both the MCP server and the canvas (MCP App) import the shared types
+> in `/shared`. Per ADR-005 the transport is **JSON-RPC over the MCP Apps
+> `postMessage` channel**; the message *shapes* below are transport-agnostic (a raw
+> WebSocket fallback for local debugging uses the same shapes).
 
 ## Conventions
 
-- All messages are JSON objects with a `type` field (discriminated union).
-- `direction` below is informational: **S→C** = skill/server to canvas,
-  **C→S** = canvas to skill/server.
+- All messages are JSON objects with a `type` field (discriminated union), carried
+  as MCP Apps JSON-RPC methods/notifications.
+- `direction` below is informational: **S→C** = server/model to canvas,
+  **C→S** = canvas to server/model.
 - Every message carries a `sessionId` (string) and optional `msgId` (string,
   for request/response correlation).
 

@@ -17,21 +17,23 @@
 
 ## Tech stack
 
-- **Language:** TypeScript across the board (Node for the skill/server, browser
-  for the canvas). See `docs/DECISIONS.md` ADR-003.
-- **Transport:** `ws` (Node server) + native `WebSocket` (browser).
+- **Language:** TypeScript across the board (Node for the MCP server, browser for
+  the canvas). See `docs/DECISIONS.md` ADR-003.
+- **Integration/transport:** an **MCP server** exposing an **MCP App** (SEP-1865);
+  canvas ⇄ model over **JSON-RPC `postMessage`** in the host's sandboxed iframe
+  (ADR-005). A raw `ws` WebSocket fallback may exist for local debugging only.
 - **Diagrams:** Mermaid (ADR-002). Pan/zoom via svg-pan-zoom or equivalent.
-- **Canvas bundling:** Vite or esbuild — output a portable self-contained bundle.
+- **Canvas bundling:** Vite or esbuild — output a portable bundle served as the
+  MCP App HTML resource.
 - **Shared types:** `/shared/protocol.ts` is the canonical protocol definition;
-  import it in both skill and canvas, never redefine message shapes.
+  import it in both server and canvas, never redefine message shapes.
 
 ## Project structure
 
 ```
-/skill      Copilot CLI skill (Node/TS) + local HTTP/WebSocket server
-/canvas     Browser web app (TS, Mermaid, pan/zoom)
-/shared     Shared protocol types (imported by skill + canvas)
-/extension  (stretch) thin VS Code webview wrapper
+/server     Canvas MCP server (Node/TS): tools + app resource + repo I/O
+/canvas     MCP App web bundle (TS, Mermaid, pan/zoom)
+/shared     Shared protocol types (imported by server + canvas)
 /docs       project documents
 ```
 
@@ -39,7 +41,8 @@
 
 - **Language/style:** TypeScript `strict`; format with Prettier; lint with ESLint.
 - **Naming:** kebab-case files; camelCase variables; PascalCase types/components.
-- **Libraries to prefer:** `ws`, Mermaid, a lightweight bundler (Vite/esbuild).
+- **Libraries to prefer:** the MCP SDK (server + Apps), Mermaid, a lightweight
+  bundler (Vite/esbuild). `ws` only for an optional local-debug fallback.
 - **Libraries to avoid:** heavyweight frameworks for the canvas; anything that
   binds the server to a non-loopback interface.
 - **Comments:** explain *why*, not *what*; comment only non-obvious code.

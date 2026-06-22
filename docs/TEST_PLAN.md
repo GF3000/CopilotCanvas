@@ -7,9 +7,9 @@
 ## Test strategy
 
 - **Unit tests:** protocol type guards (`/shared`), Mermaid→SVG render helper,
-  port selection, message relay logic in the server.
-- **Integration tests:** spin up `ws-server`, connect a test WS client, assert
-  message round-trips (`diagram` out, `node_selected`/`interaction` in).
+  message relay logic in the server.
+- **Integration tests:** drive the MCP server, simulate the MCP Apps channel, and
+  assert message round-trips (`diagram` out, `node_selected`/`interaction` in).
 - **Manual / demo checks:** the end-to-end demo script below.
 
 ## How to run tests
@@ -27,22 +27,22 @@ npm run build   # canvas bundle must build
 |------|------------|----------|-------|-----------------|
 | TC-1 | FR-1 | Render a diagram | Send a `diagram` message with valid Mermaid | Canvas shows the SVG |
 | TC-2 | FR-1 | Invalid Mermaid | Send malformed Mermaid | Readable error, not blank canvas |
-| TC-3 | FR-2 | Auto-open | Invoke skill first time | Server starts on 127.0.0.1, browser opens once |
-| TC-4 | FR-2 | Reuse tab | Invoke skill a second time | Same tab updates, no new window |
+| TC-3 | FR-2 | Open on demand | Invoke the tool first time | Host renders the canvas app once |
+| TC-4 | FR-2 | Reuse surface | Invoke the tool a second time | Same canvas updates, no new surface |
 | TC-5 | FR-3 | Pan/zoom | Drag + wheel + reset control | View pans, zooms, and resets to fit |
-| TC-6 | FR-4 | Live update | Push a new `diagram` | Open tab re-renders without refresh |
-| TC-7 | FR-4 | Reconnect | Drop the socket, restore | Canvas auto-reconnects |
-| TC-8 | FR-5 | Select node | Click a node | Node highlights; skill reads current selection |
+| TC-6 | FR-4 | Live update | Push a new `diagram` | Canvas re-renders without refresh |
+| TC-7 | FR-4 | Channel re-init | Host re-initializes the MCP Apps channel | Canvas recovers and re-syncs |
+| TC-8 | FR-5 | Select node | Click a node | Node highlights; server reads current selection |
 | TC-9 | FR-5 | Selection persists | Re-render with node still present | Selection retained |
-| TC-10 | FR-6 | Explain | Select node → "explain this node" | Relevant explanation appears in CLI |
+| TC-10 | FR-6 | Explain | Select node → "explain this node" | Relevant explanation appears in host |
 | TC-11 | FR-7 | Expand | Select node → "expand this node" | Subnodes/detail appear in place |
 | TC-12 | FR-9 | Modify | Select entrypoint → "add a new entrypoint to do X" | Clarifying questions asked, code edited, diagram updated |
-| TC-13 | NFR-1 | Local only | Probe the port from a non-loopback address | Connection refused/not exposed |
+| TC-13 | NFR-3 | Multi-host | Render the app in a second MCP host | Same diagram renders and accepts interactions |
 
 ## Demo script (end-to-end)
 
-1. In the terminal: *"diagram the auth flow."* → a browser tab opens with the
-   Mermaid diagram. **(TC-1, TC-3)**
+1. In the terminal: *"diagram the auth flow."* → the canvas opens in the host with
+   the Mermaid diagram. **(TC-1, TC-3)**
 2. Click the `Auth service` node and type *"explain this node."* → Copilot
    explains it in the CLI. **(TC-8, TC-10)**
 3. Type *"expand this node."* → the diagram grows new subnodes in place.

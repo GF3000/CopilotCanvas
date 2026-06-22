@@ -8,23 +8,24 @@
 
 ### FR-1: CLI pushes a Mermaid diagram to a local canvas
 **User story:** As a developer, I want Copilot CLI to render a generated Mermaid
-diagram in my browser so that I can see a system visually.
+diagram in the canvas so that I can see a system visually.
 
 **Acceptance criteria:**
-- [ ] The skill can send a `diagram` message (see `DATA_MODEL.md`) over WebSocket.
+- [ ] The server can send a `diagram` message (see `DATA_MODEL.md`) over the MCP
+      Apps channel.
 - [ ] The canvas renders the Mermaid source as an SVG.
 - [ ] Invalid Mermaid shows a readable error, not a blank canvas.
 
 **Priority:** Must · **Depends on:** none
 
-### FR-2: Canvas auto-opens on first use
-**User story:** As a developer, I want the canvas tab to open automatically the
-first time a diagram is produced so that I don't run extra commands.
+### FR-2: Canvas opens on demand on first use
+**User story:** As a developer, I want the canvas to open automatically the first
+time a diagram is produced so that I don't run extra commands.
 
 **Acceptance criteria:**
-- [ ] On first diagram, the skill starts a local server on a free `127.0.0.1` port.
-- [ ] The system browser opens to the canvas automatically.
-- [ ] Subsequent diagrams reuse the same server/tab (no duplicate windows).
+- [ ] On first diagram, the MCP server provides the canvas as an MCP App resource.
+- [ ] The MCP host renders the canvas automatically (sandboxed iframe).
+- [ ] Subsequent diagrams reuse the same rendered surface (no duplicate windows).
 
 **Priority:** Must · **Depends on:** FR-1
 
@@ -37,11 +38,11 @@ first time a diagram is produced so that I don't run extra commands.
 
 ### FR-4: Live update from the CLI
 **User story:** As a developer, when Copilot updates the diagram I want the open
-tab to update without a manual refresh.
+canvas to update without a manual refresh.
 
 **Acceptance criteria:**
 - [ ] A new `diagram`/`patch` message re-renders the open canvas in place.
-- [ ] The WebSocket auto-reconnects if dropped.
+- [ ] The canvas recovers if the host re-initializes the MCP Apps channel.
 
 **Priority:** Must · **Depends on:** FR-1, FR-2
 
@@ -75,8 +76,8 @@ CLI knows what I'm referring to.
 
 ### FR-8: Round-trip without manual refresh
 **Acceptance criteria:**
-- [ ] Selection and interaction messages flow over WebSocket both ways with no
-      page reload.
+- [ ] Selection and interaction messages flow over the MCP Apps channel both ways
+      with no page reload.
 
 **Priority:** Should · **Depends on:** FR-5
 
@@ -88,9 +89,9 @@ change the code (e.g. "add a new entrypoint to do X") so that diagram and code
 evolve together.
 
 **Acceptance criteria:**
-- [ ] A `modify` interaction passes the selected node + instruction to the skill.
-- [ ] The skill gathers code context for that node (via `codeRefs`).
-- [ ] Copilot **asks clarifying questions** in the CLI before/while implementing.
+- [ ] A `modify` interaction passes the selected node + instruction to the server.
+- [ ] The server gathers code context for that node (via `codeRefs`).
+- [ ] Copilot **asks clarifying questions** in the host before/while implementing.
 - [ ] Copilot applies the code change to the repo.
 - [ ] The diagram is updated to reflect the change.
 
@@ -107,15 +108,15 @@ evolve together.
 
 | ID | Category | Requirement |
 |------|-----------|-------------|
-| NFR-1 | Security | Server binds to `127.0.0.1` only; never exposed externally |
+| NFR-1 | Security | Runs locally; canvas sandboxed by the MCP host; no external exposure |
 | NFR-2 | Performance | Diagram render + live update feels instant (< ~300 ms for typical diagrams) |
-| NFR-3 | Portability | Canvas is a self-contained bundle runnable in a browser and (stretch) a VS Code webview |
-| NFR-4 | Resilience | WebSocket auto-reconnects; one server reused per session |
-| NFR-5 | Single-session | One developer, one browser tab; no auth/multi-user |
+| NFR-3 | Portability | Canvas is a self-contained MCP App bundle renderable across MCP hosts (Copilot CLI, VS Code) |
+| NFR-4 | Resilience | Canvas recovers when the host re-initializes the MCP Apps channel |
+| NFR-5 | Single-session | One developer, one canvas surface; no auth/multi-user |
 
 ## Prioritization (MoSCoW)
 
 - **Must have:** FR-1..FR-7 (Goal 1 complete + core of Goal 2), FR-9
 - **Should have:** FR-8
-- **Could have:** FR-10, VS Code extension wrapper
+- **Could have:** FR-10, multi-host validation
 - **Won't have (this hackathon):** persistence, cloud hosting, non-Mermaid formats
