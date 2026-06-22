@@ -1,0 +1,40 @@
+# Canvas for Copilot — Live Interactive Diagrams from the CLI
+
+> Copilot CLI explains systems in text. **Canvas for Copilot** adds a second
+> surface: a lightweight local web canvas that opens on demand and stays connected
+> to your CLI session over WebSockets, turning those explanations into live,
+> interactive Mermaid diagrams. The CLI drives the canvas; the canvas sends
+> interactions back as Copilot prompts — a bidirectional visual reasoning loop.
+>
+> See [`docs/PROJECT_BRIEF.md`](docs/PROJECT_BRIEF.md) for the full overview and
+> the three delivery goals (Basic → Intermediate → Advanced).
+>
+> AI-driven project: these documents are authored first, refined by humans, then
+> handed off to AI agents for autonomous implementation.
+
+## How to use this repo
+
+1. Fill out the documents in [`docs/`](docs/) in order (see below).
+2. Refine until each document is detailed and unambiguous.
+3. Hand the documents to AI agents to implement the code against `docs/TASKS.md`.
+4. Agents self-validate against `docs/TEST_PLAN.md`.
+
+## Document map
+
+| Order | Document | Purpose |
+|-------|----------|---------|
+| 1 | [`docs/PROJECT_BRIEF.md`](docs/PROJECT_BRIEF.md) | The **why** — problem, pitch, scope |
+| 2 | [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md) | The **what** — features & acceptance criteria |
+| 3 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | The **how** — stack, components, diagrams |
+| 4 | [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) | Entities, schemas, API contracts |
+| 5 | [`AGENTS.md`](AGENTS.md) | Conventions & rules for AI agents |
+| 6 | [`docs/TASKS.md`](docs/TASKS.md) | Decomposed, ordered work items |
+| 7 | [`docs/TEST_PLAN.md`](docs/TEST_PLAN.md) | What to test and how to verify |
+| – | [`docs/DECISIONS.md`](docs/DECISIONS.md) | Log of why choices were made |
+| – | [`docs/SETUP.md`](docs/SETUP.md) | Env setup & run instructions |
+
+## Suggested flow
+
+```
+PROJECT_BRIEF → REQUIREMENTS → ARCHITECTURE + DATA_MODEL → TASKS → implement → TEST_PLAN
+```
