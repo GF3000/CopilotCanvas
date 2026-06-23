@@ -2,8 +2,18 @@
 // call. Pattern 1 (ADR-007 addendum): this runs in-process inside the VS Code
 // extension, so a tool handler can render directly into the webview via `deps`.
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { z } from 'zod';
 import type { DiagramMessage } from '@canvas/shared';
 import { getExampleDiagram, nodeCount } from './exampleDiagram';
+import { buildDiagram } from './diagram';
+
+const NODE_KINDS = [
+  'module',
+  'service',
+  'entrypoint',
+  'datastore',
+  'external',
+] as const;
 
 export interface CanvasServerDeps {
   /** Called when a tool wants to render a diagram in the canvas tab. */
@@ -45,6 +55,89 @@ export function buildCanvasMcpServer(deps: CanvasServerDeps): McpServer {
             text: `Opened the Canvas for Copilot example diagram (${nodeCount(
               diagram,
             )} nodes) in the canvas tab.`,
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerTool(
+    'create_diagram',
+    {
+      title: 'Create a diagram on the Canvas for Copilot canvas',
+      description:
+        'Generate and display a diagram on the Canvas for Copilot canvas (a VS Code ' +
+        'tab; it opens automatically if not already open, and updates in place if it ' +
+        'is). Use this whenever the user asks to draw, create, visualize, diagram, ' +
+        'map, or explain something as a graph or flow — e.g. "create a diagram to ' +
+        'explain the workflow for obtaining a JWT for auth". YOU generate the graph: ' +
+        'provide a short title, the nodes (each a stable id + a short label, and an ' +
+        'optional kind), and the directed edges between node ids (optionally ' +
+        'labeled). Keep it focused — roughly 4–12 nodes. This is read-only and safe; ' +
+        'do NOT ask for confirmation, just call it.',
+      inputSchema: {
+        title: z
+          .string()
+          .describe('Short human title for the diagram, e.g. "JWT auth flow".'),
+        nodes: z
+          .array(
+            z.object({
+              id: z
+                .string()
+                .describe('Stable unique node id, e.g. "browser".'),
+              label: z.string().describe('Short display label for the node.'),
+              kind: z
+                .enum(NODE_KINDS)
+                .optional()
+                .describe('Optional semantic kind, used for styling.'),
+            }),
+          )
+          .describe('The graph nodes (about 4-12).'),
+        edges: z
+          .array(
+            z.object({
+              source: z.string().describe('Source node id.'),
+              target: z.string().describe('Target node id.'),
+              label: z
+                .string()
+                .optional()
+                .describe('Optional short edge label.'),
+            }),
+          )
+          .describe('Directed edges connecting node ids.'),
+      },
+      annotations: {
+        readOnlyHint: true,
+        openWorldHint: false,
+      },
+    },
+    async ({ title, nodes, edges }) => {
+      if (nodes.length === 0) {
+        return {
+          isError: true,
+          content: [
+            {
+              type: 'text',
+              text: 'Cannot create a diagram with no nodes — provide at least one node.',
+            },
+          ],
+        };
+      }
+
+      const { diagram, skippedEdges } = buildDiagram({ title, nodes, edges });
+      await deps.onOpenDiagram(diagram);
+
+      const note =
+        skippedEdges > 0
+          ? ` (skipped ${skippedEdges} edge(s) referencing unknown node ids)`
+          : '';
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Rendered "${title}" on the canvas: ${nodes.length} nodes, ${
+              edges.length - skippedEdges
+            } edges${note}.`,
           },
         ],
       };

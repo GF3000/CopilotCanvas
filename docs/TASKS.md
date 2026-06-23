@@ -27,7 +27,7 @@ Mirror these tasks on the Jira **KAN** board and keep both in sync. Target
 | Epic | Owner | Tasks (KAN keys) |
 |------|-------|-------|
 | **Frontend / Canvas UI** (`/canvas`) | **US (3p)** | `canvas-render` (KAN-6), `node-selection` (KAN-7), `expand-node` render (KAN-11), `live-update` render (KAN-13) |
-| **MCP logic / tools** (`/server`) | **Dublin (2p)** | `mcp-server` (KAN-8), `explain-node` (KAN-9), `expand-node` (KAN-11), `node-code-refs` (KAN-12), `modify-from-node` (KAN-10) |
+| **MCP logic / tools** (`/server`) | **Dublin (2p)** | `mcp-server` (KAN-9), `create_diagram` (KAN-19), `explain-node` (KAN-8), `expand-node` (KAN-11), `node-code-refs` (KAN-12), `modify-from-node` (KAN-10) |
 | **VS Code extension / bridge** (`/extension`) | **India (1p)** | `mcp-apps-host-spike` (KAN-16), `vscode-extension` (KAN-17), `mcp-app-launch` (KAN-18), `live-update` (KAN-13), `multi-host-validation` (KAN-15), `diagram-edit-to-code` (KAN-14) |
 | **Shared kick-off** (do first, together) | All | `repo-scaffold` (KAN-5), `shared-protocol` (KAN-4) |
 
@@ -38,14 +38,15 @@ Mirror these tasks on the Jira **KAN** board and keep both in sync. Target
 
 ## Status snapshot & what's ready now
 
-_As of repo scaffold landing (keep in sync with the board):_
+_As of the example-diagram + create_diagram prototype landing (keep in sync with the board):_
 
 - ✅ **Done:** `repo-scaffold` (KAN-5) — monorepo builds green; F5 dev loop verified.
 - 🔵 **In review:** `shared-protocol` (KAN-4) — contract compiles; ratify at the
-  16:30 sync, then → Done.
-- 🟢 **Ready to start now** (dependencies satisfied): `mcp-apps-host-spike` (KAN-16),
-  `mcp-server` (KAN-8), `canvas-render` (KAN-6). These only depend on the
-  scaffold/contract, so each epic can begin immediately.
+  16:30 sync, then → Done. `mcp-apps-host-spike` (KAN-16) — relay proven (Pattern 1).
+  `create_diagram` (KAN-19) — tool built on the prototype.
+- 🟢 **Ready to start now** (dependencies satisfied): `mcp-server` (KAN-9),
+  `canvas-render` (KAN-6), `vscode-extension` (KAN-17). The prototype already seeds
+  all three, so each epic can begin immediately.
 - ⛔ **Blocked (waiting):** everything downstream of `mcp-app-launch` (KAN-18, the
   Goal-1 integration) — see the dependency links on the board or the graph below.
 
@@ -93,7 +94,7 @@ _As of repo scaffold landing (keep in sync with the board):_
 
 ## Phase 1 — Goal 1: Visualize (Basic)
 
-### `mcp-server` — KAN-8
+### `mcp-server` — KAN-9
 - **Status:** todo · **Satisfies:** FR-1, FR-2, NFR-1, NFR-4
 - **Description:** In `/server`, implement the **MCP server** that declares the
   canvas **MCP App** HTML UI resource (MIME `text/html;profile=mcp-app`) and
@@ -157,7 +158,7 @@ _As of repo scaffold landing (keep in sync with the board):_
 - **Acceptance:** clicking highlights the node and the server can read the current
   selection; selection persists across a re-render where the node still exists.
 
-### `explain-node` — KAN-9
+### `explain-node` — KAN-8
 - **Status:** todo · **Satisfies:** FR-6, FR-8
 - **Description:** Implement the `explain` interaction: the canvas sends an
   `interaction` with the selection (via the extension); server prompts Copilot with

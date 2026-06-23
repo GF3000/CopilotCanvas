@@ -56,12 +56,20 @@ End-to-end "type in CLI → example diagram appears as a VS Code tab":
 2. In that dev-host window, open the **integrated terminal** and start a **Copilot
    CLI** session (restart it if it was already running, so it picks up the new
    `canvas` MCP server).
-3. Type: **"show me an example for canvas for copilot"**. Copilot calls the
-   `open_canvas` tool → the canvas opens as a **webview tab beside the
-   terminal**, rendering the example Cytoscape graph.
+3. Type: **"open canvas for copilot"**. Copilot calls the `open_canvas` tool → the
+   canvas opens as a **webview tab beside the terminal**, rendering the example
+   Cytoscape graph.
+4. Now generate your own: **"create a diagram to explain the workflow for obtaining
+   a JWT for auth on a page"**. Copilot generates the graph and calls `create_diagram`
+   → the canvas opens (if needed) and renders it.
+
+The two prototype tools (both over the local MCP endpoint):
+- **`open_canvas`** — opens the canvas and shows the fixed example diagram.
+- **`create_diagram`** — Copilot generates a graph (title + nodes + edges) from your
+  request and renders it; opens the canvas tab if it isn't already open.
 
 > Quick check without the CLI: run **Ctrl/Cmd+Shift+P → "Canvas for Copilot: Open
-> Canvas"** — it opens the same example diagram directly.
+> Canvas"** — it opens the example diagram directly.
 
 ## Run (development)
 
