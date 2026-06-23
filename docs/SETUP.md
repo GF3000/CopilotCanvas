@@ -38,13 +38,20 @@ Architecture is **Pattern 1** (ADR-007 addendum): the VS Code extension **hosts 
 Canvas MCP server in-process** over a local HTTP endpoint, and Copilot CLI connects
 to it. So registration is just an `mcp-config.json` entry pointing at the extension.
 
-1. **Register the Canvas MCP server** with Copilot CLI — add to
-   `~/.copilot/mcp-config.json`:
+1. **Register the Canvas MCP server** with Copilot CLI. Easiest: when you run the
+   extension it **offers one-time setup** — click **"Set up"** and it registers the
+   `canvas` server and adds the "always draw with the canvas" instruction for you.
+   To do it manually instead, add to `~/.copilot/mcp-config.json`:
    ```json
    "canvas": { "type": "http", "url": "http://127.0.0.1:4123/mcp", "tools": ["*"] }
    ```
 2. **Run the extension** (F5 dev host, or install the `.vsix`). On activation it
    starts the MCP server on `127.0.0.1:4123` and shows *"MCP server ready at …"*.
+
+> **Reliable tool triggering:** this repo ships `.github/copilot-instructions.md`
+> (and the extension can install a global copy) telling Copilot to **always** use the
+> `create_diagram` canvas tool for any diagram/draw/visualize request and never emit
+> HTML/Mermaid. Restart the CLI session after setup so it loads the instruction.
 
 ## Try the example diagram (prototype — first feature)
 

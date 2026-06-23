@@ -9,6 +9,7 @@ import {
   type CanvasHttpServer,
 } from '@canvas/server';
 import { CanvasPanel } from './canvasPanel';
+import { ensureCopilotIntegration } from './setup';
 
 let httpServer: CanvasHttpServer | undefined;
 
@@ -37,6 +38,9 @@ export async function activate(
       `Canvas for Copilot: failed to start MCP server — ${String(err)}`,
     );
   }
+
+  // Offer one-time setup of the Copilot CLI integration (mcp-config + instruction).
+  void ensureCopilotIntegration(context);
 }
 
 export async function deactivate(): Promise<void> {
