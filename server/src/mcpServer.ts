@@ -20,11 +20,13 @@ export function buildCanvasMcpServer(deps: CanvasServerDeps): McpServer {
   server.registerTool(
     'open_example_diagram',
     {
-      title: 'Open the Canvas for Copilot example diagram',
+      title: 'Open the Canvas for Copilot canvas (example diagram)',
       description:
-        'Open the Canvas for Copilot example diagram in the VS Code canvas tab. ' +
-        'Call this when the user asks to see an example, a demo, or a sample of ' +
-        'Canvas for Copilot — e.g. "show me an example for canvas for copilot".',
+        'Open the Canvas for Copilot canvas as a VS Code tab and render the ' +
+        'example diagram. Call this whenever the user asks to open, show, launch, ' +
+        'or see Canvas for Copilot, the canvas, or an example/demo/sample of it — ' +
+        'e.g. "open canvas for copilot", "open the canvas", "show me canvas for ' +
+        'copilot", or "show me an example for canvas for copilot".',
     },
     async () => {
       const diagram = getExampleDiagram();
