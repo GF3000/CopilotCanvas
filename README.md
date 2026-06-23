@@ -13,24 +13,33 @@
 > AI-driven project: these documents are authored first, refined by humans, then
 > handed off to AI agents for autonomous implementation.
 
+## 👉 Start here: [`AGENTS.md`](AGENTS.md)
+
+**Before doing anything else, read [`AGENTS.md`](AGENTS.md).** It holds the
+mandatory rules every contributor (human or AI) must follow — including the
+**required Jira (KAN) MCP setup and board-update workflow**, git/PR conventions,
+and the definition of done. Then continue with the document map below.
+
 ## How to use this repo
 
-1. Fill out the documents in [`docs/`](docs/) in order (see below).
-2. Refine until each document is detailed and unambiguous.
-3. Hand the documents to AI agents to implement the code against `docs/TASKS.md`.
-4. Agents self-validate against `docs/TEST_PLAN.md`.
+1. **Read [`AGENTS.md`](AGENTS.md) first** — mandatory conventions & the Jira
+   tracking workflow.
+2. Read the documents in [`docs/`](docs/) in order (see below).
+3. Pick a task on the Jira **KAN** board (mirrored in `docs/TASKS.md`), claim it,
+   and implement it.
+4. Self-validate against `docs/TEST_PLAN.md` and keep the KAN task updated.
 
 ## Document map
 
 | Order | Document | Purpose |
 |-------|----------|---------|
+| 0 | [`AGENTS.md`](AGENTS.md) | **Read first** — mandatory conventions, Jira workflow, DoD |
 | 1 | [`docs/PROJECT_BRIEF.md`](docs/PROJECT_BRIEF.md) | The **why** — problem, pitch, scope |
 | 2 | [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md) | The **what** — features & acceptance criteria |
 | 3 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | The **how** — stack, components, diagrams |
 | 4 | [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) | Entities, schemas, API contracts |
-| 5 | [`AGENTS.md`](AGENTS.md) | Conventions & rules for AI agents |
-| 6 | [`docs/TASKS.md`](docs/TASKS.md) | Decomposed, ordered work items |
-| 7 | [`docs/TEST_PLAN.md`](docs/TEST_PLAN.md) | What to test and how to verify |
+| 5 | [`docs/TASKS.md`](docs/TASKS.md) | Decomposed, ordered work items |
+| 6 | [`docs/TEST_PLAN.md`](docs/TEST_PLAN.md) | What to test and how to verify |
 | – | [`docs/DECISIONS.md`](docs/DECISIONS.md) | Log of why choices were made |
 | – | [`docs/COMPETITIVE_LANDSCAPE.md`](docs/COMPETITIVE_LANDSCAPE.md) | Prior art & adjacent tools |
 | – | [`docs/SETUP.md`](docs/SETUP.md) | Env setup & run instructions |
