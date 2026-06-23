@@ -1,0 +1,7 @@
+# Keep the packaged .vsix lean — ship only the bundle + manifest.
+src/**
+tsconfig.json
+**/*.ts
+**/*.map
+.vscode/**
+.gitignore

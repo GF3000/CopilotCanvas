@@ -1,0 +1,20 @@
+{
+  // Press F5 to launch the extension in a VS Code Extension Development Host.
+  // No marketplace / publisher account needed — this runs the extension from
+  // source. See AGENTS.md ("Getting started") and docs/SETUP.md.
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run Canvas Extension",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}/extension"
+      ],
+      "outFiles": [
+        "${workspaceFolder}/extension/dist/**/*.cjs"
+      ],
+      "preLaunchTask": "build-extension"
+    }
+  ]
+}
