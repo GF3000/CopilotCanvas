@@ -9,7 +9,9 @@
     "vscode": "^1.90.0"
   },
   "main": "./dist/extension.cjs",
-  "activationEvents": [],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "contributes": {
     "commands": [
       {
@@ -19,11 +21,12 @@
     ]
   },
   "dependencies": {
-    "@canvas/shared": "*"
+    "@canvas/shared": "*",
+    "@canvas/server": "*"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "build": "npm run typecheck && esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --outfile=dist/extension.cjs --tsconfig=tsconfig.json",
-    "dev": "esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --outfile=dist/extension.cjs --tsconfig=tsconfig.json --watch"
+    "build": "npm run typecheck && esbuild src/extension.ts --bundle --platform=node --format=cjs --target=node18 --external:vscode --outfile=dist/extension.cjs --tsconfig=tsconfig.json",
+    "dev": "esbuild src/extension.ts --bundle --platform=node --format=cjs --target=node18 --external:vscode --outfile=dist/extension.cjs --tsconfig=tsconfig.json --watch"
   }
 }

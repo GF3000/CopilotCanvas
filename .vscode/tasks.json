@@ -2,6 +2,25 @@
   "version": "2.0.0",
   "tasks": [
     {
+      // Builds the canvas bundle + extension before F5 (webview needs canvas/dist).
+      "label": "build-for-f5",
+      "dependsOrder": "sequence",
+      "dependsOn": ["build-canvas", "build-extension"],
+      "problemMatcher": []
+    },
+    {
+      // Builds the /canvas Vite bundle the webview loads.
+      "label": "build-canvas",
+      "type": "npm",
+      "script": "build",
+      "path": "canvas",
+      "problemMatcher": ["$tsc"],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared"
+      }
+    },
+    {
       // Bundles the extension once before F5 launches the dev host.
       "label": "build-extension",
       "type": "npm",

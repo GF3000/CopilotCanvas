@@ -5,6 +5,8 @@ import tsconfigPaths from 'vite-tsconfig-paths';
 // loads into the webview tab (the MCP App HTML resource).
 export default defineConfig({
   plugins: [tsconfigPaths()],
+  // Relative base so the VS Code extension can rewrite asset paths to webview URIs.
+  base: './',
   build: {
     outDir: 'dist',
     emptyOutDir: true,

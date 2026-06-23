@@ -1,9 +1,10 @@
-// Canvas MCP server — scaffold stub (KAN-5).
-// The real MCP server (tools + app resource + repo I/O) lands in KAN-8 (mcp-server).
-import { PROTOCOL_VERSION } from '@canvas/shared';
-
-export function main(): void {
-  console.log(`Canvas MCP server stub — protocol v${PROTOCOL_VERSION}`);
-}
-
-main();
+// Canvas MCP server — public API (KAN-8 seed + KAN-16 prototype).
+// Consumed in-process by the VS Code extension (Pattern 1, ADR-007 addendum).
+export { getExampleDiagram, nodeCount } from './exampleDiagram';
+export { buildCanvasMcpServer } from './mcpServer';
+export type { CanvasServerDeps } from './mcpServer';
+export {
+  startCanvasMcpHttpServer,
+  DEFAULT_CANVAS_MCP_PORT,
+} from './httpServer';
+export type { CanvasHttpServer, CanvasHttpServerOptions } from './httpServer';

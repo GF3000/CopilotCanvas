@@ -5,7 +5,9 @@
   "type": "module",
   "main": "dist/index.js",
   "dependencies": {
-    "@canvas/shared": "*"
+    "@canvas/shared": "*",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^4.4.3"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",

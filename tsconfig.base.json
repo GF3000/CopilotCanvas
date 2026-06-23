@@ -15,7 +15,8 @@
     "noEmit": true,
     "baseUrl": ".",
     "paths": {
-      "@canvas/shared": ["shared/protocol.ts"]
+      "@canvas/shared": ["shared/protocol.ts"],
+      "@canvas/server": ["server/src/index.ts"]
     }
   }
 }

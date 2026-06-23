@@ -34,10 +34,34 @@ npm run build   # builds the MCP server, the /canvas bundle, and the /extension
 
 ## Install the extension & register the server
 
-1. **Install the VS Code extension** from `/extension` (e.g. `code --install-extension`
-   the packaged `.vsix`, or run the Extension Development Host with F5 during dev).
-2. **Register the Canvas MCP server** with Copilot CLI (its MCP config), pointing at
-   the built server entry in `/server`, so the CLI can invoke the canvas tools.
+Architecture is **Pattern 1** (ADR-007 addendum): the VS Code extension **hosts the
+Canvas MCP server in-process** over a local HTTP endpoint, and Copilot CLI connects
+to it. So registration is just an `mcp-config.json` entry pointing at the extension.
+
+1. **Register the Canvas MCP server** with Copilot CLI — add to
+   `~/.copilot/mcp-config.json`:
+   ```json
+   "canvas": { "type": "http", "url": "http://127.0.0.1:4123/mcp", "tools": ["*"] }
+   ```
+2. **Run the extension** (F5 dev host, or install the `.vsix`). On activation it
+   starts the MCP server on `127.0.0.1:4123` and shows *"MCP server ready at …"*.
+
+## Try the example diagram (prototype — first feature)
+
+End-to-end "type in CLI → example diagram appears as a VS Code tab":
+
+1. Open the repo in VS Code and press **F5** (builds canvas + extension, launches the
+   Extension Development Host). Wait for the *"Canvas for Copilot: MCP server ready
+   at http://127.0.0.1:4123/mcp"* notification.
+2. In that dev-host window, open the **integrated terminal** and start a **Copilot
+   CLI** session (restart it if it was already running, so it picks up the new
+   `canvas` MCP server).
+3. Type: **"show me an example for canvas for copilot"**. Copilot calls the
+   `open_example_diagram` tool → the canvas opens as a **webview tab beside the
+   terminal**, rendering the example Cytoscape graph.
+
+> Quick check without the CLI: run **Ctrl/Cmd+Shift+P → "Canvas for Copilot: Open
+> Canvas"** — it opens the same example diagram directly.
 
 ## Run (development)
 

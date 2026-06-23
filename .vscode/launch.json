@@ -14,7 +14,7 @@
       "outFiles": [
         "${workspaceFolder}/extension/dist/**/*.cjs"
       ],
-      "preLaunchTask": "build-extension"
+      "preLaunchTask": "build-for-f5"
     }
   ]
 }

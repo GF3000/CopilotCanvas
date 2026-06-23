@@ -1,21 +1,45 @@
-// VS Code extension — scaffold stub (KAN-5).
-// The real bridge (open webview tab + MCP Apps postMessage channel + relay) lands
-// in KAN-17 (vscode-extension) and KAN-18 (mcp-app-launch).
+// VS Code extension — hosts the Canvas MCP server in-process and renders the
+// canvas tab (Pattern 1, ADR-007 addendum). Copilot CLI connects to the local
+// HTTP MCP endpoint; the open_example_diagram tool opens the webview here.
 import * as vscode from 'vscode';
-import { PROTOCOL_VERSION } from '@canvas/shared';
+import {
+  startCanvasMcpHttpServer,
+  getExampleDiagram,
+  DEFAULT_CANVAS_MCP_PORT,
+  type CanvasHttpServer,
+} from '@canvas/server';
+import { CanvasPanel } from './canvasPanel';
 
-export function activate(context: vscode.ExtensionContext): void {
-  const command = vscode.commands.registerCommand(
-    'canvasForCopilot.openCanvas',
-    () => {
-      void vscode.window.showInformationMessage(
-        `Canvas for Copilot (protocol v${PROTOCOL_VERSION})`,
-      );
-    },
+let httpServer: CanvasHttpServer | undefined;
+
+export async function activate(
+  context: vscode.ExtensionContext,
+): Promise<void> {
+  // Manual command to open the example (handy for testing without the CLI).
+  context.subscriptions.push(
+    vscode.commands.registerCommand('canvasForCopilot.openCanvas', () => {
+      CanvasPanel.show(context.extensionUri, getExampleDiagram());
+    }),
   );
-  context.subscriptions.push(command);
+
+  // Host the MCP server so Copilot CLI can drive the canvas.
+  try {
+    httpServer = await startCanvasMcpHttpServer({
+      port: DEFAULT_CANVAS_MCP_PORT,
+      onOpenDiagram: (diagram) =>
+        CanvasPanel.show(context.extensionUri, diagram),
+    });
+    void vscode.window.showInformationMessage(
+      `Canvas for Copilot: MCP server ready at ${httpServer.url}`,
+    );
+  } catch (err) {
+    void vscode.window.showErrorMessage(
+      `Canvas for Copilot: failed to start MCP server — ${String(err)}`,
+    );
+  }
 }
 
-export function deactivate(): void {
-  // no-op
+export async function deactivate(): Promise<void> {
+  await httpServer?.close();
 }
+
