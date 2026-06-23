@@ -1,0 +1,29 @@
+{
+  "name": "canvas-for-copilot",
+  "displayName": "Canvas for Copilot",
+  "description": "Renders Copilot CLI diagrams as an interactive Cytoscape canvas tab.",
+  "version": "0.0.0",
+  "private": true,
+  "publisher": "canvas-for-copilot",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "main": "./dist/extension.cjs",
+  "activationEvents": [],
+  "contributes": {
+    "commands": [
+      {
+        "command": "canvasForCopilot.openCanvas",
+        "title": "Canvas for Copilot: Open Canvas"
+      }
+    ]
+  },
+  "dependencies": {
+    "@canvas/shared": "*"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "build": "npm run typecheck && esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --outfile=dist/extension.cjs --tsconfig=tsconfig.json",
+    "dev": "esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --outfile=dist/extension.cjs --tsconfig=tsconfig.json --watch"
+  }
+}

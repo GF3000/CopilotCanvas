@@ -1,0 +1,15 @@
+{
+  "name": "@canvas/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "dependencies": {
+    "@canvas/shared": "*"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "build": "npm run typecheck && esbuild src/index.ts --bundle --platform=node --format=esm --outfile=dist/index.js --tsconfig=tsconfig.json",
+    "dev": "esbuild src/index.ts --bundle --platform=node --format=esm --outfile=dist/index.js --tsconfig=tsconfig.json --watch"
+  }
+}
