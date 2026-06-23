@@ -40,8 +40,9 @@ Mirror these tasks on the Jira **KAN** board and keep both in sync. Target
 
 _As of repo scaffold landing (keep in sync with the board):_
 
-- ✅ **In review:** `repo-scaffold` (KAN-5), `shared-protocol` (KAN-4) — the two
-  day-1 foundations. Build is green; the contract compiles.
+- ✅ **Done:** `repo-scaffold` (KAN-5) — monorepo builds green; F5 dev loop verified.
+- 🔵 **In review:** `shared-protocol` (KAN-4) — contract compiles; ratify at the
+  16:30 sync, then → Done.
 - 🟢 **Ready to start now** (dependencies satisfied): `mcp-apps-host-spike` (KAN-16),
   `mcp-server` (KAN-8), `canvas-render` (KAN-6). These only depend on the
   scaffold/contract, so each epic can begin immediately.
@@ -57,7 +58,7 @@ _As of repo scaffold landing (keep in sync with the board):_
 ## Phase 0 — Scaffold
 
 ### `repo-scaffold` — KAN-5
-- **Status:** in-review · **Satisfies:** ARCHITECTURE (folder structure), NFR-3
+- **Status:** done · **Satisfies:** ARCHITECTURE (folder structure), NFR-3
 - **Description:** Create the monorepo skeleton: `/server`, `/canvas`, `/extension`,
   `/shared`. Init TypeScript, package.json(s), a bundler for `/canvas` (Vite or
   esbuild), a VS Code extension skeleton in `/extension`, and lint/test config. Add
