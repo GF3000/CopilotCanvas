@@ -7,6 +7,28 @@
 > between the canvas webview and the server/CLI; the message *shapes* below are
 > transport-agnostic (a raw WebSocket fallback for local debugging uses the same shapes).
 
+## Supported diagram types
+
+The diagram model is a **Cytoscape graph** (nodes + edges; see decisions D2/D4).
+This makes the protocol a strong fit for **topological** diagrams (who-connects-to-whom)
+and unsuitable for **order/time** diagrams (what-happens-when).
+
+| Diagram type | Supported | Notes |
+|--------------|-----------|-------|
+| Flowchart | ✅ Yes | Nodes + directed edges; use `breadthfirst`/`dagre` layout |
+| Dependency / call graph / architecture | ✅ Yes (primary) | Cytoscape's sweet spot — the main use case |
+| Entity/relationship graph | ✅ Yes | Entities = nodes, relations = edges |
+| State machine | ✅ Yes | States = nodes, transitions = labeled edges |
+| Class diagram | ⚠️ Partial | Classes/relations work; UML compartments (attrs/methods) and distinct arrowheads need a styling extension |
+| Sequence diagram | ❌ No | Needs lifelines + time ordering; Cytoscape models topology, not time |
+| Timeline / Gantt | ❌ No | Needs a time axis + explicit positions, which D2 forbids (canvas auto-layouts) |
+
+**Rule of thumb:** graph-shaped (who-connects-to-whom) ✅; order/time-shaped
+(what-happens-when) ❌. Supporting sequence/timeline would require relaxing D2 (let
+the server send positions / a time axis) or a second renderer — a deliberate
+protocol change, not a quick tweak. Out of scope for this hackathon (see
+`PROJECT_BRIEF.md` and ADR-006).
+
 ## Conventions
 
 - All messages are JSON objects with a `type` field (discriminated union), carried
