@@ -4,6 +4,22 @@
 > agents (and teammates) don't undo them. Add a new entry per decision; never
 > rewrite history — supersede instead.
 
+## Status index
+
+> **We build on MCP.** The current transport is **MCP Apps (SEP-1865)** — an MCP
+> server exposing the canvas as an MCP App, JSON-RPC over `postMessage` (ADR-005).
+> The diagram model is **Cytoscape** (ADR-006). The WebSocket/Mermaid decisions
+> below are **deprecated** and kept only as historical record.
+
+| ADR | Decision | Status |
+|-----|----------|--------|
+| ADR-001 | CLI skill + local WebSocket + browser canvas | ⚠️ **Partially superseded** by ADR-005 (transport replaced by MCP Apps; "Copilot is the brain, portable canvas" still holds) |
+| ADR-002 | Mermaid as diagram format/renderer | ❌ **Superseded** by ADR-006 (Cytoscape) |
+| ADR-003 | Node.js / TypeScript stack | ✅ **Accepted** (the `ws`/WebSocket transport detail is superseded by ADR-005; TypeScript choice stands) |
+| ADR-004 | Direct WebSocket bridge, **not** MCP Apps | ❌ **Superseded** by ADR-005 (team chose MCP Apps) |
+| ADR-005 | **Build on MCP Apps (SEP-1865)** as the transport | ✅ **Accepted — current** |
+| ADR-006 | **Cytoscape** interactive graph model | ✅ **Accepted — current** |
+
 ## ADR-001: Ship as a CLI skill first; VS Code extension as a thin webview wrapper later
 
 - **Date:** 2026-06-22
@@ -57,12 +73,16 @@
 ## ADR-003: Node.js / TypeScript stack
 
 - **Date:** 2026-06-22
-- **Status:** Accepted
-- **Context:** Canvas is browser JS; Mermaid is a JS library; VS Code extensions
-  are Node; a single language reduces context-switching for parallel agents.
-- **Decision:** Use **TypeScript** across the CLI skill (Node) and the canvas
-  (browser). Use the `ws` library for the server and native `WebSocket` in the
-  browser. Bundle the canvas with a lightweight bundler (e.g. Vite/esbuild).
+- **Status:** Accepted — **TypeScript stands**. The transport detail below (`ws`
+  WebSocket server + CLI skill) is **superseded by ADR-005**: we use an MCP server
+  with the MCP Apps JSON-RPC `postMessage` channel, not a raw WebSocket. The single-
+  language / shared-types rationale is unchanged.
+- **Context:** Canvas is browser JS; the diagram renderer is a JS library; VS Code
+  extensions are Node; a single language reduces context-switching for parallel agents.
+- **Decision:** Use **TypeScript** across the MCP server (Node) and the canvas
+  (browser). ~~Use the `ws` library for the server and native `WebSocket` in the
+  browser.~~ (Transport is MCP Apps `postMessage` per ADR-005.) Bundle the canvas
+  with a lightweight bundler (e.g. Vite/esbuild).
 - **Consequences:** One toolchain, one set of types (shared protocol types can be
   imported by both server and client). Easy path to the VS Code webview later.
 - **Alternatives considered:** Python CLI + JS canvas (two languages, duplicated

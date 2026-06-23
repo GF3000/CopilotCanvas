@@ -4,8 +4,8 @@
 > understand what exists, where it stops short, and which patterns are worth reusing.
 > Sourced from background research — tool names/details below are **reported but not
 > independently verified**, so treat specifics as approximate. The verified
-> architectural takeaways live in `ARCHITECTURE.md`; the build-vs-defer decision on
-> the MCP Apps approach lives in `DECISIONS.md` (ADR-004).
+> architectural takeaways live in `ARCHITECTURE.md`; the decision to build on the
+> MCP Apps approach lives in `DECISIONS.md` (ADR-005, superseding ADR-004).
 
 ## The gap we target
 
@@ -43,5 +43,7 @@ surfaces or external web apps detached from the terminal workflow.
   separate web app (see `PROJECT_BRIEF.md`).
 - **Bidirectional control surface:** node selection feeds CLI context *and* CLI
   commands mutate code + diagram together (Goals 2–3 in `PROJECT_BRIEF.md`).
-- **Transport-agnostic, portable canvas:** WebSocket now, with VS Code webview and a
-  possible MCP Apps transport as future paths (ADR-001, ADR-004).
+- **MCP-native, portable canvas:** built on **MCP Apps (SEP-1865)** — the canvas is
+  an MCP App rendered by the host and bridged over JSON-RPC `postMessage`, portable
+  across MCP hosts (Copilot CLI, VS Code MCP client). A raw WebSocket remains only
+  as an optional local-debug fallback (ADR-005, supersedes ADR-001/ADR-004).
