@@ -12,7 +12,7 @@
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
-    "dev": "concurrently -n canvas,server,ext -c blue,green,magenta \"npm run dev -w @canvas/canvas\" \"npm run dev -w @canvas/server\" \"npm run dev -w @canvas/extension\"",
+    "dev": "concurrently -n canvas,server,ext -c blue,green,magenta \"npm run dev -w @canvas/canvas\" \"npm run dev -w @canvas/server\" \"npm run dev -w extension\"",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "eslint .",
     "format": "prettier --write .",
