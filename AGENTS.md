@@ -17,24 +17,28 @@
 
 ## Tech stack
 
-- **Language:** TypeScript across the board (Node for the MCP server, browser for
-  the canvas). See `docs/DECISIONS.md` ADR-003.
+- **Language:** TypeScript across the board (Node for the MCP server + VS Code
+  extension, browser for the canvas webview). See `docs/DECISIONS.md` ADR-003.
 - **Integration/transport:** an **MCP server** exposing an **MCP App** (SEP-1865);
-  canvas ⇄ model over **JSON-RPC `postMessage`** in the host's sandboxed iframe
-  (ADR-005). A raw `ws` WebSocket fallback may exist for local debugging only.
+  canvas ⇄ extension over **JSON-RPC `postMessage`** in a **VS Code webview tab**
+  (ADR-005 + ADR-007). A raw `ws` WebSocket fallback may exist for local debugging only.
+- **Rendering / host:** **Copilot CLI in VS Code's integrated terminal** is the
+  brain; a **thin VS Code extension** opens the canvas as a webview tab and bridges
+  the CLI session to it (ADR-007).
 - **Diagrams:** Cytoscape.js interactive graph model (ADR-006). Pan/zoom, node
   tap events, highlighting and filtering are built into Cytoscape.
 - **Canvas bundling:** Vite or esbuild — output a portable bundle served as the
   MCP App HTML resource.
 - **Shared types:** `/shared/protocol.ts` is the canonical protocol definition;
-  import it in both server and canvas, never redefine message shapes.
+  import it in server, canvas, and extension, never redefine message shapes.
 
 ## Project structure
 
 ```
 /server     Canvas MCP server (Node/TS): tools + app resource + repo I/O
 /canvas     MCP App web bundle (TS, Cytoscape, interaction loop)
-/shared     Shared protocol types (imported by server + canvas)
+/extension  VS Code extension (TS): opens the webview tab + CLI↔canvas bridge
+/shared     Shared protocol types (imported by server, canvas, extension)
 /docs       project documents
 ```
 

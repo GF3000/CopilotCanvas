@@ -27,22 +27,23 @@ npm run build   # canvas bundle must build
 |------|------------|----------|-------|-----------------|
 | TC-1 | FR-1 | Render a diagram | Send a `diagram` message with a valid graph model (`elements`) | Canvas renders the Cytoscape graph |
 | TC-2 | FR-1 | Invalid graph model | Send a malformed `elements` model | Readable error, not blank canvas |
-| TC-3 | FR-2 | Open on demand | Invoke the tool first time | Host renders the canvas app once |
-| TC-4 | FR-2 | Reuse surface | Invoke the tool a second time | Same canvas updates, no new surface |
+| TC-3 | FR-2 | Open on demand | Invoke the tool first time | Extension opens the canvas as a VS Code tab once |
+| TC-4 | FR-2 | Reuse tab | Invoke the tool a second time | Same tab updates, no new tab |
 | TC-5 | FR-3 | Pan/zoom | Drag + wheel + reset control | View pans, zooms, and resets to fit |
 | TC-6 | FR-4 | Live update | Push a new `diagram` | Canvas re-renders without refresh |
-| TC-7 | FR-4 | Channel re-init | Host re-initializes the MCP Apps channel | Canvas recovers and re-syncs |
+| TC-7 | FR-4 | Channel re-init | Extension reloads the webview / re-inits the channel | Canvas recovers and re-syncs |
 | TC-8 | FR-5 | Select node | Click a node | Node highlights; server reads current selection |
 | TC-9 | FR-5 | Selection persists | Re-render with node still present | Selection retained |
-| TC-10 | FR-6 | Explain | Select node → "explain this node" | Relevant explanation appears in host |
+| TC-10 | FR-6 | Explain | Select node → "explain this node" | Relevant explanation appears in the CLI |
 | TC-11 | FR-7 | Expand | Select node → "expand this node" | Subnodes/detail appear in place |
 | TC-12 | FR-9 | Modify | Select entrypoint → "add a new entrypoint to do X" | Clarifying questions asked, code edited, diagram updated |
-| TC-13 | NFR-3 | Multi-host | Render the app in a second MCP host | Same diagram renders and accepts interactions |
+| TC-13 | NFR-3 | Second host (stretch) | Render the app in a second MCP host | Same diagram renders and accepts interactions, or limitation documented |
 
 ## Demo script (end-to-end)
 
-1. In the terminal: *"diagram the auth flow."* → the canvas opens in the host with
-   the interactive Cytoscape graph. **(TC-1, TC-3)**
+1. In VS Code's integrated terminal: *"diagram the auth flow."* → the canvas opens
+   as a VS Code tab beside the terminal with the interactive Cytoscape graph.
+   **(TC-1, TC-3)**
 2. Click the `Auth service` node and type *"explain this node."* → Copilot
    explains it in the CLI. **(TC-8, TC-10)**
 3. Type *"expand this node."* → the diagram grows new subnodes in place.

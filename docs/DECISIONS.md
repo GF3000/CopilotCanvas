@@ -6,19 +6,22 @@
 
 ## Status index
 
-> **We build on MCP.** The current transport is **MCP Apps (SEP-1865)** — an MCP
-> server exposing the canvas as an MCP App, JSON-RPC over `postMessage` (ADR-005).
-> The diagram model is **Cytoscape** (ADR-006). The WebSocket/Mermaid decisions
-> below are **deprecated** and kept only as historical record.
+> **We build on MCP, rendered in VS Code.** The user types in **Copilot CLI** (the
+> brain) running in **VS Code's integrated terminal**; a **thin VS Code extension**
+> hosts the canvas as a **webview tab** in the same window and runs the MCP Apps
+> JSON-RPC `postMessage` channel to the canvas (ADR-005 + **ADR-007**). The diagram
+> model is **Cytoscape** (ADR-006). The WebSocket/Mermaid decisions below are
+> **deprecated** and kept only as historical record.
 
 | ADR | Decision | Status |
 |-----|----------|--------|
-| ADR-001 | CLI skill + local WebSocket + browser canvas | ⚠️ **Partially superseded** by ADR-005 (transport replaced by MCP Apps; "Copilot is the brain, portable canvas" still holds) |
+| ADR-001 | CLI skill + local WebSocket + browser canvas | ⚠️ **Partially superseded** by ADR-005 (transport→MCP Apps) and **ADR-007** (the VS Code extension is now **core**, not a stretch goal); "Copilot is the brain, portable canvas" still holds |
 | ADR-002 | Mermaid as diagram format/renderer | ❌ **Superseded** by ADR-006 (Cytoscape) |
 | ADR-003 | Node.js / TypeScript stack | ✅ **Accepted** (the `ws`/WebSocket transport detail is superseded by ADR-005; TypeScript choice stands) |
 | ADR-004 | Direct WebSocket bridge, **not** MCP Apps | ❌ **Superseded** by ADR-005 (team chose MCP Apps) |
-| ADR-005 | **Build on MCP Apps (SEP-1865)** as the transport | ✅ **Accepted — current** |
+| ADR-005 | **Build on MCP Apps (SEP-1865)** as the transport | ✅ **Accepted — current** (rendering surface refined by ADR-007) |
 | ADR-006 | **Cytoscape** interactive graph model | ✅ **Accepted — current** |
+| ADR-007 | **Canvas = VS Code webview tab via a thin extension; CLI is the brain** | ✅ **Accepted — current** |
 
 ## ADR-001: Ship as a CLI skill first; VS Code extension as a thin webview wrapper later
 
@@ -202,3 +205,49 @@
   - *D3 / custom renderer:* maximal control but far more code for layout, pan/zoom,
     and selection. Rejected for the timebox.
   - *Graphviz/DOT:* not natively interactive in-browser. Rejected.
+
+---
+
+## ADR-007: Canvas renders as a VS Code webview tab via a thin extension; Copilot CLI is the brain — refines ADR-005
+
+- **Date:** 2026-06-23
+- **Status:** Accepted (refines ADR-005's rendering surface; promotes the VS Code
+  extension from ADR-001's *stretch goal* to a **core component**)
+- **Context:** ADR-005 adopted MCP Apps and assumed the **MCP host renders** the App
+  resource. In practice a standalone terminal can't draw HTML inline, so the
+  Copilot CLI as host would (at best) pop a **separate window** — it does **not**
+  deliver the intended UX: *type in Copilot CLI and see the canvas as a VS Code
+  tab*. Relying on the host's default surface also makes the rendering location and
+  availability host-dependent and unverified. The team wants a single-window,
+  split-screen experience (terminal + live canvas) for the demo.
+- **Decision:** Ship **Option 3**. **Copilot CLI runs in VS Code's integrated
+  terminal and remains the brain.** A **thin VS Code extension** hosts the canvas as
+  a **webview editor tab** in the same window and runs the **MCP Apps JSON-RPC
+  `postMessage`** channel to the canvas bundle. The extension bridges the canvas to
+  the Copilot CLI session via the **Canvas MCP server** (the shared tool hub):
+  diagram/`patch` outputs are relayed into the webview; `node_selected`/
+  `interaction` events flow back to the model. Three roles:
+  **Copilot CLI (brain) ↔ Canvas MCP server + VS Code extension (tools + bridge) ↔
+  webview (Cytoscape canvas)**.
+- **Consequences:**
+  - The **VS Code extension is a required component** (Epic 3 / India), not a
+    stretch — supersedes ADR-001's "extension is a stretch goal" and the
+    `PROJECT_BRIEF.md` "no VS Code extension required" line.
+  - **MCP Apps `postMessage` stays** the canvas ↔ extension channel; the extension
+    owns webview creation, lifecycle, and CSP/sandbox.
+  - **Primary host is VS Code.** Cross-host portability (NFR-3) becomes a **stretch**,
+    not a day-1 guarantee.
+  - We **control the surface** (a dockable VS Code tab) and **session correlation is
+    trivial** (one window).
+  - New folder: `/extension` (the VS Code extension bridge).
+  - **Risk to validate early:** the **server ↔ extension relay** — how CLI-driven
+    diagrams reach the extension's webview. Likely the extension launches/embeds the
+    Canvas MCP server (in-process) or connects over a local channel; confirm on day 1.
+- **Alternatives considered:**
+  - *Option 2 — pure MCP App (host auto-renders):* least code, but the canvas lands
+    wherever the host puts it — with the standalone CLI that's a **separate window**,
+    not a VS Code tab, and depends on uneven host support. **Deferred**; worth a
+    quick day-1 spike since it could delete the extension epic if it works well.
+  - *Option 1 — standalone terminal + separate VS Code window:* true terminal-first
+    but needs a **cross-process/window bridge** and session pairing — too much for
+    the timebox. **Deferred** as a post-hackathon "decoupled viewer."

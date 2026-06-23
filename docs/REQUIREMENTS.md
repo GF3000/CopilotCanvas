@@ -18,14 +18,14 @@ model (Cytoscape elements) in the canvas so that I can see a system visually.
 
 **Priority:** Must · **Depends on:** none
 
-### FR-2: Canvas opens on demand on first use
-**User story:** As a developer, I want the canvas to open automatically the first
-time a diagram is produced so that I don't run extra commands.
+### FR-2: Canvas opens as a VS Code tab on demand on first use
+**User story:** As a developer, I want the canvas to open automatically as a VS Code
+tab the first time a diagram is produced so that I don't run extra commands.
 
 **Acceptance criteria:**
-- [ ] On first diagram, the MCP server provides the canvas as an MCP App resource.
-- [ ] The MCP host renders the canvas automatically (sandboxed iframe).
-- [ ] Subsequent diagrams reuse the same rendered surface (no duplicate windows).
+- [ ] On first diagram, the Canvas MCP server provides the canvas as an MCP App resource.
+- [ ] The VS Code extension opens the canvas as a webview tab automatically.
+- [ ] Subsequent diagrams reuse the same tab (no duplicate tabs/windows).
 
 **Priority:** Must · **Depends on:** FR-1
 
@@ -42,7 +42,7 @@ canvas to update without a manual refresh.
 
 **Acceptance criteria:**
 - [ ] A new `diagram`/`patch` message re-renders the open canvas in place.
-- [ ] The canvas recovers if the host re-initializes the MCP Apps channel.
+- [ ] The canvas recovers if the extension reloads the webview / re-inits the channel.
 
 **Priority:** Must · **Depends on:** FR-1, FR-2
 
@@ -91,7 +91,7 @@ evolve together.
 **Acceptance criteria:**
 - [ ] A `modify` interaction passes the selected node + instruction to the server.
 - [ ] The server gathers code context for that node (via `codeRefs`).
-- [ ] Copilot **asks clarifying questions** in the host before/while implementing.
+- [ ] Copilot **asks clarifying questions** in the CLI before/while implementing.
 - [ ] Copilot applies the code change to the repo.
 - [ ] The diagram is updated to reflect the change.
 
@@ -108,11 +108,11 @@ evolve together.
 
 | ID | Category | Requirement |
 |------|-----------|-------------|
-| NFR-1 | Security | Runs locally; canvas sandboxed by the MCP host; no external exposure |
+| NFR-1 | Security | Runs locally; canvas sandboxed in a VS Code webview (extension-set CSP); no external exposure |
 | NFR-2 | Performance | Diagram render + live update feels instant (< ~300 ms for typical diagrams) |
-| NFR-3 | Portability | Canvas is a self-contained MCP App bundle renderable across MCP hosts (Copilot CLI, VS Code) |
-| NFR-4 | Resilience | Canvas recovers when the host re-initializes the MCP Apps channel |
-| NFR-5 | Single-session | One developer, one canvas surface; no auth/multi-user |
+| NFR-3 | Portability | Canvas is a self-contained MCP App bundle; **primary host is VS Code** (webview tab via the extension). Rendering in other MCP hosts is a stretch |
+| NFR-4 | Resilience | Canvas recovers when the extension reloads the webview / re-inits the channel |
+| NFR-5 | Single-session | One developer, one canvas tab; no auth/multi-user |
 
 ## Prioritization (MoSCoW)
 

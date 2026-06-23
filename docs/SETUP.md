@@ -6,9 +6,10 @@
 ## Prerequisites
 
 - **Node.js 20+** and npm
-- An **MCP host that supports MCP Apps (SEP-1865)** — e.g. the Copilot CLI MCP
-  client or the VS Code MCP client — installed and authenticated
-- The Canvas MCP server registered with that host (see *Register the MCP server*)
+- **VS Code** (the primary host)
+- **Copilot CLI** installed and authenticated, run in **VS Code's integrated terminal**
+- The **Canvas VS Code extension** installed (from `/extension`) and the Canvas MCP
+  server registered with Copilot CLI (see *Install the extension & register the server*)
 
 ## Environment variables
 
@@ -28,39 +29,43 @@ npm install
 ## Build
 
 ```bash
-npm run build   # builds the MCP server and the /canvas MCP App bundle
+npm run build   # builds the MCP server, the /canvas bundle, and the /extension
 ```
 
-## Register the MCP server
+## Install the extension & register the server
 
-Add the Canvas MCP server to your host's MCP configuration (e.g. the host's
-`mcp.json` / settings), pointing at the built server entry in `/server`. Restart
-or reload the host so it picks up the server and its MCP App resource.
+1. **Install the VS Code extension** from `/extension` (e.g. `code --install-extension`
+   the packaged `.vsix`, or run the Extension Development Host with F5 during dev).
+2. **Register the Canvas MCP server** with Copilot CLI (its MCP config), pointing at
+   the built server entry in `/server`, so the CLI can invoke the canvas tools.
 
 ## Run (development)
 
 ```bash
-npm run dev     # rebuilds the server + canvas bundle on change
+npm run dev     # rebuilds the server + canvas bundle + extension on change
 ```
 
-The host launches and renders the canvas App on demand the first time a diagram is
-pushed — no separate browser process or port is required for the primary path.
+Open VS Code, run Copilot CLI in the integrated terminal, and ask for a diagram —
+the extension opens the canvas as a webview tab the first time a diagram is pushed.
+No separate browser process or port is required for the primary path.
 
 ## Using it from Copilot CLI
 
-1. Start a Copilot CLI session (with the Canvas MCP server registered) in your
-   project.
+1. Open your project in **VS Code** and start a **Copilot CLI** session in the
+   **integrated terminal** (with the Canvas MCP server registered).
 2. Ask, e.g., *"diagram the auth flow."*
-3. The canvas opens in the host; click nodes and issue follow-ups (*explain*,
-   *expand*, *modify*) — see `docs/REQUIREMENTS.md` for supported interactions.
+3. The canvas opens as a **VS Code tab beside the terminal**; click nodes and issue
+   follow-ups (*explain*, *expand*, *modify*) — see `docs/REQUIREMENTS.md` for
+   supported interactions.
 
 ## Troubleshooting
 
-- **Canvas didn't open:** confirm the MCP server is registered and the host
-  supports MCP Apps; check the host's MCP logs.
+- **Canvas tab didn't open:** confirm the Canvas extension is installed/activated and
+  the MCP server is registered with the CLI; check the extension's Output channel and
+  the CLI's MCP logs.
 - **Blank canvas:** likely an invalid graph model — an error overlay should appear;
   the server should validate the `elements` model before sending (see
   `ARCHITECTURE.md`).
-- **Canvas not updating:** check the MCP Apps channel in the host's logs; the
-  canvas should re-sync when the channel re-initializes.
+- **Canvas not updating:** check the webview `postMessage` channel in the extension's
+  Output channel; the canvas should re-sync when the extension reloads the webview.
 

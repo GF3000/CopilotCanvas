@@ -18,13 +18,15 @@ Mirror these tasks on the Jira **KAN** board and keep both in sync. Target
 
 | Epic | Owner | Tasks |
 |------|-------|-------|
-| **Frontend / Canvas UI** (`/canvas`) | **US (3p)** | `canvas-render`, `node-selection`, `expand-node` (render side), `live-update` (render side) |
+| **Frontend / Canvas UI** (`/canvas`) | **US (3p)** | `canvas-render`, `node-selection` (render side), `expand-node` (render side), `live-update` (render side) |
 | **MCP logic / tools** (`/server`) | **Dublin (2p)** | `mcp-server`, `explain-node`, `expand-node` (server side), `node-code-refs`, `modify-from-node` |
-| **VS Code extension / bridge** (extension + `/shared`) | **India (1p)** | `mcp-app-launch`, `live-update` (channel), `multi-host-validation`, `diagram-edit-to-code` |
+| **VS Code extension / bridge** (`/extension`) | **India (1p)** | `mcp-apps-host-spike`, `vscode-extension`, `mcp-app-launch` (relay), `live-update` (channel), `multi-host-validation`, `diagram-edit-to-code` |
 | **Shared kick-off** (do first, together) | All | `repo-scaffold`, `shared-protocol` |
 
 > `shared-protocol` is the cross-epic contract — land it early on day 1 so all
-> three streams can build against stable types.
+> three streams can build against stable types. The **architecture is Option 3**
+> (ADR-007): Copilot CLI in VS Code's integrated terminal is the brain; the
+> extension renders the canvas as a webview tab and bridges CLI ⇄ canvas.
 
 ---
 
@@ -32,23 +34,35 @@ Mirror these tasks on the Jira **KAN** board and keep both in sync. Target
 
 ### `repo-scaffold`
 - **Status:** todo · **Satisfies:** ARCHITECTURE (folder structure), NFR-3
-- **Description:** Create the monorepo skeleton: `/server`, `/canvas`, `/shared`.
-  Init TypeScript, package.json(s), a bundler for `/canvas` (Vite or esbuild), and
-  lint/test config. Add `npm run dev`, `build`, `lint`, `test` scripts even if
-  minimal.
+- **Description:** Create the monorepo skeleton: `/server`, `/canvas`, `/extension`,
+  `/shared`. Init TypeScript, package.json(s), a bundler for `/canvas` (Vite or
+  esbuild), a VS Code extension skeleton in `/extension`, and lint/test config. Add
+  `npm run dev`, `build`, `lint`, `test` scripts even if minimal.
 - **Depends on:** none
 - **Acceptance:** `npm install`, `npm run build`, `npm run lint`, `npm test` all
-  run successfully (tests may be trivial).
+  run successfully (tests may be trivial); the extension skeleton activates in VS Code.
 
 ### `shared-protocol`
 - **Status:** todo · **Satisfies:** DATA_MODEL
 - **Description:** Implement `/shared/protocol.ts` — the discriminated-union
   message types and entity interfaces (DiagramState, NodeMeta, CodeRef, Selection,
   all S→C and C→S messages) exactly as defined in `DATA_MODEL.md`. Export from
-  both server and canvas.
+  server, canvas, and extension.
 - **Depends on:** repo-scaffold
-- **Acceptance:** types compile and are importable from `/server` and `/canvas`;
-  a type-level test asserts every `type` value is covered.
+- **Acceptance:** types compile and are importable from `/server`, `/canvas`, and
+  `/extension`; a type-level test asserts every `type` value is covered.
+
+### `mcp-apps-host-spike`
+- **Status:** todo · **Satisfies:** ADR-007 (risk), NFR-3
+- **Description:** **Day-1 de-risking spike.** Stand up a trivial Canvas MCP server
+  and (a) confirm how a VS Code webview hosts the MCP Apps `postMessage` channel, and
+  (b) prove the **server ↔ extension relay**: a diagram emitted by a Copilot-CLI-driven
+  tool reaches the extension's webview. Decide extension-embeds-server (in-process)
+  vs. local channel. Optionally check whether the standalone CLI renders an MCP App
+  at all (informs the deferred Option 2).
+- **Depends on:** repo-scaffold
+- **Acceptance:** a hard-coded diagram pushed from the server appears in a VS Code
+  webview tab; the relay approach is chosen and documented for the team.
 
 ---
 
@@ -58,16 +72,27 @@ Mirror these tasks on the Jira **KAN** board and keep both in sync. Target
 - **Status:** todo · **Satisfies:** FR-1, FR-2, NFR-1, NFR-4
 - **Description:** In `/server`, implement the **MCP server** that declares the
   canvas **MCP App** HTML UI resource (MIME `text/html;profile=mcp-app`) and
-  exposes a tool to push diagrams. Wire the MCP Apps **JSON-RPC `postMessage`**
-  channel so the server can send `diagram` messages to the app and receive canvas
-  events back. Track session state (current diagram, selection).
+  exposes a tool to push diagrams. Emit `diagram` messages (Cytoscape `elements`)
+  and receive canvas events back via the extension relay. Track session state
+  (current diagram, selection).
 - **Depends on:** shared-protocol
-- **Acceptance:** the MCP host renders the app resource; a `diagram` message sent
-  via the server's tool reaches the app; canvas events arrive back at the server.
+- **Acceptance:** a `diagram` message sent via the server's tool reaches the
+  extension; canvas events arrive back at the server.
+
+### `vscode-extension`
+- **Status:** todo · **Satisfies:** FR-2, NFR-1
+- **Description:** In `/extension`, implement the **thin VS Code extension** that
+  opens the canvas as a **webview editor tab**, loads the `/canvas` bundle, sets a
+  restrictive CSP, and runs the **MCP Apps JSON-RPC `postMessage`** channel to the
+  webview. Connect to the Canvas MCP server via the relay chosen in
+  `mcp-apps-host-spike`.
+- **Depends on:** shared-protocol, mcp-apps-host-spike
+- **Acceptance:** activating the extension opens a canvas webview tab; messages
+  posted to the webview arrive, and webview→extension events are received.
 
 ### `canvas-render`
 - **Status:** todo · **Satisfies:** FR-1, FR-3
-- **Description:** In `/canvas`, build the MCP App that connects to the MCP Apps
+- **Description:** In `/canvas`, build the MCP App that connects to the webview
   `postMessage` channel, handles `hello`, renders an incoming `diagram`'s
   `elements` with **Cytoscape**, and provides built-in pan/zoom with a fit/reset
   control. Show a readable error for an invalid graph model.
@@ -77,21 +102,20 @@ Mirror these tasks on the Jira **KAN** board and keep both in sync. Target
 
 ### `mcp-app-launch`
 - **Status:** todo · **Satisfies:** FR-1, FR-2
-- **Description:** Implement the server tool/flow that generates or accepts a graph
-  model (Cytoscape `elements`) and pushes a `diagram` message, causing the MCP host
-  to render the canvas app in its iframe. Reuse the already-rendered app for
-  subsequent diagrams.
-- **Depends on:** mcp-server, canvas-render
-- **Acceptance:** invoking the tool with a graph model renders the diagram in the
-  host's canvas; a second invocation updates the same surface in place.
+- **Description:** Wire the end-to-end open: a Copilot-CLI-invoked server tool that
+  generates/accepts a graph model (Cytoscape `elements`) and pushes a `diagram`,
+  which the **extension renders by opening (or reusing) the canvas webview tab**.
+- **Depends on:** mcp-server, vscode-extension, canvas-render
+- **Acceptance:** invoking the tool from the CLI opens the canvas tab with the
+  diagram; a second invocation updates the same tab in place.
 
 ### `live-update`
 - **Status:** todo · **Satisfies:** FR-4, NFR-2, NFR-4
 - **Description:** Wire live updates: new `diagram`/`patch` messages re-render the
-  rendered canvas in place; handle channel reconnection/re-init gracefully.
+  canvas tab in place; handle webview reload / channel re-init gracefully.
 - **Depends on:** mcp-app-launch
-- **Acceptance:** pushing a second diagram updates the canvas with no manual
-  refresh; the app recovers if the host re-initializes the channel.
+- **Acceptance:** pushing a second diagram updates the canvas tab with no manual
+  refresh; the canvas recovers if the extension reloads the webview.
 
 > **Goal 1 done when:** FR-1..FR-4 pass (see `TEST_PLAN.md`).
 
@@ -102,8 +126,8 @@ Mirror these tasks on the Jira **KAN** board and keep both in sync. Target
 ### `node-selection`
 - **Status:** todo · **Satisfies:** FR-5, FR-8
 - **Description:** Canvas: tapping a Cytoscape node selects it (visual state via a
-  class/selector) and emits `node_selected`. Server: persist current
-  `(diagramId, nodeIds)`. Ensure stable node ids survive re-render.
+  class/selector) and emits `node_selected` to the extension. Server: persist
+  current `(diagramId, nodeIds)`. Ensure stable node ids survive re-render.
 - **Depends on:** live-update
 - **Acceptance:** clicking highlights the node and the server can read the current
   selection; selection persists across a re-render where the node still exists.
@@ -111,11 +135,11 @@ Mirror these tasks on the Jira **KAN** board and keep both in sync. Target
 ### `explain-node`
 - **Status:** todo · **Satisfies:** FR-6, FR-8
 - **Description:** Implement the `explain` interaction: the canvas sends an
-  `interaction` with the selection; server prompts Copilot with node context and
-  surfaces the explanation in the host.
+  `interaction` with the selection (via the extension); server prompts Copilot with
+  node context and surfaces the explanation in the CLI.
 - **Depends on:** node-selection
 - **Acceptance:** with a node selected, "explain this node" yields a relevant
-  Copilot explanation in the host.
+  Copilot explanation in the CLI.
 
 ### `expand-node`
 - **Status:** todo · **Satisfies:** FR-7
@@ -141,7 +165,7 @@ Mirror these tasks on the Jira **KAN** board and keep both in sync. Target
 - **Status:** todo · **Satisfies:** FR-9
 - **Description:** Implement the `modify` interaction: take selected node +
   instruction, gather code context via `codeRefs`, **ask the user clarifying
-  questions** in the host, apply the code change, then re-emit an updated `diagram`.
+  questions** in the CLI, apply the code change, then re-emit an updated `diagram`.
 - **Depends on:** node-code-refs
 - **Acceptance:** selecting an entrypoint node + "add a new entrypoint to do X"
   triggers clarifying questions, a real code edit, and an updated diagram.
@@ -158,13 +182,14 @@ Mirror these tasks on the Jira **KAN** board and keep both in sync. Target
 ## Phase 4 — Stretch
 
 ### `multi-host-validation`
-- **Status:** todo · **Satisfies:** NFR-3, ADR-005
-- **Description:** Validate the MCP App renders and round-trips in more than one MCP
-  host (e.g. Copilot CLI and the VS Code MCP client). Fix any host-specific
-  rendering/CSP/channel-init issues so the same canvas bundle is portable.
+- **Status:** todo · **Satisfies:** NFR-3, ADR-007
+- **Description:** **Stretch.** VS Code is the primary host. Optionally validate the
+  same canvas bundle/MCP App in a second MCP host and fix host-specific
+  rendering/CSP/channel-init issues. (Pure host-rendered Option 2 is the deferred
+  fallback — see `mcp-apps-host-spike` and ADR-007.)
 - **Depends on:** live-update
-- **Acceptance:** the same `diagram` push renders and accepts interactions in at
-  least two MCP hosts.
+- **Acceptance:** the same `diagram` push renders and accepts interactions in a
+  second host, or the limitation is documented.
 
 ---
 
@@ -176,7 +201,9 @@ The task graph as a Cytoscape model — each edge means "depends on completion o
 const elements = [
   { data: { id: 'repo-scaffold',        label: 'repo-scaffold' } },
   { data: { id: 'shared-protocol',      label: 'shared-protocol' } },
+  { data: { id: 'mcp-apps-host-spike',  label: 'mcp-apps-host-spike' } },
   { data: { id: 'mcp-server',           label: 'mcp-server' } },
+  { data: { id: 'vscode-extension',     label: 'vscode-extension' } },
   { data: { id: 'canvas-render',        label: 'canvas-render' } },
   { data: { id: 'mcp-app-launch',       label: 'mcp-app-launch' } },
   { data: { id: 'live-update',          label: 'live-update' } },
@@ -189,9 +216,13 @@ const elements = [
   { data: { id: 'multi-host-validation', label: 'multi-host-validation' } },
 
   { data: { source: 'repo-scaffold',    target: 'shared-protocol' } },
+  { data: { source: 'repo-scaffold',    target: 'mcp-apps-host-spike' } },
   { data: { source: 'shared-protocol',  target: 'mcp-server' } },
   { data: { source: 'shared-protocol',  target: 'canvas-render' } },
+  { data: { source: 'shared-protocol',  target: 'vscode-extension' } },
+  { data: { source: 'mcp-apps-host-spike', target: 'vscode-extension' } },
   { data: { source: 'mcp-server',       target: 'mcp-app-launch' } },
+  { data: { source: 'vscode-extension', target: 'mcp-app-launch' } },
   { data: { source: 'canvas-render',    target: 'mcp-app-launch' } },
   { data: { source: 'mcp-app-launch',   target: 'live-update' } },
   { data: { source: 'live-update',      target: 'node-selection' } },

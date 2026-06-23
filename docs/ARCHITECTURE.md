@@ -1,20 +1,22 @@
 # Architecture
 
 > The **how**, at a high level. Decisions that pin these choices live in
-> `DECISIONS.md` (ADR-001..005). **Transport/host model is defined by ADR-005:
-> MCP Apps**, which supersedes the WebSocket approach in ADR-004.
+> `DECISIONS.md` (ADR-001..007). **Transport is MCP Apps (ADR-005)**; the **canvas
+> renders as a VS Code webview tab via a thin extension, with Copilot CLI in the
+> integrated terminal as the brain (ADR-007)**.
 
 ## Tech stack
 
 | Layer | Choice | Why |
 |--------|--------|-----|
 | Language | TypeScript (Node + browser) | One toolchain, shared protocol types (ADR-003) |
-| Integration | **MCP server** exposing an **MCP App** | Standard, host-portable UI + tools (ADR-005) |
-| Transport | **JSON-RPC over `postMessage`** (MCP Apps channel) | Host-rendered sandboxed iframe ⇄ model (ADR-005) |
+| Integration | **MCP server** exposing an **MCP App** | Standard UI + tools surface (ADR-005) |
+| Transport | **JSON-RPC over `postMessage`** (MCP Apps channel) | Webview ⇄ extension/model channel (ADR-005) |
 | Diagram model | **Cytoscape graph elements (JSON)** | Structured nodes/edges, LLM-friendly to emit, natively interactive (ADR-006) |
-| Canvas UI | Portable web bundle (Vite/esbuild) served as an MCP App resource | Rendered by the MCP host's iframe; transport-agnostic |
+| Canvas UI | Portable web bundle (Vite/esbuild) served as an MCP App resource | Rendered inside the VS Code webview tab; transport-agnostic |
 | Renderer / interaction | Cytoscape.js | Renders the graph; built-in pan/zoom, tap events, selectors for highlight/filter |
-| MCP host | Copilot CLI / VS Code MCP client | Renders the app, runs the JSON-RPC channel |
+| Rendering surface | **VS Code extension webview tab** | Opens/owns the canvas tab + CSP; bridges CLI ⇄ webview (ADR-007) |
+| Brain | **Copilot CLI in VS Code's integrated terminal** | Drives the MCP server's tools; where the user types (ADR-001, ADR-007) |
 
 ## System overview
 
@@ -26,36 +28,40 @@ the user interacts with.
 // Graph model (Cytoscape elements)
 const elements = [
   { data: { id: 'dev',    label: 'Developer' } },
-  { data: { id: 'host',   label: 'MCP host: Copilot CLI / VS Code' } },
-  { data: { id: 'server', label: 'Canvas MCP server' } },
-  { data: { id: 'canvas', label: 'MCP App canvas (sandboxed iframe)' } },
+  { data: { id: 'cli',    label: 'Copilot CLI (brain, in VS Code terminal)' } },
+  { data: { id: 'server', label: 'Canvas MCP server (tools)' } },
+  { data: { id: 'ext',    label: 'VS Code extension (bridge)' } },
+  { data: { id: 'webview', label: 'Canvas webview tab' } },
   { data: { id: 'cy',     label: 'Cytoscape graph' } },
   { data: { id: 'repo',   label: 'Codebase' } },
 
-  { data: { source: 'dev',    target: 'host',   label: 'prompt: "diagram the auth flow"' } },
-  { data: { source: 'host',   target: 'server', label: 'MCP tools + app resource' } },
-  { data: { source: 'host',   target: 'canvas', label: 'renders' } },
-  { data: { source: 'canvas', target: 'host',   label: 'JSON-RPC over postMessage' } },
-  { data: { source: 'canvas', target: 'cy',     label: 'renders' } },
-  { data: { source: 'dev',    target: 'canvas', label: 'pan/zoom/click/edit' } },
+  { data: { source: 'dev',    target: 'cli',    label: 'prompt: "diagram the auth flow"' } },
+  { data: { source: 'cli',    target: 'server', label: 'invokes MCP tools' } },
+  { data: { source: 'server', target: 'ext',    label: 'graph model (diagram/patch)' } },
+  { data: { source: 'ext',    target: 'webview', label: 'JSON-RPC over postMessage' } },
+  { data: { source: 'webview', target: 'cy',    label: 'renders' } },
+  { data: { source: 'dev',    target: 'webview', label: 'pan/zoom/click/edit' } },
+  { data: { source: 'webview', target: 'ext',   label: 'node_selected / interaction' } },
+  { data: { source: 'ext',    target: 'server', label: 'forwards events → CLI' } },
   { data: { source: 'server', target: 'repo',   label: 'reads/writes' } },
 ];
 
-// Rendering layer
+// Rendering layer (runs inside the VS Code webview tab)
 const cy = cytoscape({
   container: document.getElementById('cy'),
   elements,
   layout: { name: 'breadthfirst', directed: true },
 });
 
-// Interaction loop: a node tap is routed back to the model as data only
+// Interaction loop: a node tap is posted to the extension as data only
 cy.on('tap', 'node', (evt) => {
-  postToModel({ type: 'node_selected', nodeIds: [evt.target.id()] });
+  vscode.postMessage({ type: 'node_selected', nodeIds: [evt.target.id()] });
 });
 ```
 
 This single model captures the same topology the old text diagram did, but every
-node is now a live, clickable object the user can select, expand, and filter.
+node is now a live, clickable object the user can select, expand, and filter — and
+it renders as a **VS Code tab beside the integrated terminal** running Copilot CLI.
 
 ## The bidirectional loop (core novelty)
 
@@ -92,37 +98,48 @@ const cy = cytoscape({
 
 ## Components
 
+### Copilot CLI (the brain) — runs in VS Code's integrated terminal
+- **Responsibility:** Where the user types. As the MCP client, it invokes the Canvas
+  MCP server's tools to generate/patch diagrams and to act on canvas interactions.
+  Provided by the platform — we don't build it; we register our MCP server with it.
+
 ### Canvas MCP server (Node)
-- **Responsibility:** Declare the MCP App HTML UI resource (MIME
-  `text/html;profile=mcp-app`), expose tools to generate/update diagrams, receive
-  canvas events over the MCP Apps JSON-RPC channel, translate them into Copilot
+- **Responsibility:** Expose tools to generate/update diagrams (emit Cytoscape
+  `elements`), declare the canvas MCP App HTML UI resource (MIME
+  `text/html;profile=mcp-app`), relay `diagram`/`patch` output to the VS Code
+  extension, receive canvas events back, translate them into Copilot
   prompts/actions, read & write the codebase (advanced tier), and track session
   state (current diagram, selection).
-- **Talks to:** the MCP host (Copilot CLI / VS Code), the canvas (via the host's
-  `postMessage` channel), the repo.
+- **Talks to:** Copilot CLI (as the MCP client driving it), the VS Code extension
+  (which renders the canvas and relays events), the repo.
 
-### Canvas web app (MCP App resource, runs in the host iframe)
+### VS Code extension (the bridge) — renders the canvas tab
+- **Responsibility:** Open and own the **canvas webview tab** in VS Code, set its
+  CSP, and run the **MCP Apps JSON-RPC `postMessage`** channel to the canvas bundle.
+  Relay graph models from the Canvas MCP server into the webview, and forward
+  `node_selected` / `interaction` / `diagram_edited` events from the webview back to
+  the server/CLI. Manages tab lifecycle and reconnection.
+- **Talks to:** the Canvas MCP server (relay link — likely launches/embeds it or
+  connects over a local channel), the canvas webview (`postMessage`).
+
+### Canvas web app (MCP App resource, runs in the VS Code webview tab)
 - **Responsibility:** Render the Cytoscape graph, provide built-in pan/zoom,
   capture node selection/highlight/filter and edits, and exchange JSON-RPC
-  messages with the model over the MCP Apps `postMessage` channel.
-- **Talks to:** the MCP host bridge. Transport is abstracted so the same bundle
-  could also run over a raw WebSocket for local debugging (non-primary).
-
-### MCP host (Copilot CLI / VS Code)
-- **Responsibility:** Render the MCP App in a sandboxed iframe and run the
-  bidirectional JSON-RPC `postMessage` channel between canvas and model. Provided
-  by the platform — we don't build it.
+  messages with the extension over the webview `postMessage` channel.
+- **Talks to:** the VS Code extension (webview `postMessage`). Transport is
+  abstracted so the same bundle could also run over a raw WebSocket for local
+  debugging (non-primary).
 
 ## Key data flows
 
-1. **Generate:** prompt → server builds a graph model (`elements`) → `diagram` msg
-   → canvas renders with Cytoscape.
-2. **Explain:** click node → `node_selected` → server prompts Copilot with node
-   context → reply shown in the host.
+1. **Generate:** prompt in CLI → server builds a graph model (`elements`) → relayed
+   to the extension → `diagram` msg over `postMessage` → webview renders with Cytoscape.
+2. **Explain:** click node → `node_selected` → extension forwards to server → server
+   prompts Copilot with node context → reply shown in the CLI.
 3. **Expand:** `expand` interaction → server regenerates a richer subgraph →
-   `diagram`/`patch` msg → canvas re-renders in place.
+   `diagram`/`patch` msg → webview re-renders in place.
 4. **Modify (advanced):** select node + instruction → server gathers code context
-   for that node → asks clarifying questions in the host → edits code → emits
+   for that node → asks clarifying questions in the CLI → edits code → emits
    updated `diagram` reflecting the change.
 
 ## Interactivity model
@@ -156,10 +173,12 @@ cy.on('tap', 'node', (evt) => {
 
 ## Lifecycle
 
-- **First use:** the MCP host launches the canvas as an MCP App resource and
-  renders it in a sandboxed iframe; no manual browser auto-open or port binding.
-  Subsequent diagrams update the same rendered app in place (live update).
-- **Shutdown:** the MCP server shuts down with the host/session.
+- **First use:** the VS Code extension activates and, on the first `diagram`, opens
+  the canvas as a **webview editor tab** (beside the integrated terminal) and loads
+  the MCP App bundle; no manual browser auto-open or port binding. Subsequent
+  diagrams update the same tab in place (live update).
+- **Shutdown:** the canvas tab closes with the window/session; the Canvas MCP server
+  shuts down with the Copilot CLI session.
 
 ## Folder structure (target)
 
@@ -167,21 +186,23 @@ cy.on('tap', 'node', (evt) => {
 /
   /server       Canvas MCP server (Node/TS): tools + app resource + repo I/O
   /canvas       MCP App web bundle (TS, Cytoscape, interaction loop)
-  /shared       Shared protocol types (imported by server + canvas)
+  /extension    VS Code extension (TS): opens the webview tab + CLI↔canvas bridge
+  /shared       Shared protocol types (imported by server, canvas, extension)
   /docs         these documents
 ```
 
 ## Security / constraints
 
-- **Host sandbox:** the canvas runs in the MCP host's **sandboxed iframe**; rely on
-  the host CSP and never load untrusted remote scripts.
+- **Webview sandbox:** the canvas runs in a **VS Code webview** with a restrictive
+  **CSP set by the extension**; never load untrusted remote scripts (bundle assets
+  locally).
 - **Single user/session:** no auth, no multi-tenant (see brief, out of scope).
 - **Interactions are data-only by design:** Cytoscape needs no `eval`/inline-script
   escape hatch — node taps, highlights, and filters are native graph events.
   Mitigate risk by (a) validating the graph model against the protocol schema
   before rendering, (b) never executing arbitrary JS carried in node data — route
   every click through the protocol as a data-only `node_selected` message, and
-  (c) relying on the MCP App's sandboxed iframe.
+  (c) relying on the VS Code webview sandbox + extension-set CSP.
 
 ## Diagram integrity (validation & sync)
 
@@ -206,8 +227,11 @@ cy.on('tap', 'node', (evt) => {
 
 ## Risks & open questions
 
-- Exact level of MCP Apps (SEP-1865) support in the target MCP host (Copilot CLI /
-  VS Code MCP client): app-resource rendering and the JSON-RPC `postMessage`
-  channel — validate early against the host's MCP-Apps implementation.
+- **Server ↔ extension relay (ADR-007):** how CLI-driven `diagram`/`patch` output
+  reaches the extension's webview — extension launches/embeds the Canvas MCP server
+  (in-process) vs. a local channel. **Validate on day 1.**
+- MCP Apps (SEP-1865) `postMessage` semantics inside a VS Code webview — confirm the
+  JSON-RPC channel and App-resource loading behave as expected.
 - Stable node identity across diagram regenerations (needed for selection/expand).
 - Mapping a Cytoscape node back to concrete code locations (advanced tier).
+- Multi-host portability beyond VS Code is a **stretch** (NFR-3), not day-1.

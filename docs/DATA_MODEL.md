@@ -1,10 +1,11 @@
 # Data Model & Protocol
 
 > The single source of truth for the **canvas message protocol** and the canvas
-> state model. Both the MCP server and the canvas (MCP App) import the shared types
-> in `/shared`. Per ADR-005 the transport is **JSON-RPC over the MCP Apps
-> `postMessage` channel**; the message *shapes* below are transport-agnostic (a raw
-> WebSocket fallback for local debugging uses the same shapes).
+> state model. The MCP server, the canvas (MCP App), and the VS Code extension
+> import the shared types in `/shared`. Per ADR-005 + ADR-007 the transport is
+> **JSON-RPC over the MCP Apps `postMessage` channel**, run by the VS Code extension
+> between the canvas webview and the server/CLI; the message *shapes* below are
+> transport-agnostic (a raw WebSocket fallback for local debugging uses the same shapes).
 
 ## Conventions
 

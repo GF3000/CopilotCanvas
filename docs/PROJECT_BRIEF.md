@@ -2,10 +2,10 @@
 
 ## One-line pitch
 
-**Canvas for Copilot** — a lightweight interactive canvas that opens on demand and
-stays connected to your Copilot CLI session via the Model Context Protocol (MCP
-Apps), turning Copilot's text explanations of systems into live, interactive
-diagrams.
+**Canvas for Copilot** — a lightweight interactive canvas that opens as a **VS Code
+tab** and stays connected to your Copilot CLI session via the Model Context
+Protocol (MCP Apps), turning Copilot's text explanations of systems into live,
+interactive graphs.
 
 ## Problem statement
 
@@ -20,18 +20,22 @@ lives alongside the terminal workflow developers already trust.
 
 ## How it works
 
+You run **Copilot CLI in VS Code's integrated terminal** (the brain). A **thin VS
+Code extension** opens the canvas as a **webview tab** in the same window and bridges
+it to the CLI session over the MCP Apps `postMessage` channel.
+
 1. You ask Copilot something like *"diagram the auth flow"* or *"show me how this
    service depends on the others."*
-2. The MCP server generates an **interactive Cytoscape graph** (a node/edge model)
-   and pushes it to the canvas, which the **MCP host renders on demand** (a
-   sandboxed iframe) on first use.
+2. The Canvas MCP server (driven by Copilot CLI) generates an **interactive
+   Cytoscape graph** (a node/edge model); the **VS Code extension renders it as a
+   webview tab** on first use and updates it in place after that.
 3. The canvas is **interactive**: pan, zoom, click a node to ask Copilot a
    follow-up (*"explain this module," "show callers," "expand this subgraph"*),
    or edit the diagram directly and have Copilot propose matching code changes.
 
 The novelty isn't the renderer — it's the **bidirectional loop**: the CLI drives
-the canvas, and the canvas sends interactions back as Copilot prompts. Copilot
-gains a visual reasoning channel without leaving the terminal.
+the canvas tab, and the canvas sends interactions back as Copilot prompts. Copilot
+gains a visual reasoning channel right beside the terminal, in one VS Code window.
 
 ## Target users
 
@@ -49,7 +53,7 @@ Copilot CLI generates a graph model (Cytoscape elements) and the user can
 visualize it easily in the canvas surface.
 
 - [ ] Copilot CLI can push a graph model (Cytoscape elements) to the canvas.
-- [ ] The MCP host renders the canvas on demand on first use.
+- [ ] The VS Code extension opens the canvas as a webview tab on first use.
 - [ ] The diagram renders correctly with pan and zoom.
 - [ ] Updating the diagram from the CLI live-updates the open tab.
 
@@ -76,12 +80,14 @@ The user can modify both code and the diagram through the canvas.
 
 ## In scope
 
-- Interactive canvas delivered as an **MCP App**, connected to the CLI session.
-- **MCP Apps** bidirectional channel (CLI/model ⇄ canvas).
+- Interactive canvas delivered as an **MCP App**, rendered as a **VS Code webview
+  tab** by a thin extension and connected to the Copilot CLI session.
+- A **thin VS Code extension** that opens the canvas tab and bridges the MCP Apps
+  channel (CLI/model ⇄ canvas) — see ADR-007.
+- **MCP Apps** bidirectional channel (CLI/model ⇄ canvas) over `postMessage`.
 - Interactive graph rendering with Cytoscape (node/edge model).
 - Node selection feeding context back to Copilot.
 - Diagram expansion and code-change proposals (advanced tier).
-- Portability across MCP hosts (e.g. Copilot CLI and the VS Code MCP client).
 
 ## Out of scope (explicitly)
 
@@ -90,6 +96,9 @@ The user can modify both code and the diagram through the canvas.
 - Persisting diagrams long-term / diagram version control.
 - Non-graph diagram formats (e.g. sequence/ER diagrams).
 - Authentication/accounts (it's a local dev tool).
+- Multi-host portability as a day-1 guarantee — VS Code is the **primary** host;
+  rendering in other MCP hosts is a stretch (NFR-3, ADR-007).
+- A standalone-terminal (non-VS-Code) experience — deferred (Option 1 in ADR-007).
 
 ## Constraints & assumptions
 
@@ -100,11 +109,13 @@ The user can modify both code and the diagram through the canvas.
   **India (1)**. Daily sync at **16:30 Dublin time**. Tracking on the Jira board
   (**KAN**); day-to-day comms on **Teams**. Because of the wide time-zone spread,
   **commit/push and update the board frequently** so hand-offs work across zones.
-- **Hard constraints:** runs locally; integrates with the Copilot CLI as an **MCP
-  server exposing an MCP App** (ADR-005); canvas rendered in the host's iframe.
-- **Assumptions:** the target MCP host supports **MCP Apps (SEP-1865)** — app
-  resource rendering + the JSON-RPC `postMessage` channel; a Cytoscape graph model
-  is sufficient for the diagram types we need.
+- **Hard constraints:** runs locally; **Copilot CLI in VS Code's integrated
+  terminal** is the brain; the canvas is an **MCP App rendered as a VS Code webview
+  tab** by the extension (ADR-005 + ADR-007).
+- **Assumptions:** VS Code can host the canvas webview and the MCP Apps JSON-RPC
+  `postMessage` channel (SEP-1865); the extension can relay the Copilot CLI session
+  to that webview; a Cytoscape graph model is sufficient for the diagram types we
+  need.
 
 ## Team, epics & ownership
 
@@ -114,21 +125,24 @@ Work is split into **3 epics**, one per location (ownership *proposed, changeabl
 |------|-------|------------------|-----------|
 | **Frontend / Canvas UI** | Cytoscape webview: render graph model, pan/zoom, node tap, highlight/filter, live update | **US (3p)** | `/canvas` |
 | **MCP logic / tools** | MCP server: tools that generate/patch graph models, session state, repo I/O, Copilot prompting | **Dublin (2p)** | `/server` |
-| **VS Code extension (bridge)** | Orchestrator: wires MCP tools ⇄ webview over `postMessage`, hosts the app resource | **India (1p)** | extension + `/shared` |
+| **VS Code extension (bridge)** | Open the canvas as a webview tab; wire MCP tools ⇄ webview over `postMessage`; relay the CLI session to the webview | **India (1p)** | `/extension` (+ `/shared`) |
 
 The shared protocol (`/shared/protocol.ts`, see `DATA_MODEL.md`) is the contract
 between all three epics — agree changes to it early and broadcast them on Teams.
 
 ## Delivery vehicle
 
-Canvas for Copilot ships as an **MCP server that exposes the canvas as an MCP App**
-(ADR-005). The MCP host (Copilot CLI / VS Code MCP client) renders it — no
-separate browser app or VS Code extension is required. See `docs/DECISIONS.md`.
+Canvas for Copilot ships as a **Canvas MCP server** plus a **thin VS Code
+extension** that renders the canvas as a **webview tab** (ADR-005 + ADR-007). You
+run **Copilot CLI in VS Code's integrated terminal**; the extension opens the canvas
+tab and bridges the MCP Apps `postMessage` channel between the CLI/server and the
+webview. VS Code is the primary host. See `docs/DECISIONS.md`.
 
 ## The demo
 
-Ask Copilot in the terminal to *"diagram the auth flow."* The canvas opens in the
-host showing the live, interactive graph. Click a node and type *"expand this"* — the
+In VS Code's integrated terminal, ask Copilot to *"diagram the auth flow."* The
+canvas opens as a **webview tab beside the terminal** showing the live, interactive
+graph. Click a node and type *"expand this"* — the
 diagram grows new subnodes in place. Then select an entrypoint node and ask
 *"add a new endpoint to do X"*; Copilot asks a clarifying question, writes the
 code, and updates the diagram to reflect the new entrypoint — all without leaving
