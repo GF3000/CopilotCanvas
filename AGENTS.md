@@ -20,6 +20,36 @@
    `Done` as it progresses, and keep the task description accurate when scope
    changes. Work that isn't reflected on the board is not considered done.
 
+## Getting started (Day-1 checklist)
+
+New here? Do this in order:
+
+1. **Read this file** (`AGENTS.md`) fully, then skim `docs/PROJECT_BRIEF.md` and
+   `docs/ARCHITECTURE.md` (we ship **Option 3**, ADR-007: Copilot CLI in VS Code's
+   integrated terminal is the brain; a thin extension renders the canvas as a
+   webview tab).
+2. **Connect the Jira MCP toolset** and sign in (see *Jira tracking* below). This is
+   mandatory before you touch code.
+3. **Clone & verify the build:** `npm install` then `npm run build && npm run lint &&
+   npm test` — all should be green. `npm run dev` starts the canvas + watchers.
+4. **Pick a ready task** (see below), move it to **In Progress** on the KAN board,
+   and assign it to yourself.
+5. **Open a draft PR immediately** on a branch named `<author>/<jira-key>-<slug>` so
+   others see your WIP and don't collide.
+6. Implement against the contract in `/shared/protocol.ts`; self-validate against
+   `docs/TEST_PLAN.md`; keep the KAN task updated; merge small and often.
+
+### Pick a ready task
+
+A task is **ready** when all the issues that **block** it on the board are `Done`.
+- Filter the KAN board by your component label (`canvas` / `server` / `extension`).
+- Open a candidate and check its **"is blocked by"** links are all resolved.
+- See `docs/TASKS.md` → *Status snapshot & what's ready now* for the current
+  ready/blocked list and a JQL filter.
+- The day-1 ready set is `repo-scaffold`/`shared-protocol` (foundation), then
+  `mcp-apps-host-spike` (KAN-16), `mcp-server` (KAN-8), `canvas-render` (KAN-6) —
+  one per epic, so all three streams start in parallel.
+
 ## Tech stack
 
 - **Language:** TypeScript across the board (Node for the MCP server + VS Code

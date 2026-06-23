@@ -1,14 +1,22 @@
 # Tasks
 
 > The hand-off to AI agents. Small, ordered, independently-implementable items —
-> one focused PR each. Reference the requirement(s) each satisfies. Claim a task by
-> setting its **Status** to `in-progress` before you start (see `AGENTS.md`).
+> one focused PR each. Reference the requirement(s) each satisfies.
+>
+> **The Jira KAN board is the live source of truth for status & ownership; this
+> file mirrors it.** Each task below lists its **KAN key**. Claim a task on the
+> board (set it **In Progress** + assign yourself) before you start — see
+> `AGENTS.md` → *Jira tracking*.
 
 ## Conventions
 
-- **ID:** kebab-case, descriptive.
-- **Status:** `todo` | `in-progress` | `in-review` | `done` | `blocked`.
+- **ID:** kebab-case, descriptive; each maps to a **KAN-N** issue on the board.
+- **Status:** `todo` | `in-progress` | `in-review` | `done` | `blocked`
+  (mirrors Jira To Do / In Progress / In Review / Done / Blocked). Statuses in this
+  doc are a **snapshot** — the board is authoritative.
 - **Size:** one PR. Split if larger.
+- **Tags/labels:** every task carries a `canvas` / `server` / `extension` label on
+  the board (foundation tasks carry all three).
 
 ## Epics & ownership (3-day plan)
 
@@ -16,24 +24,40 @@ Three epics, one per location (*proposed, changeable* — see `PROJECT_BRIEF.md`
 Mirror these tasks on the Jira **KAN** board and keep both in sync. Target
 **feature-complete by end of Wednesday**; Thursday is for the demo video.
 
-| Epic | Owner | Tasks |
+| Epic | Owner | Tasks (KAN keys) |
 |------|-------|-------|
-| **Frontend / Canvas UI** (`/canvas`) | **US (3p)** | `canvas-render`, `node-selection` (render side), `expand-node` (render side), `live-update` (render side) |
-| **MCP logic / tools** (`/server`) | **Dublin (2p)** | `mcp-server`, `explain-node`, `expand-node` (server side), `node-code-refs`, `modify-from-node` |
-| **VS Code extension / bridge** (`/extension`) | **India (1p)** | `mcp-apps-host-spike`, `vscode-extension`, `mcp-app-launch` (relay), `live-update` (channel), `multi-host-validation`, `diagram-edit-to-code` |
-| **Shared kick-off** (do first, together) | All | `repo-scaffold`, `shared-protocol` |
+| **Frontend / Canvas UI** (`/canvas`) | **US (3p)** | `canvas-render` (KAN-6), `node-selection` (KAN-7), `expand-node` render (KAN-11), `live-update` render (KAN-13) |
+| **MCP logic / tools** (`/server`) | **Dublin (2p)** | `mcp-server` (KAN-8), `explain-node` (KAN-9), `expand-node` (KAN-11), `node-code-refs` (KAN-12), `modify-from-node` (KAN-10) |
+| **VS Code extension / bridge** (`/extension`) | **India (1p)** | `mcp-apps-host-spike` (KAN-16), `vscode-extension` (KAN-17), `mcp-app-launch` (KAN-18), `live-update` (KAN-13), `multi-host-validation` (KAN-15), `diagram-edit-to-code` (KAN-14) |
+| **Shared kick-off** (do first, together) | All | `repo-scaffold` (KAN-5), `shared-protocol` (KAN-4) |
 
 > `shared-protocol` is the cross-epic contract — land it early on day 1 so all
 > three streams can build against stable types. The **architecture is Option 3**
 > (ADR-007): Copilot CLI in VS Code's integrated terminal is the brain; the
 > extension renders the canvas as a webview tab and bridges CLI ⇄ canvas.
 
+## Status snapshot & what's ready now
+
+_As of repo scaffold landing (keep in sync with the board):_
+
+- ✅ **In review:** `repo-scaffold` (KAN-5), `shared-protocol` (KAN-4) — the two
+  day-1 foundations. Build is green; the contract compiles.
+- 🟢 **Ready to start now** (dependencies satisfied): `mcp-apps-host-spike` (KAN-16),
+  `mcp-server` (KAN-8), `canvas-render` (KAN-6). These only depend on the
+  scaffold/contract, so each epic can begin immediately.
+- ⛔ **Blocked (waiting):** everything downstream of `mcp-app-launch` (KAN-18, the
+  Goal-1 integration) — see the dependency links on the board or the graph below.
+
+> Find ready tasks on the board with JQL:
+> `project = KAN AND statusCategory != Done AND issueLinkType is EMPTY` — or simply
+> open a task and check its **"is blocked by"** links are all Done.
+
 ---
 
 ## Phase 0 — Scaffold
 
-### `repo-scaffold`
-- **Status:** todo · **Satisfies:** ARCHITECTURE (folder structure), NFR-3
+### `repo-scaffold` — KAN-5
+- **Status:** in-review · **Satisfies:** ARCHITECTURE (folder structure), NFR-3
 - **Description:** Create the monorepo skeleton: `/server`, `/canvas`, `/extension`,
   `/shared`. Init TypeScript, package.json(s), a bundler for `/canvas` (Vite or
   esbuild), a VS Code extension skeleton in `/extension`, and lint/test config. Add
@@ -42,8 +66,8 @@ Mirror these tasks on the Jira **KAN** board and keep both in sync. Target
 - **Acceptance:** `npm install`, `npm run build`, `npm run lint`, `npm test` all
   run successfully (tests may be trivial); the extension skeleton activates in VS Code.
 
-### `shared-protocol`
-- **Status:** todo · **Satisfies:** DATA_MODEL
+### `shared-protocol` — KAN-4
+- **Status:** in-review · **Satisfies:** DATA_MODEL
 - **Description:** Implement `/shared/protocol.ts` — the discriminated-union
   message types and entity interfaces (DiagramState, NodeMeta, CodeRef, Selection,
   all S→C and C→S messages) exactly as defined in `DATA_MODEL.md`. Export from
@@ -52,7 +76,7 @@ Mirror these tasks on the Jira **KAN** board and keep both in sync. Target
 - **Acceptance:** types compile and are importable from `/server`, `/canvas`, and
   `/extension`; a type-level test asserts every `type` value is covered.
 
-### `mcp-apps-host-spike`
+### `mcp-apps-host-spike` — KAN-16
 - **Status:** todo · **Satisfies:** ADR-007 (risk), NFR-3
 - **Description:** **Day-1 de-risking spike.** Stand up a trivial Canvas MCP server
   and (a) confirm how a VS Code webview hosts the MCP Apps `postMessage` channel, and
@@ -68,7 +92,7 @@ Mirror these tasks on the Jira **KAN** board and keep both in sync. Target
 
 ## Phase 1 — Goal 1: Visualize (Basic)
 
-### `mcp-server`
+### `mcp-server` — KAN-8
 - **Status:** todo · **Satisfies:** FR-1, FR-2, NFR-1, NFR-4
 - **Description:** In `/server`, implement the **MCP server** that declares the
   canvas **MCP App** HTML UI resource (MIME `text/html;profile=mcp-app`) and
@@ -79,7 +103,7 @@ Mirror these tasks on the Jira **KAN** board and keep both in sync. Target
 - **Acceptance:** a `diagram` message sent via the server's tool reaches the
   extension; canvas events arrive back at the server.
 
-### `vscode-extension`
+### `vscode-extension` — KAN-17
 - **Status:** todo · **Satisfies:** FR-2, NFR-1
 - **Description:** In `/extension`, implement the **thin VS Code extension** that
   opens the canvas as a **webview editor tab**, loads the `/canvas` bundle, sets a
@@ -90,7 +114,7 @@ Mirror these tasks on the Jira **KAN** board and keep both in sync. Target
 - **Acceptance:** activating the extension opens a canvas webview tab; messages
   posted to the webview arrive, and webview→extension events are received.
 
-### `canvas-render`
+### `canvas-render` — KAN-6
 - **Status:** todo · **Satisfies:** FR-1, FR-3
 - **Description:** In `/canvas`, build the MCP App that connects to the webview
   `postMessage` channel, handles `hello`, renders an incoming `diagram`'s
@@ -100,7 +124,7 @@ Mirror these tasks on the Jira **KAN** board and keep both in sync. Target
 - **Acceptance:** given a `diagram` message, the Cytoscape graph renders;
   pan/zoom/reset work; a bad graph model shows an error, not a blank screen.
 
-### `mcp-app-launch`
+### `mcp-app-launch` — KAN-18
 - **Status:** todo · **Satisfies:** FR-1, FR-2
 - **Description:** Wire the end-to-end open: a Copilot-CLI-invoked server tool that
   generates/accepts a graph model (Cytoscape `elements`) and pushes a `diagram`,
@@ -109,7 +133,7 @@ Mirror these tasks on the Jira **KAN** board and keep both in sync. Target
 - **Acceptance:** invoking the tool from the CLI opens the canvas tab with the
   diagram; a second invocation updates the same tab in place.
 
-### `live-update`
+### `live-update` — KAN-13
 - **Status:** todo · **Satisfies:** FR-4, NFR-2, NFR-4
 - **Description:** Wire live updates: new `diagram`/`patch` messages re-render the
   canvas tab in place; handle webview reload / channel re-init gracefully.
@@ -123,7 +147,7 @@ Mirror these tasks on the Jira **KAN** board and keep both in sync. Target
 
 ## Phase 2 — Goal 2: Interact (Intermediate)
 
-### `node-selection`
+### `node-selection` — KAN-7
 - **Status:** todo · **Satisfies:** FR-5, FR-8
 - **Description:** Canvas: tapping a Cytoscape node selects it (visual state via a
   class/selector) and emits `node_selected` to the extension. Server: persist
@@ -132,7 +156,7 @@ Mirror these tasks on the Jira **KAN** board and keep both in sync. Target
 - **Acceptance:** clicking highlights the node and the server can read the current
   selection; selection persists across a re-render where the node still exists.
 
-### `explain-node`
+### `explain-node` — KAN-9
 - **Status:** todo · **Satisfies:** FR-6, FR-8
 - **Description:** Implement the `explain` interaction: the canvas sends an
   `interaction` with the selection (via the extension); server prompts Copilot with
@@ -141,7 +165,7 @@ Mirror these tasks on the Jira **KAN** board and keep both in sync. Target
 - **Acceptance:** with a node selected, "explain this node" yields a relevant
   Copilot explanation in the CLI.
 
-### `expand-node`
+### `expand-node` — KAN-11
 - **Status:** todo · **Satisfies:** FR-7
 - **Description:** Implement the `expand` interaction: server regenerates a richer
   subgraph for the selected node and pushes a `diagram`/`patch`; canvas re-renders
@@ -154,14 +178,14 @@ Mirror these tasks on the Jira **KAN** board and keep both in sync. Target
 
 ## Phase 3 — Goal 3: Modify (Advanced)
 
-### `node-code-refs`
+### `node-code-refs` — KAN-12
 - **Status:** todo · **Satisfies:** FR-9 (prerequisite)
 - **Description:** Populate `NodeMeta.codeRefs` when generating diagrams so a node
   maps to concrete file/symbol locations; expose lookup in the server.
 - **Depends on:** expand-node
 - **Acceptance:** a selected node resolves to one or more real code locations.
 
-### `modify-from-node`
+### `modify-from-node` — KAN-10
 - **Status:** todo · **Satisfies:** FR-9
 - **Description:** Implement the `modify` interaction: take selected node +
   instruction, gather code context via `codeRefs`, **ask the user clarifying
@@ -170,7 +194,7 @@ Mirror these tasks on the Jira **KAN** board and keep both in sync. Target
 - **Acceptance:** selecting an entrypoint node + "add a new entrypoint to do X"
   triggers clarifying questions, a real code edit, and an updated diagram.
 
-### `diagram-edit-to-code` (stretch)
+### `diagram-edit-to-code` (stretch) — KAN-14
 - **Status:** todo · **Satisfies:** FR-10
 - **Description:** Allow direct diagram edits on the canvas (`diagram_edited`);
   server proposes matching code changes.
@@ -181,7 +205,7 @@ Mirror these tasks on the Jira **KAN** board and keep both in sync. Target
 
 ## Phase 4 — Stretch
 
-### `multi-host-validation`
+### `multi-host-validation` — KAN-15
 - **Status:** todo · **Satisfies:** NFR-3, ADR-007
 - **Description:** **Stretch.** VS Code is the primary host. Optionally validate the
   same canvas bundle/MCP App in a second MCP host and fix host-specific
