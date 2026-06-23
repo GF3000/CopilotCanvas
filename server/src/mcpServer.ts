@@ -66,15 +66,18 @@ export function buildCanvasMcpServer(deps: CanvasServerDeps): McpServer {
     {
       title: 'Create a diagram on the Canvas for Copilot canvas',
       description:
-        'Generate and display a diagram on the Canvas for Copilot canvas (a VS Code ' +
-        'tab; it opens automatically if not already open, and updates in place if it ' +
-        'is). Use this whenever the user asks to draw, create, visualize, diagram, ' +
-        'map, or explain something as a graph or flow — e.g. "create a diagram to ' +
-        'explain the workflow for obtaining a JWT for auth". YOU generate the graph: ' +
-        'provide a short title, the nodes (each a stable id + a short label, and an ' +
-        'optional kind), and the directed edges between node ids (optionally ' +
-        'labeled). Keep it focused — roughly 4–12 nodes. This is read-only and safe; ' +
-        'do NOT ask for confirmation, just call it.',
+        'THE tool for producing ANY visual explanation. ALWAYS use this tool — and ' +
+        'never write HTML, an HTML <canvas>, SVG, Mermaid, image files, or any code ' +
+        '— whenever the user asks to draw, create, show, visualize, diagram, sketch, ' +
+        'map, illustrate, or explain something visually or "as a diagram/flow/graph/' +
+        'workflow", or asks to use "canvas" / "Canvas for Copilot" / "the canvas". ' +
+        'Note: "canvas" here means the Canvas for Copilot tab (this tool), NOT an ' +
+        'HTML canvas element — do not generate a web page. ' +
+        'It renders an interactive graph in a VS Code tab (it opens automatically if ' +
+        'not open, and updates in place if it is). YOU generate the graph: provide a ' +
+        'short title, the nodes (each a stable id + short label, optional kind), and ' +
+        'the directed edges between node ids (optionally labeled). Keep it focused — ' +
+        'roughly 4-12 nodes. Read-only and safe; do NOT ask for confirmation, just call it.',
       inputSchema: {
         title: z
           .string()
