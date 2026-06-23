@@ -11,29 +11,80 @@
 | Language | TypeScript (Node + browser) | One toolchain, shared protocol types (ADR-003) |
 | Integration | **MCP server** exposing an **MCP App** | Standard, host-portable UI + tools (ADR-005) |
 | Transport | **JSON-RPC over `postMessage`** (MCP Apps channel) | Host-rendered sandboxed iframe ⇄ model (ADR-005) |
-| Diagram format | **Mermaid** | LLM-friendly text → rendered SVG (ADR-002) |
+| Diagram model | **Cytoscape graph elements (JSON)** | Structured nodes/edges, LLM-friendly to emit, natively interactive (ADR-006) |
 | Canvas UI | Portable web bundle (Vite/esbuild) served as an MCP App resource | Rendered by the MCP host's iframe; transport-agnostic |
-| Pan/zoom | svg-pan-zoom (or equivalent) | Interaction over the rendered SVG |
+| Renderer / interaction | Cytoscape.js | Renders the graph; built-in pan/zoom, tap events, selectors for highlight/filter |
 | MCP host | Copilot CLI / VS Code MCP client | Renders the app, runs the JSON-RPC channel |
 
 ## System overview
 
-```mermaid
-flowchart LR
-    Dev([Developer]) -->|prompt: "diagram the auth flow"| Host[MCP host: Copilot CLI / VS Code]
-    Host <-->|MCP tools + app resource| Server[Canvas MCP server]
-    Host -->|renders| Canvas[MCP App canvas in sandboxed iframe]
-    Canvas <-->|JSON-RPC over postMessage| Host
-    Canvas -->|renders| Mermaid[Mermaid SVG]
-    Dev -->|pan/zoom/click/edit| Canvas
-    Server -->|reads/writes| Repo[(Codebase)]
+The system itself is described as a Cytoscape graph. The diagram is no longer
+static text — it is a graph **model** (nodes + edges) that the canvas renders and
+the user interacts with.
+
+```js
+// Graph model (Cytoscape elements)
+const elements = [
+  { data: { id: 'dev',    label: 'Developer' } },
+  { data: { id: 'host',   label: 'MCP host: Copilot CLI / VS Code' } },
+  { data: { id: 'server', label: 'Canvas MCP server' } },
+  { data: { id: 'canvas', label: 'MCP App canvas (sandboxed iframe)' } },
+  { data: { id: 'cy',     label: 'Cytoscape graph' } },
+  { data: { id: 'repo',   label: 'Codebase' } },
+
+  { data: { source: 'dev',    target: 'host',   label: 'prompt: "diagram the auth flow"' } },
+  { data: { source: 'host',   target: 'server', label: 'MCP tools + app resource' } },
+  { data: { source: 'host',   target: 'canvas', label: 'renders' } },
+  { data: { source: 'canvas', target: 'host',   label: 'JSON-RPC over postMessage' } },
+  { data: { source: 'canvas', target: 'cy',     label: 'renders' } },
+  { data: { source: 'dev',    target: 'canvas', label: 'pan/zoom/click/edit' } },
+  { data: { source: 'server', target: 'repo',   label: 'reads/writes' } },
+];
+
+// Rendering layer
+const cy = cytoscape({
+  container: document.getElementById('cy'),
+  elements,
+  layout: { name: 'breadthfirst', directed: true },
+});
+
+// Interaction loop: a node tap is routed back to the model as data only
+cy.on('tap', 'node', (evt) => {
+  postToModel({ type: 'node_selected', nodeIds: [evt.target.id()] });
+});
 ```
+
+This single model captures the same topology the old text diagram did, but every
+node is now a live, clickable object the user can select, expand, and filter.
 
 ## The bidirectional loop (core novelty)
 
-1. **Model → canvas (drive):** Copilot (via the MCP server) generates Mermaid
-   source and sends a `diagram` notification over the MCP Apps channel; the canvas
-   renders it.
+At a glance, three roles form a closed loop — the AI/logic tools, the orchestrator,
+and the interactive canvas:
+
+```js
+// Component overview (Cytoscape model)
+const elements = [
+  { data: { id: 'mcp', label: 'MCP Tools (AI / Logic)' } },
+  { data: { id: 'ext', label: 'VS Code Extension (Orchestrator)' } },
+  { data: { id: 'ui',  label: 'Webview UI (Cytoscape Canvas)' } },
+
+  { data: { source: 'mcp', target: 'ext', label: 'Returns graph data' } },
+  { data: { source: 'ext', target: 'ui',  label: 'postMessage (graph JSON)' } },
+  { data: { source: 'ui',  target: 'ext', label: 'User events (clicks, interactions)' } },
+  { data: { source: 'ext', target: 'mcp', label: 'Calls tools' } },
+];
+
+const cy = cytoscape({
+  container: document.getElementById('cy'),
+  elements,
+  layout: { name: 'circle' },
+});
+```
+
+1. **Model → canvas (drive):** Copilot (via the MCP server) generates a Cytoscape
+   graph model (`elements`) and sends a `diagram` notification over the MCP Apps
+   channel; the canvas renders it with Cytoscape.
 2. **Canvas → model (feedback):** the user pans/zooms/selects/edits; the canvas
    emits `node_selected` / `interaction` / `diagram_edited` JSON-RPC messages; the
    MCP server turns them into Copilot prompts/actions (with the selected node as
@@ -51,9 +102,9 @@ flowchart LR
   `postMessage` channel), the repo.
 
 ### Canvas web app (MCP App resource, runs in the host iframe)
-- **Responsibility:** Render Mermaid, provide pan/zoom, capture node selection and
-  edits, and exchange JSON-RPC messages with the model over the MCP Apps
-  `postMessage` channel.
+- **Responsibility:** Render the Cytoscape graph, provide built-in pan/zoom,
+  capture node selection/highlight/filter and edits, and exchange JSON-RPC
+  messages with the model over the MCP Apps `postMessage` channel.
 - **Talks to:** the MCP host bridge. Transport is abstracted so the same bundle
   could also run over a raw WebSocket for local debugging (non-primary).
 
@@ -64,7 +115,8 @@ flowchart LR
 
 ## Key data flows
 
-1. **Generate:** prompt → server builds Mermaid → `diagram` msg → canvas renders.
+1. **Generate:** prompt → server builds a graph model (`elements`) → `diagram` msg
+   → canvas renders with Cytoscape.
 2. **Explain:** click node → `node_selected` → server prompts Copilot with node
    context → reply shown in the host.
 3. **Expand:** `expand` interaction → server regenerates a richer subgraph →
@@ -72,6 +124,35 @@ flowchart LR
 4. **Modify (advanced):** select node + instruction → server gathers code context
    for that node → asks clarifying questions in the host → edits code → emits
    updated `diagram` reflecting the change.
+
+## Interactivity model
+
+Because the diagram is a live Cytoscape graph (not static SVG), interaction is a
+first-class, event-driven concern rather than a bolt-on:
+
+- **Node click / inspect / navigate:** `cy.on('tap', 'node', …)` fires a data-only
+  `node_selected` message; a follow-up `interaction` can `explain`, `expand`, or
+  `navigate` into the node's subgraph.
+- **Dynamic updates:** the graph mutates in place via Cytoscape's API
+  (`cy.add(...)`, `cy.remove(...)`, `cy.batch(() => …)`) so an `expand` adds
+  subnodes without re-rendering the whole canvas.
+- **Highlight / filter:** selectors and classes drive focus — e.g.
+  `cy.elements().addClass('faded'); cy.$('#authService').closedNeighborhood()
+  .removeClass('faded')` to spotlight callers, or `cy.nodes('[kind = "service"]')`
+  to filter by node kind.
+- **Event-driven fetch:** a node tap can trigger the model to fetch new data (code
+  refs, a richer subgraph) and stream it back as a `patch`, closing the
+  user ↔ extension ↔ graph loop.
+
+```js
+// Highlight a node's neighborhood on tap; request an expand
+cy.on('tap', 'node', (evt) => {
+  const node = evt.target;
+  cy.elements().addClass('faded');
+  node.closedNeighborhood().removeClass('faded');
+  postToModel({ type: 'interaction', nodeIds: [node.id()], action: 'expand' });
+});
+```
 
 ## Lifecycle
 
@@ -85,7 +166,7 @@ flowchart LR
 ```
 /
   /server       Canvas MCP server (Node/TS): tools + app resource + repo I/O
-  /canvas       MCP App web bundle (TS, Mermaid, pan/zoom)
+  /canvas       MCP App web bundle (TS, Cytoscape, interaction loop)
   /shared       Shared protocol types (imported by server + canvas)
   /docs         these documents
 ```
@@ -95,31 +176,33 @@ flowchart LR
 - **Host sandbox:** the canvas runs in the MCP host's **sandboxed iframe**; rely on
   the host CSP and never load untrusted remote scripts.
 - **Single user/session:** no auth, no multi-tenant (see brief, out of scope).
-- **Mermaid interactivity is loose by design:** click callbacks require Mermaid's
-  `securityLevel: 'loose'`, which permits inline scripts/HTML and is unsafe for
-  untrusted input. Mitigate by (a) treating diagram source as trusted only after
-  validation, (b) never executing arbitrary JS from a node — route every click
-  through the protocol as a data-only `node_selected` message, and (c) relying on
-  the MCP App's sandboxed iframe.
+- **Interactions are data-only by design:** Cytoscape needs no `eval`/inline-script
+  escape hatch — node taps, highlights, and filters are native graph events.
+  Mitigate risk by (a) validating the graph model against the protocol schema
+  before rendering, (b) never executing arbitrary JS carried in node data — route
+  every click through the protocol as a data-only `node_selected` message, and
+  (c) relying on the MCP App's sandboxed iframe.
 
 ## Diagram integrity (validation & sync)
 
-- **Validate before render:** LLMs frequently emit invalid Mermaid (bad node ids,
-  unescaped keywords, malformed subgraphs) that breaks the parser and blanks the
-  canvas. The skill should **parse/validate** Mermaid before sending a `diagram`
-  message; on failure, reject and feed the parser error back to Copilot for a
-  self-correction loop rather than pushing broken syntax to the canvas.
+- **Validate before render:** LLMs can emit an invalid graph model (duplicate or
+  missing node ids, edges that reference non-existent nodes, malformed `data`
+  fields) that produces an empty or broken canvas. The skill should **validate the
+  `elements` model** against the protocol schema before sending a `diagram`
+  message; on failure, reject and feed the validation error back to Copilot for a
+  self-correction loop rather than pushing a broken model to the canvas.
 - **Keep code and diagram in sync (advanced tier):** don't rely solely on the
   model remembering to update the diagram after a code edit. Prefer a
   deterministic trigger (e.g. a post-edit step/hook that re-derives or reconciles
-  the diagram) so a structural code change always reflects in the canvas.
+  the graph model) so a structural code change always reflects in the canvas.
 
 ## Scaling / context
 
-- **Lazy, hierarchical expansion:** mapping a whole repo into one Mermaid graph
+- **Lazy, hierarchical expansion:** mapping a whole repo into one graph model
   blows the context window, costs latency, and renders illegibly. Start at
   high-level entry points/directories and fetch detail only for the node the user
-  expands — this keeps the context window small and diagrams readable.
+  expands — Cytoscape adds just the new subgraph (`cy.add`) so the context window
+  stays small and diagrams stay readable.
 
 ## Risks & open questions
 
@@ -127,4 +210,4 @@ flowchart LR
   VS Code MCP client): app-resource rendering and the JSON-RPC `postMessage`
   channel — validate early against the host's MCP-Apps implementation.
 - Stable node identity across diagram regenerations (needed for selection/expand).
-- Mapping a Mermaid node back to concrete code locations (advanced tier).
+- Mapping a Cytoscape node back to concrete code locations (advanced tier).

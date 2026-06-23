@@ -6,8 +6,8 @@
 
 ## Test strategy
 
-- **Unit tests:** protocol type guards (`/shared`), Mermaid→SVG render helper,
-  message relay logic in the server.
+- **Unit tests:** protocol type guards (`/shared`), graph-model → Cytoscape render
+  helper, message relay logic in the server.
 - **Integration tests:** drive the MCP server, simulate the MCP Apps channel, and
   assert message round-trips (`diagram` out, `node_selected`/`interaction` in).
 - **Manual / demo checks:** the end-to-end demo script below.
@@ -25,8 +25,8 @@ npm run build   # canvas bundle must build
 
 | ID | Linked req | Scenario | Steps | Expected result |
 |------|------------|----------|-------|-----------------|
-| TC-1 | FR-1 | Render a diagram | Send a `diagram` message with valid Mermaid | Canvas shows the SVG |
-| TC-2 | FR-1 | Invalid Mermaid | Send malformed Mermaid | Readable error, not blank canvas |
+| TC-1 | FR-1 | Render a diagram | Send a `diagram` message with a valid graph model (`elements`) | Canvas renders the Cytoscape graph |
+| TC-2 | FR-1 | Invalid graph model | Send a malformed `elements` model | Readable error, not blank canvas |
 | TC-3 | FR-2 | Open on demand | Invoke the tool first time | Host renders the canvas app once |
 | TC-4 | FR-2 | Reuse surface | Invoke the tool a second time | Same canvas updates, no new surface |
 | TC-5 | FR-3 | Pan/zoom | Drag + wheel + reset control | View pans, zooms, and resets to fit |
@@ -42,7 +42,7 @@ npm run build   # canvas bundle must build
 ## Demo script (end-to-end)
 
 1. In the terminal: *"diagram the auth flow."* → the canvas opens in the host with
-   the Mermaid diagram. **(TC-1, TC-3)**
+   the interactive Cytoscape graph. **(TC-1, TC-3)**
 2. Click the `Auth service` node and type *"explain this node."* → Copilot
    explains it in the CLI. **(TC-8, TC-10)**
 3. Type *"expand this node."* → the diagram grows new subnodes in place.

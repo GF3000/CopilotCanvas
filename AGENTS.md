@@ -22,7 +22,8 @@
 - **Integration/transport:** an **MCP server** exposing an **MCP App** (SEP-1865);
   canvas ⇄ model over **JSON-RPC `postMessage`** in the host's sandboxed iframe
   (ADR-005). A raw `ws` WebSocket fallback may exist for local debugging only.
-- **Diagrams:** Mermaid (ADR-002). Pan/zoom via svg-pan-zoom or equivalent.
+- **Diagrams:** Cytoscape.js interactive graph model (ADR-006). Pan/zoom, node
+  tap events, highlighting and filtering are built into Cytoscape.
 - **Canvas bundling:** Vite or esbuild — output a portable bundle served as the
   MCP App HTML resource.
 - **Shared types:** `/shared/protocol.ts` is the canonical protocol definition;
@@ -32,7 +33,7 @@
 
 ```
 /server     Canvas MCP server (Node/TS): tools + app resource + repo I/O
-/canvas     MCP App web bundle (TS, Mermaid, pan/zoom)
+/canvas     MCP App web bundle (TS, Cytoscape, interaction loop)
 /shared     Shared protocol types (imported by server + canvas)
 /docs       project documents
 ```
@@ -41,7 +42,7 @@
 
 - **Language/style:** TypeScript `strict`; format with Prettier; lint with ESLint.
 - **Naming:** kebab-case files; camelCase variables; PascalCase types/components.
-- **Libraries to prefer:** the MCP SDK (server + Apps), Mermaid, a lightweight
+- **Libraries to prefer:** the MCP SDK (server + Apps), Cytoscape.js, a lightweight
   bundler (Vite/esbuild). `ws` only for an optional local-debug fallback.
 - **Libraries to avoid:** heavyweight frameworks for the canvas; anything that
   binds the server to a non-loopback interface.
@@ -68,9 +69,10 @@ npm run lint
 
 ## Git & PR conventions
 
-- **Branch naming:** <e.g. t-gfrancogim/<task-id>-<slug>>
-- **Commit messages:** <e.g. Conventional Commits>
-- One task per PR; reference the task ID in the PR title.
+- **Branch naming:** `<author>/<jira-key>-<slug>`, e.g. `t-gfrancogim/KAN-12-cytoscape-render`.
+- **Commit messages:** Conventional Commits, referencing the Jira key,
+  e.g. `feat(canvas): render Cytoscape graph (KAN-12)`.
+- One task per PR; reference the Jira key in the PR title.
 
 ## Collaboration: commit & push often
 

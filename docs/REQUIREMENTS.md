@@ -6,15 +6,15 @@
 
 ## Goal 1 — Basic: Visualize
 
-### FR-1: CLI pushes a Mermaid diagram to a local canvas
-**User story:** As a developer, I want Copilot CLI to render a generated Mermaid
-diagram in the canvas so that I can see a system visually.
+### FR-1: CLI pushes a graph model to a local canvas
+**User story:** As a developer, I want Copilot CLI to render a generated graph
+model (Cytoscape elements) in the canvas so that I can see a system visually.
 
 **Acceptance criteria:**
 - [ ] The server can send a `diagram` message (see `DATA_MODEL.md`) over the MCP
       Apps channel.
-- [ ] The canvas renders the Mermaid source as an SVG.
-- [ ] Invalid Mermaid shows a readable error, not a blank canvas.
+- [ ] The canvas renders the `elements` model with Cytoscape.
+- [ ] An invalid graph model shows a readable error, not a blank canvas.
 
 **Priority:** Must · **Depends on:** none
 
@@ -119,4 +119,4 @@ evolve together.
 - **Must have:** FR-1..FR-7 (Goal 1 complete + core of Goal 2), FR-9
 - **Should have:** FR-8
 - **Could have:** FR-10, multi-host validation
-- **Won't have (this hackathon):** persistence, cloud hosting, non-Mermaid formats
+- **Won't have (this hackathon):** persistence, cloud hosting, non-graph formats

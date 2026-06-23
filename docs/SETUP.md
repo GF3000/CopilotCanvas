@@ -58,8 +58,9 @@ pushed — no separate browser process or port is required for the primary path.
 
 - **Canvas didn't open:** confirm the MCP server is registered and the host
   supports MCP Apps; check the host's MCP logs.
-- **Blank canvas:** likely invalid Mermaid — an error overlay should appear; the
-  server should validate Mermaid before sending (see `ARCHITECTURE.md`).
+- **Blank canvas:** likely an invalid graph model — an error overlay should appear;
+  the server should validate the `elements` model before sending (see
+  `ARCHITECTURE.md`).
 - **Canvas not updating:** check the MCP Apps channel in the host's logs; the
   canvas should re-sync when the channel re-initializes.
 

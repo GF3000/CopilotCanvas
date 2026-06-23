@@ -3,7 +3,7 @@
 > Copilot CLI explains systems in text. **Canvas for Copilot** adds a second
 > surface: a lightweight local web canvas that opens on demand and stays connected
 > to your CLI session over the Model Context Protocol (MCP Apps), turning those
-> explanations into live, interactive Mermaid diagrams. The CLI drives the canvas; the canvas sends
+> explanations into live, interactive Cytoscape graphs. The CLI drives the canvas; the canvas sends
 > interactions back as Copilot prompts — a bidirectional visual reasoning loop.
 >
 > See [`docs/PROJECT_BRIEF.md`](docs/PROJECT_BRIEF.md) for the full overview and

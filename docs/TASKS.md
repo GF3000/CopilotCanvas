@@ -10,6 +10,22 @@
 - **Status:** `todo` | `in-progress` | `in-review` | `done` | `blocked`.
 - **Size:** one PR. Split if larger.
 
+## Epics & ownership (3-day plan)
+
+Three epics, one per location (*proposed, changeable* — see `PROJECT_BRIEF.md`).
+Mirror these tasks on the Jira **KAN** board and keep both in sync. Target
+**feature-complete by end of Wednesday**; Thursday is for the demo video.
+
+| Epic | Owner | Tasks |
+|------|-------|-------|
+| **Frontend / Canvas UI** (`/canvas`) | **US (3p)** | `canvas-render`, `node-selection`, `expand-node` (render side), `live-update` (render side) |
+| **MCP logic / tools** (`/server`) | **Dublin (2p)** | `mcp-server`, `explain-node`, `expand-node` (server side), `node-code-refs`, `modify-from-node` |
+| **VS Code extension / bridge** (extension + `/shared`) | **India (1p)** | `mcp-app-launch`, `live-update` (channel), `multi-host-validation`, `diagram-edit-to-code` |
+| **Shared kick-off** (do first, together) | All | `repo-scaffold`, `shared-protocol` |
+
+> `shared-protocol` is the cross-epic contract — land it early on day 1 so all
+> three streams can build against stable types.
+
 ---
 
 ## Phase 0 — Scaffold
@@ -52,21 +68,22 @@
 ### `canvas-render`
 - **Status:** todo · **Satisfies:** FR-1, FR-3
 - **Description:** In `/canvas`, build the MCP App that connects to the MCP Apps
-  `postMessage` channel, handles `hello`, renders incoming `diagram` Mermaid as
-  SVG, and provides pan/zoom (svg-pan-zoom or equivalent) with a fit/reset control.
-  Show a readable error for invalid Mermaid.
+  `postMessage` channel, handles `hello`, renders an incoming `diagram`'s
+  `elements` with **Cytoscape**, and provides built-in pan/zoom with a fit/reset
+  control. Show a readable error for an invalid graph model.
 - **Depends on:** shared-protocol
-- **Acceptance:** given a `diagram` message, the SVG renders; pan/zoom/reset work;
-  bad Mermaid shows an error, not a blank screen.
+- **Acceptance:** given a `diagram` message, the Cytoscape graph renders;
+  pan/zoom/reset work; a bad graph model shows an error, not a blank screen.
 
 ### `mcp-app-launch`
 - **Status:** todo · **Satisfies:** FR-1, FR-2
-- **Description:** Implement the server tool/flow that generates or accepts Mermaid
-  and pushes a `diagram` message, causing the MCP host to render the canvas app in
-  its iframe. Reuse the already-rendered app for subsequent diagrams.
+- **Description:** Implement the server tool/flow that generates or accepts a graph
+  model (Cytoscape `elements`) and pushes a `diagram` message, causing the MCP host
+  to render the canvas app in its iframe. Reuse the already-rendered app for
+  subsequent diagrams.
 - **Depends on:** mcp-server, canvas-render
-- **Acceptance:** invoking the tool with Mermaid renders the diagram in the host's
-  canvas; a second invocation updates the same surface in place.
+- **Acceptance:** invoking the tool with a graph model renders the diagram in the
+  host's canvas; a second invocation updates the same surface in place.
 
 ### `live-update`
 - **Status:** todo · **Satisfies:** FR-4, NFR-2, NFR-4
@@ -84,9 +101,9 @@
 
 ### `node-selection`
 - **Status:** todo · **Satisfies:** FR-5, FR-8
-- **Description:** Canvas: clicking a Mermaid node selects it (visual state) and
-  emits `node_selected`. Server: persist current `(diagramId, nodeIds)`.
-  Ensure stable node ids survive re-render.
+- **Description:** Canvas: tapping a Cytoscape node selects it (visual state via a
+  class/selector) and emits `node_selected`. Server: persist current
+  `(diagramId, nodeIds)`. Ensure stable node ids survive re-render.
 - **Depends on:** live-update
 - **Acceptance:** clicking highlights the node and the server can read the current
   selection; selection persists across a re-render where the node still exists.
@@ -153,20 +170,49 @@
 
 ## Dependency overview
 
-```mermaid
-flowchart TD
-    repo-scaffold --> shared-protocol
-    shared-protocol --> mcp-server
-    shared-protocol --> canvas-render
-    mcp-server --> mcp-app-launch
-    canvas-render --> mcp-app-launch
-    mcp-app-launch --> live-update
-    live-update --> node-selection
-    node-selection --> explain-node
-    node-selection --> expand-node
-    live-update --> expand-node
-    expand-node --> node-code-refs
-    node-code-refs --> modify-from-node
-    modify-from-node --> diagram-edit-to-code
-    live-update --> multi-host-validation
+The task graph as a Cytoscape model — each edge means "depends on completion of".
+
+```js
+const elements = [
+  { data: { id: 'repo-scaffold',        label: 'repo-scaffold' } },
+  { data: { id: 'shared-protocol',      label: 'shared-protocol' } },
+  { data: { id: 'mcp-server',           label: 'mcp-server' } },
+  { data: { id: 'canvas-render',        label: 'canvas-render' } },
+  { data: { id: 'mcp-app-launch',       label: 'mcp-app-launch' } },
+  { data: { id: 'live-update',          label: 'live-update' } },
+  { data: { id: 'node-selection',       label: 'node-selection' } },
+  { data: { id: 'explain-node',         label: 'explain-node' } },
+  { data: { id: 'expand-node',          label: 'expand-node' } },
+  { data: { id: 'node-code-refs',       label: 'node-code-refs' } },
+  { data: { id: 'modify-from-node',     label: 'modify-from-node' } },
+  { data: { id: 'diagram-edit-to-code', label: 'diagram-edit-to-code' } },
+  { data: { id: 'multi-host-validation', label: 'multi-host-validation' } },
+
+  { data: { source: 'repo-scaffold',    target: 'shared-protocol' } },
+  { data: { source: 'shared-protocol',  target: 'mcp-server' } },
+  { data: { source: 'shared-protocol',  target: 'canvas-render' } },
+  { data: { source: 'mcp-server',       target: 'mcp-app-launch' } },
+  { data: { source: 'canvas-render',    target: 'mcp-app-launch' } },
+  { data: { source: 'mcp-app-launch',   target: 'live-update' } },
+  { data: { source: 'live-update',      target: 'node-selection' } },
+  { data: { source: 'node-selection',   target: 'explain-node' } },
+  { data: { source: 'node-selection',   target: 'expand-node' } },
+  { data: { source: 'live-update',      target: 'expand-node' } },
+  { data: { source: 'expand-node',      target: 'node-code-refs' } },
+  { data: { source: 'node-code-refs',   target: 'modify-from-node' } },
+  { data: { source: 'modify-from-node', target: 'diagram-edit-to-code' } },
+  { data: { source: 'live-update',      target: 'multi-host-validation' } },
+];
+
+const cy = cytoscape({
+  container: document.getElementById('cy'),
+  elements,
+  layout: { name: 'breadthfirst', directed: true },
+});
+
+// Click a task to inspect its dependents
+cy.on('tap', 'node', (evt) => {
+  console.log('task:', evt.target.id(),
+    'unblocks →', evt.target.outgoers('node').map((n) => n.id()));
+});
 ```
