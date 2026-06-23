@@ -14,6 +14,11 @@
 5. Self-validate against `docs/TEST_PLAN.md` before declaring a task done.
 6. **Commit and push often** — many agents work in parallel; integrate small
    changes frequently and rebase on the latest `main` (see *Collaboration* below).
+7. **Keep Jira (KAN) updated — mandatory.** You **must** have the Atlassian (Jira)
+   MCP toolset connected and use it to keep the board in sync (see *Jira tracking*
+   below). Set your task to `In Progress` before starting, move it to `In Review` /
+   `Done` as it progresses, and keep the task description accurate when scope
+   changes. Work that isn't reflected on the board is not considered done.
 
 ## Tech stack
 
@@ -71,6 +76,45 @@ npm test
 npm run lint
 ```
 
+## Jira tracking (mandatory)
+
+The team tracks all work on the Jira **KAN** board
+(`https://microsoft-team-canvas.atlassian.net`, project key **KAN**, cloudId
+`e8a1bb51-d1ab-417f-999a-647b8b4f2186`). Keeping it current is **mandatory** — it is
+how 6 people across 3 time zones coordinate.
+
+**Required setup — connect the Atlassian (Jira) MCP toolset.** Every agent/contributor
+**must** have the official Atlassian Rovo MCP server registered before starting work.
+Add it to your MCP client config (for Copilot CLI, `~/.copilot/mcp-config.json`):
+
+```json
+{
+  "mcpServers": {
+    "atlassian": {
+      "type": "http",
+      "url": "https://mcp.atlassian.com/v1/mcp",
+      "tools": ["*"]
+    }
+  }
+}
+```
+
+Restart the client and complete the OAuth 2.1 sign-in to `microsoft-team-canvas`.
+If the org has Rovo / Remote MCP disabled, an admin must enable it first.
+
+**What you must keep updated (using the Jira MCP tools):**
+- **Claim before you start:** move your task to **In Progress** and assign it to
+  yourself — so two people don't pick the same task.
+- **Progress the status:** **In Progress → In Review → Done** as work moves; use
+  **Blocked** (with a comment explaining why) if you're stuck.
+- **Keep the description accurate:** if scope or acceptance changes, edit the task
+  description to match — the board must reflect reality.
+- **Comment on meaningful events:** landing a commit/PR, decisions, hand-offs.
+  Reference the commit/PR and the Jira key.
+- **Mirror `docs/TASKS.md`:** the board and `docs/TASKS.md` must stay in sync.
+
+Work that isn't reflected on the board is **not considered done**.
+
 ## Git & PR conventions
 
 - **Branch naming:** `<author>/<jira-key>-<slug>`, e.g. `t-gfrancogim/KAN-12-cytoscape-render`.
@@ -106,3 +150,5 @@ constantly to avoid painful merge conflicts and duplicated work.
 - [ ] Tests added/updated and passing
 - [ ] Lint passes
 - [ ] Relevant docs updated
+- [ ] **Jira (KAN) task updated** — status moved to `Done`, description accurate,
+      commit/PR referenced (see *Jira tracking*)
