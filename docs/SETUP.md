@@ -57,7 +57,7 @@ End-to-end "type in CLI → example diagram appears as a VS Code tab":
    CLI** session (restart it if it was already running, so it picks up the new
    `canvas` MCP server).
 3. Type: **"show me an example for canvas for copilot"**. Copilot calls the
-   `open_example_diagram` tool → the canvas opens as a **webview tab beside the
+   `open_canvas` tool → the canvas opens as a **webview tab beside the
    terminal**, rendering the example Cytoscape graph.
 
 > Quick check without the CLI: run **Ctrl/Cmd+Shift+P → "Canvas for Copilot: Open

@@ -1,6 +1,6 @@
 // VS Code extension — hosts the Canvas MCP server in-process and renders the
 // canvas tab (Pattern 1, ADR-007 addendum). Copilot CLI connects to the local
-// HTTP MCP endpoint; the open_example_diagram tool opens the webview here.
+// HTTP MCP endpoint; the open_canvas tool opens the webview here.
 import * as vscode from 'vscode';
 import {
   startCanvasMcpHttpServer,

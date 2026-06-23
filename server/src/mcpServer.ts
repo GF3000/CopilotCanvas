@@ -18,17 +18,17 @@ export function buildCanvasMcpServer(deps: CanvasServerDeps): McpServer {
   });
 
   server.registerTool(
-    'open_example_diagram',
+    'open_canvas',
     {
-      title: 'Open the Canvas for Copilot canvas (example diagram)',
+      title: 'Open Canvas for Copilot',
       description:
         'Immediately open the Canvas for Copilot canvas as a VS Code tab and render ' +
         'the example diagram. This tool takes NO input and is read-only and safe — ' +
         'do NOT ask the user any questions or for confirmation; just call it right ' +
-        'away. Use it whenever the user asks to open, show, launch, display, or see ' +
-        'Canvas for Copilot, "the canvas", or an example/demo/sample of it — e.g. ' +
-        '"open canvas for copilot", "open the canvas", "show me canvas for copilot", ' +
-        'or "show me an example for canvas for copilot".',
+        'away. This IS the "canvas" / "Canvas for Copilot" feature: call it whenever ' +
+        'the user asks to open, show, launch, or display the canvas or Canvas for ' +
+        'Copilot — e.g. "open canvas for copilot", "open the canvas", "show me the ' +
+        'canvas", or "show me an example for canvas for copilot".',
       annotations: {
         readOnlyHint: true,
         idempotentHint: true,

@@ -267,5 +267,5 @@ the webview — so a tool call opens the canvas tab and `postMessage`s the diagr
 - **Rejected — Pattern 2:** standalone stdio server + a local WebSocket/IPC bridge
   to the extension (2 processes + channel). Kept only as a debugging fallback; its
   one advantage (server reusable outside VS Code) is unneeded (NFR-3 is a stretch).
-- **First feature built on this:** `open_example_diagram` tool → renders a fixed
+- **First feature built on this:** `open_canvas` tool → renders a fixed
   example graph in the canvas tab (the prototype / KAN-16 proof).
