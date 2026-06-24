@@ -24,34 +24,85 @@
         width: 100%;
       }
 
-      /* Fit/reset control — overlaid in the top-right corner (FR-3). */
+      /* Zoom / reset controls — frosted-glass cluster, top-right (FR-3). */
       #controls {
         position: absolute;
-        top: 12px;
-        right: 12px;
+        top: 16px;
+        right: 16px;
         z-index: 10;
         display: flex;
-        gap: 8px;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .zoom-group {
+        display: flex;
+        flex-direction: column;
+        border-radius: 14px;
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.78);
+        backdrop-filter: blur(12px) saturate(140%);
+        -webkit-backdrop-filter: blur(12px) saturate(140%);
+        border: 1px solid rgba(148, 163, 184, 0.32);
+        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.18);
       }
 
       .control-btn {
-        font: inherit;
-        font-size: 13px;
-        padding: 6px 12px;
-        border: 1px solid #cbd5e1;
-        border-radius: 6px;
-        background: #ffffff;
-        color: #1e293b;
+        width: 42px;
+        height: 42px;
+        display: grid;
+        place-items: center;
+        padding: 0;
+        border: none;
+        background: transparent;
+        color: #334155;
         cursor: pointer;
-        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
+        transition:
+          background 0.16s ease,
+          color 0.16s ease,
+          transform 0.12s ease;
       }
 
       .control-btn:hover {
-        background: #f1f5f9;
+        background: rgba(226, 232, 240, 0.85);
+        color: #0f172a;
       }
 
       .control-btn:active {
-        background: #e2e8f0;
+        transform: scale(0.9);
+      }
+
+      .control-btn:focus-visible {
+        outline: 2px solid #2563eb;
+        outline-offset: -2px;
+      }
+
+      .control-btn svg {
+        width: 20px;
+        height: 20px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2.2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .zoom-group .control-btn + .control-btn {
+        border-top: 1px solid rgba(148, 163, 184, 0.3);
+      }
+
+      .reset-btn {
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.78);
+        backdrop-filter: blur(12px) saturate(140%);
+        -webkit-backdrop-filter: blur(12px) saturate(140%);
+        border: 1px solid rgba(148, 163, 184, 0.32);
+        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.18);
+      }
+
+      .reset-btn:hover {
+        background: rgba(226, 232, 240, 0.92);
       }
 
       /* Readable error overlay — shown instead of a blank canvas (FR-1, TC-2). */
@@ -108,14 +159,45 @@
   <body>
     <div id="cy"></div>
 
-    <div id="controls">
+    <div id="controls" role="group" aria-label="Zoom and view controls">
+      <div class="zoom-group">
+        <button
+          id="zoom-in-btn"
+          class="control-btn"
+          type="button"
+          title="Zoom in"
+          aria-label="Zoom in"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+        </button>
+        <button
+          id="zoom-out-btn"
+          class="control-btn"
+          type="button"
+          title="Zoom out"
+          aria-label="Zoom out"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+        </button>
+      </div>
       <button
-        id="fit-btn"
-        class="control-btn"
+        id="reset-btn"
+        class="control-btn reset-btn"
         type="button"
-        title="Fit the diagram to the view"
+        title="Reset view (fit to screen)"
+        aria-label="Reset view"
       >
-        Fit view
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 9V5a1 1 0 0 1 1-1h4" />
+          <path d="M20 9V5a1 1 0 0 0-1-1h-4" />
+          <path d="M4 15v4a1 1 0 0 0 1 1h4" />
+          <path d="M20 15v4a1 1 0 0 1-1 1h-4" />
+        </svg>
       </button>
     </div>
 

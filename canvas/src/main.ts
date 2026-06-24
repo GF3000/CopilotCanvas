@@ -68,10 +68,36 @@ const cy = cytoscape({
 
 const errorPanel = document.getElementById('error');
 const errorList = document.getElementById('error-list');
-const fitButton = document.getElementById('fit-btn');
+const zoomInButton = document.getElementById('zoom-in-btn');
+const zoomOutButton = document.getElementById('zoom-out-btn');
+const resetButton = document.getElementById('reset-btn');
 
-// Fit/reset view: re-frame the whole graph at a legible zoom (FR-3).
-fitButton?.addEventListener('click', () => cy.fit(undefined, FIT_PADDING));
+const ZOOM_FACTOR = 1.25;
+
+// Smoothly zoom about the viewport centre so the focus point stays put. Gestures
+// (drag to pan, wheel to zoom) keep working — these buttons are an alternative.
+function zoomByFactor(factor: number): void {
+  const centre = { x: cy.width() / 2, y: cy.height() / 2 };
+  cy.animate({
+    zoom: { level: cy.zoom() * factor, renderedPosition: centre },
+    duration: 130,
+    easing: 'ease-out',
+  });
+}
+
+// Reset/fit: re-frame the whole graph at a legible zoom (FR-3).
+function fitView(): void {
+  if (cy.elements().empty()) return;
+  cy.animate({
+    fit: { eles: cy.elements(), padding: FIT_PADDING },
+    duration: 200,
+    easing: 'ease-out',
+  });
+}
+
+zoomInButton?.addEventListener('click', () => zoomByFactor(ZOOM_FACTOR));
+zoomOutButton?.addEventListener('click', () => zoomByFactor(1 / ZOOM_FACTOR));
+resetButton?.addEventListener('click', fitView);
 
 function showError(messages: string[]): void {
   if (!errorPanel || !errorList) return;
