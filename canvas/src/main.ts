@@ -31,16 +31,18 @@ const FONT_FAMILY =
 const ext = (props: Record<string, unknown>): cytoscape.Css.Node =>
   props as unknown as cytoscape.Css.Node;
 
-const cy = cytoscape({
-  container: document.getElementById('cy'),
-  elements: [],
-  layout: { name: 'breadthfirst', directed: true, spacingFactor: 1.25 },
-  // Built-in pan/zoom (FR-3); zoom bounds keep large graphs legible.
-  userPanningEnabled: true,
-  userZoomingEnabled: true,
-  minZoom: 0.1,
-  maxZoom: 4,
-  style: [
+type Theme = 'dark' | 'light';
+
+// Per-theme bits of the Cytoscape stylesheet. Node fills are saturated and read
+// well on either background, so only the edge label chrome changes by theme.
+const EDGE_LABEL: Record<Theme, { color: string; background: string }> = {
+  dark: { color: '#cbbdf2', background: '#161325' },
+  light: { color: '#4b4564', background: 'rgba(255, 255, 255, 0.92)' },
+};
+
+function buildStyle(theme: Theme): cytoscape.StylesheetStyle[] {
+  const edge = EDGE_LABEL[theme];
+  return [
     {
       selector: 'node',
       style: {
@@ -118,9 +120,9 @@ const cy = cytoscape({
         'arrow-scale': 1.05,
         'font-family': FONT_FAMILY,
         'font-size': 9,
-        color: '#cbbdf2',
-        'text-background-color': '#161325',
-        'text-background-opacity': 0.85,
+        color: edge.color,
+        'text-background-color': edge.background,
+        'text-background-opacity': 0.9,
         'text-background-padding': '3px',
         'text-background-shape': 'roundrectangle',
         // Gradient edges (violet → fuchsia) to match the node palette.
@@ -132,7 +134,36 @@ const cy = cytoscape({
         }),
       },
     },
-  ],
+  ];
+}
+
+// Resolve the initial theme: stored choice → system preference → dark.
+function getInitialTheme(): Theme {
+  try {
+    const stored = localStorage.getItem('canvas-theme');
+    if (stored === 'dark' || stored === 'light') return stored;
+  } catch {
+    /* localStorage may be unavailable */
+  }
+  const prefersLight =
+    typeof matchMedia === 'function' &&
+    matchMedia('(prefers-color-scheme: light)').matches;
+  return prefersLight ? 'light' : 'dark';
+}
+
+let currentTheme: Theme = getInitialTheme();
+document.documentElement.dataset.theme = currentTheme;
+
+const cy = cytoscape({
+  container: document.getElementById('cy'),
+  elements: [],
+  layout: { name: 'breadthfirst', directed: true, spacingFactor: 1.25 },
+  // Built-in pan/zoom (FR-3); zoom bounds keep large graphs legible.
+  userPanningEnabled: true,
+  userZoomingEnabled: true,
+  minZoom: 0.1,
+  maxZoom: 4,
+  style: buildStyle(currentTheme),
 });
 
 const errorPanel = document.getElementById('error');
@@ -167,6 +198,29 @@ function fitView(): void {
 zoomInButton?.addEventListener('click', () => zoomByFactor(ZOOM_FACTOR));
 zoomOutButton?.addEventListener('click', () => zoomByFactor(1 / ZOOM_FACTOR));
 resetButton?.addEventListener('click', fitView);
+
+const themeToggle = document.getElementById('theme-toggle-btn');
+
+// Re-theme the chrome (CSS vars via data-theme) and the Cytoscape stylesheet.
+function applyTheme(theme: Theme): void {
+  currentTheme = theme;
+  document.documentElement.dataset.theme = theme;
+  cy.style(buildStyle(theme)).update();
+  const next = theme === 'dark' ? 'light' : 'dark';
+  themeToggle?.setAttribute('aria-label', `Switch to ${next} theme`);
+  themeToggle?.setAttribute('title', `Switch to ${next} theme`);
+  try {
+    localStorage.setItem('canvas-theme', theme);
+  } catch {
+    /* localStorage may be unavailable */
+  }
+}
+
+themeToggle?.addEventListener('click', () =>
+  applyTheme(currentTheme === 'dark' ? 'light' : 'dark'),
+);
+// Sync the toggle's label with the initial theme set at startup.
+applyTheme(currentTheme);
 
 function showError(messages: string[]): void {
   if (!errorPanel || !errorList) return;
