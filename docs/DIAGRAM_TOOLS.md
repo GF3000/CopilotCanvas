@@ -153,11 +153,32 @@ palette + fonts so the canvas looks cohesive.
   `label` → e.g. `places (1:N)`. (Cytoscape has no crow's-foot endpoints, so
   cardinality is shown as a label.)
 
+## Drill-down: Expand an element / Back to previous scope
+
+Any diagram supports **client-side drill-down** so you can focus one element without
+regenerating the diagram:
+
+- **Right-click a node → "Expand element"** — re-renders a **sub-scope** showing just
+  that node and its directly-connected neighbours (the same elements, kinds, classes
+  and notation — it stays the same diagram type), and re-runs the layout to fill the
+  view. Only offered when the node actually has neighbours.
+- **"Back to previous scope"** — a breadcrumb button that appears next to the diagram
+  title once you've expanded; it pops back to the previous scope. Expansions nest
+  (you can drill in repeatedly), and Back steps out one level at a time.
+
+This is **all in the canvas** (`canvas/src/scope.ts` + `canvas/src/main.ts`): no model
+round-trip, so it's instant. A fresh diagram pushed by the host (e.g. you ask Copilot
+for a new diagram, or a deeper one) resets the scope stack — it's a new top-level
+scope. For genuinely *new* detail (more nodes than the parent had), ask Copilot to
+regenerate at a deeper level — e.g. `diagram_dependency` with a finer `scope`
+(package → module → function).
+
 ## How to test
 
 ### Automated
 Unit tests for every builder live in `server/src/diagramTypes.test.ts` (kinds,
-classes, edge labels, cycles, dropped edges, class label folding, ER cardinality):
+classes, edge labels, cycles, dropped edges, class label folding, ER cardinality,
+dependency scope) and the drill-down logic in `canvas/src/scope.test.ts`:
 
 ```bash
 npm test           # runs the whole vitest suite
@@ -184,6 +205,9 @@ npm run lint
 3. Verify: the canvas tab opens (or updates in place), each type renders with its
    conventional **notation** (shapes + arrowheads), and clicking a node still supports
    *explain* / *jump to code*.
+4. **Drill-down:** right-click a node with neighbours → **Expand element** — the view
+   focuses that node + its connections; a **Back** button appears by the title and
+   returns to the previous scope. Drill in again to nest; Back steps out one level.
 
 ## Acceptance criteria coverage
 

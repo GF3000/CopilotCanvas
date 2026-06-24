@@ -7,8 +7,9 @@
 ## Test strategy
 
 - **Unit tests:** protocol type guards (`/shared`), graph-model → Cytoscape render
-  helper, the typed diagram-type builders (`server/src/diagramTypes.test.ts`), and
-  message relay logic in the server.
+  helper, the typed diagram-type builders (`server/src/diagramTypes.test.ts`), the
+  client-side drill-down helpers (`canvas/src/scope.test.ts`), and message relay
+  logic in the server.
 - **Integration tests:** drive the MCP server, simulate the MCP Apps channel, and
   assert message round-trips (`diagram` out, `node_selected`/`interaction` in).
 - **Manual / demo checks:** the end-to-end demo script below.
@@ -45,6 +46,8 @@ npm run build   # canvas bundle must build
 | TC-17 | FR-11 | Class relations | Call `diagram_class` with inheritance/realization/aggregation/composition | Sharp class boxes; each relation drawn with its distinct UML arrowhead/line-style |
 | TC-18 | FR-11 | ER cardinality | Call `diagram_er` with 1:N and M:N relationships | Entity table boxes; relationship lines labeled with cardinality |
 | TC-19 | FR-11 | Bad edges dropped | Any typed tool with an edge referencing an unknown node id | Edge dropped + reported in the tool result; canvas not blank |
+| TC-20 | FR-7 | Drill-down expand | Right-click a node with neighbours → "Expand element" | View focuses the node + its neighbours (same notation); Back button appears |
+| TC-21 | FR-7 | Back to previous scope | After expanding, click "Back to previous scope" | Previous (parent) scope is restored; Back hides at the top level |
 
 ## Demo script (end-to-end)
 

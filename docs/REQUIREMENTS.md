@@ -71,6 +71,10 @@ CLI knows what I'm referring to.
 **Acceptance criteria:**
 - [ ] An `expand` interaction regenerates a more detailed subgraph for the node.
 - [ ] The canvas re-renders showing the expanded detail/subnodes in place.
+- [ ] A **client-side drill-down** complements this: right-click a node →
+      "Expand element" focuses it + its neighbours as a sub-scope (same diagram type),
+      with a "Back to previous scope" breadcrumb — no model round-trip
+      (`canvas/src/scope.ts`).
 
 **Priority:** Must · **Depends on:** FR-5, FR-4
 

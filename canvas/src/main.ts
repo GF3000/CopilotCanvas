@@ -15,6 +15,7 @@ import {
   type PatchMessage,
 } from '@canvas/shared';
 import { validateGraphModel } from './graphModel';
+import { closedNeighbourhood, countNodes, nodeLabel } from './scope';
 
 cytoscape.use(dagre);
 
@@ -908,6 +909,83 @@ legendToggle?.addEventListener('click', () => {
 // input the validator didn't anticipate.
 let currentDiagramId: string | undefined;
 
+// ── Drill-down / scope navigation ───────────────────────────────────────────
+// "Expand element" (node context menu) focuses a node + its directly-connected
+// neighbours as a sub-scope of the SAME diagram (same elements/notation); a
+// "Back" breadcrumb steps to the previous scope. A fresh diagram from the host
+// resets the stack (it's a new top-level scope). All client-side — no re-gen.
+interface Scope {
+  title: string;
+  elements: CyElement[];
+}
+let currentScopeElements: CyElement[] = [];
+const scopeStack: Scope[] = [];
+const scopeBackBtn = document.getElementById('scope-back-btn');
+
+/** Render an elements subset as the active view, returning whether it rendered. */
+function showElements(elements: CyElement[], title: string): boolean {
+  const result = validateGraphModel(elements);
+  if (!result.ok) {
+    showError(result.errors);
+    return false;
+  }
+  setTitle(title);
+  try {
+    render(result.elements);
+    clearError();
+    updateLegend();
+    return true;
+  } catch (err) {
+    showError([`Cytoscape could not render this model: ${String(err)}`]);
+    return false;
+  }
+}
+
+/** Show/hide the Back button and label it with the scope it returns to. */
+function updateScopeBar(): void {
+  if (!scopeBackBtn) return;
+  scopeBackBtn.hidden = scopeStack.length === 0;
+  const parent = scopeStack[scopeStack.length - 1];
+  scopeBackBtn.title = parent
+    ? `Back to "${parent.title || 'previous scope'}"`
+    : 'Back to previous scope';
+}
+
+/** Can this node be drilled into (does it have at least one neighbour)? */
+function isExpandable(nodeId: string): boolean {
+  return countNodes(closedNeighbourhood(currentScopeElements, nodeId)) > 1;
+}
+
+/** Drill into a node: focus it + its neighbours, pushing the current scope. */
+function expandElement(nodeId: string): void {
+  const subset = closedNeighbourhood(currentScopeElements, nodeId);
+  if (countNodes(subset) <= 1) return; // nothing to drill into
+  const label = nodeLabel(currentScopeElements, nodeId) ?? nodeId;
+  const parentTitle = currentTitle;
+  const childTitle = parentTitle ? `${parentTitle} › ${label}` : label;
+  scopeStack.push({ title: parentTitle, elements: currentScopeElements });
+  if (showElements(subset, childTitle)) {
+    currentScopeElements = subset;
+    updateScopeBar();
+  } else {
+    scopeStack.pop(); // render failed — undo the push
+  }
+}
+
+/** Step back to the previous scope on the stack. */
+function scopeBack(): void {
+  const prev = scopeStack.pop();
+  if (!prev) return;
+  if (showElements(prev.elements, prev.title)) {
+    currentScopeElements = prev.elements;
+  } else {
+    scopeStack.push(prev); // restore on failure
+  }
+  updateScopeBar();
+}
+
+scopeBackBtn?.addEventListener('click', () => scopeBack());
+
 function handleDiagram(msg: DiagramMessage): void {
   const result = validateGraphModel(msg.elements);
   if (!result.ok) {
@@ -915,6 +993,9 @@ function handleDiagram(msg: DiagramMessage): void {
     return;
   }
   currentDiagramId = msg.diagramId;
+  // A new diagram from the host is a fresh top-level scope.
+  scopeStack.length = 0;
+  currentScopeElements = msg.elements;
   setTitle(msg.title);
   try {
     render(result.elements);
@@ -923,6 +1004,7 @@ function handleDiagram(msg: DiagramMessage): void {
   } catch (err) {
     showError([`Cytoscape could not render this model: ${String(err)}`]);
   }
+  updateScopeBar();
 }
 
 // Selection (KAN-7): tapping a node selects it and tells the extension which node
@@ -962,6 +1044,7 @@ cy.on('tap', (evt) => {
 const contextMenu = document.getElementById('context-menu');
 const ctxOpenCode = document.getElementById('ctx-open-code');
 const ctxCenter = document.getElementById('ctx-center');
+const ctxExpand = document.getElementById('ctx-expand');
 let contextNodeId: string | undefined;
 
 function hideContextMenu(): void {
@@ -980,6 +1063,8 @@ cy.on('cxttap', 'node', (evt) => {
   const refs = node.data('codeRefs') as unknown[] | undefined;
   const linked = node.hasClass('linked') || (Array.isArray(refs) && refs.length > 0);
   if (ctxOpenCode) ctxOpenCode.hidden = !linked;
+  // Only offer "Expand element" when the node has neighbours to drill into.
+  if (ctxExpand) ctxExpand.hidden = !isExpandable(node.id());
   const oe = evt.originalEvent as MouseEvent | undefined;
   const x = oe?.clientX ?? evt.renderedPosition.x;
   const y = oe?.clientY ?? evt.renderedPosition.y;
@@ -993,6 +1078,12 @@ ctxOpenCode?.addEventListener('click', () => {
     vscode?.postMessage({ type: 'node_action', action: 'open_code', nodeId: contextNodeId });
   }
   hideContextMenu();
+});
+
+ctxExpand?.addEventListener('click', () => {
+  const id = contextNodeId;
+  hideContextMenu();
+  if (id) expandElement(id);
 });
 
 ctxCenter?.addEventListener('click', () => {
