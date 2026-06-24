@@ -58,8 +58,8 @@ const cy = cytoscape({
         'text-wrap': 'wrap',
         'text-max-width': '160px',
         'background-color': '#8b5cf6',
-        'border-width': 1,
-        'border-color': 'rgba(0, 0, 0, 0.3)',
+        'border-width': 2,
+        'border-color': 'rgba(0, 0, 0, 0.4)',
         // Squircle corners + a soft two-tone gradient. (No underlay — it renders
         // as a hard-edged second box rather than a blurred glow.)
         ...ext({
