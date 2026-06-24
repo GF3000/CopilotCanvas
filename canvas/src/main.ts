@@ -22,8 +22,12 @@ const vscode =
 
 const FIT_PADDING = 30;
 
-// Cytoscape 3.34 supports squircle corners, gradient fills and underlay glows,
-// but @types/cytoscape doesn't type them yet — route those props through here.
+// A clean, modern system-font stack (webview CSP blocks remote webfonts).
+const FONT_FAMILY =
+  "'Segoe UI Variable Display', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif";
+
+// Cytoscape 3.34 supports squircle corners and gradient fills, but
+// @types/cytoscape doesn't type them yet — route those props through here.
 const ext = (props: Record<string, unknown>): cytoscape.Css.Node =>
   props as unknown as cytoscape.Css.Node;
 
@@ -43,8 +47,9 @@ const cy = cytoscape({
         label: 'data(label)',
         'text-valign': 'center',
         'text-halign': 'center',
-        color: '#f5f3ff',
-        'font-size': 11,
+        color: '#f6f4ff',
+        'font-family': FONT_FAMILY,
+        'font-size': 12,
         'font-weight': 600,
         width: 'label',
         height: 'label',
@@ -53,20 +58,16 @@ const cy = cytoscape({
         'text-wrap': 'wrap',
         'text-max-width': '160px',
         'border-width': 1,
-        'border-color': 'rgba(255, 255, 255, 0.2)',
-        'text-outline-width': 1.5,
-        'text-outline-color': '#241a3d',
+        'border-color': 'rgba(255, 255, 255, 0.22)',
         'background-color': '#8b5cf6',
-        // Squircle corners + a soft two-tone gradient and a faint colour glow.
+        // Squircle corners + a soft two-tone gradient. (No underlay — it renders
+        // as a hard-edged second box rather than a blurred glow.)
         ...ext({
           'corner-radius': '18px',
           'background-fill': 'linear-gradient',
           'background-gradient-direction': 'to-bottom-right',
           'background-gradient-stop-colors': '#8b5cf6 #6d28d9',
           'background-gradient-stop-positions': '0% 100%',
-          'underlay-color': '#8b5cf6',
-          'underlay-opacity': 0.18,
-          'underlay-padding': 8,
         }),
       },
     },
@@ -76,7 +77,6 @@ const cy = cytoscape({
       style: ext({
         'background-color': '#d946ef',
         'background-gradient-stop-colors': '#e879f9 #a21caf',
-        'underlay-color': '#d946ef',
       }),
     },
     {
@@ -84,7 +84,6 @@ const cy = cytoscape({
       style: ext({
         'background-color': '#8b5cf6',
         'background-gradient-stop-colors': '#a78bfa #6d28d9',
-        'underlay-color': '#8b5cf6',
       }),
     },
     {
@@ -92,7 +91,6 @@ const cy = cytoscape({
       style: ext({
         'background-color': '#6366f1',
         'background-gradient-stop-colors': '#818cf8 #4338ca',
-        'underlay-color': '#6366f1',
       }),
     },
     {
@@ -100,7 +98,6 @@ const cy = cytoscape({
       style: ext({
         'background-color': '#06b6d4',
         'background-gradient-stop-colors': '#22d3ee #0e7490',
-        'underlay-color': '#06b6d4',
       }),
     },
     {
@@ -108,7 +105,6 @@ const cy = cytoscape({
       style: ext({
         'background-color': '#ec4899',
         'background-gradient-stop-colors': '#f472b6 #be185d',
-        'underlay-color': '#ec4899',
       }),
     },
     {
@@ -120,6 +116,7 @@ const cy = cytoscape({
         'target-arrow-shape': 'triangle',
         'target-arrow-color': '#d946ef',
         'arrow-scale': 1.05,
+        'font-family': FONT_FAMILY,
         'font-size': 9,
         color: '#cbbdf2',
         'text-background-color': '#161325',
