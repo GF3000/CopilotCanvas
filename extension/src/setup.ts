@@ -28,7 +28,9 @@ another format.
 
 When the user asks to edit/change/relabel/annotate/add to/remove from a diagram that
 is ALREADY on the canvas, call \`update_diagram\` instead of \`create_diagram\` — it
-edits in place and preserves the current view (pan/zoom/positions).
+edits in place and preserves the current view (pan/zoom/positions). When the user
+refers to "this"/"the selected node"/"it", call \`get_selection\` first to learn
+which node they clicked, then act on that id.
 ${MARKER_END}`;
 
 interface McpConfig {

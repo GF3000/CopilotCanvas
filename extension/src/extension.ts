@@ -30,6 +30,7 @@ export async function activate(
       onOpenDiagram: (diagram) =>
         CanvasPanel.show(context.extensionUri, diagram),
       onPatchDiagram: (patch) => CanvasPanel.patch(patch),
+      getSelection: () => CanvasPanel.getSelection(),
     });
     void vscode.window.showInformationMessage(
       `Canvas for Copilot: MCP server ready at ${httpServer.url}`,

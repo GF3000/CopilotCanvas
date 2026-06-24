@@ -5,7 +5,7 @@
 import http from 'node:http';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import type { DiagramMessage, PatchMessage } from '@canvas/shared';
-import { buildCanvasMcpServer } from './mcpServer';
+import { buildCanvasMcpServer, type CanvasSelectionInfo } from './mcpServer';
 
 export const DEFAULT_CANVAS_MCP_PORT = 4123;
 
@@ -14,6 +14,7 @@ export interface CanvasHttpServerOptions {
   host?: string;
   onOpenDiagram: (diagram: DiagramMessage) => void | Promise<void>;
   onPatchDiagram: (patch: PatchMessage) => boolean | Promise<boolean>;
+  getSelection: () => CanvasSelectionInfo;
 }
 
 export interface CanvasHttpServer {
@@ -66,6 +67,7 @@ async function handleRequest(
   const mcp = buildCanvasMcpServer({
     onOpenDiagram: opts.onOpenDiagram,
     onPatchDiagram: opts.onPatchDiagram,
+    getSelection: opts.getSelection,
   });
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: undefined,

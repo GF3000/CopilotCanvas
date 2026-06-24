@@ -40,6 +40,12 @@ const STYLE_SCHEMA = z
   .optional()
   .describe('Optional whitelisted style overrides (color, fontSize, size).');
 
+export interface CanvasSelectionInfo {
+  diagramId?: string;
+  nodeIds: string[];
+  nodes: { id: string; label?: string }[];
+}
+
 export interface CanvasServerDeps {
   /** Called when a tool wants to render a (new/replacement) diagram in the canvas. */
   onOpenDiagram: (diagram: DiagramMessage) => void | Promise<void>;
@@ -48,6 +54,8 @@ export interface CanvasServerDeps {
    * Returns false if no diagram is open (nothing to patch).
    */
   onPatchDiagram: (patch: PatchMessage) => boolean | Promise<boolean>;
+  /** Returns the node(s) currently selected on the canvas. */
+  getSelection: () => CanvasSelectionInfo;
 }
 
 /** Build a fresh McpServer with the Canvas tools registered. */
@@ -97,6 +105,48 @@ export function buildCanvasMcpServer(deps: CanvasServerDeps): McpServer {
   registerDiagramTool(server, deps);
 
   registerUpdateDiagramTool(server, deps);
+
+  server.registerTool(
+    'get_selection',
+    {
+      title: 'Get the node(s) currently selected on the canvas',
+      description:
+        'Return the node(s) the user has currently selected (clicked) on the Canvas ' +
+        'for Copilot canvas. ALWAYS call this first whenever the user refers to the ' +
+        'selection deictically — "this", "this node", "the selected node", "it", ' +
+        '"here", "that one" — so you know which node id they mean before editing it ' +
+        '(e.g. "increase the font size of this" → get_selection → update_diagram on ' +
+        'that id). Read-only; no input. Returns the selected node ids and labels, or ' +
+        'nothing if no node is selected.',
+      annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+    },
+    () => {
+      const sel = deps.getSelection();
+      if (sel.nodeIds.length === 0) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: 'No node is currently selected on the canvas. Ask the user to click a node, or which node they mean.',
+            },
+          ],
+        };
+      }
+      const list = sel.nodes
+        .map((n) => `${n.id}${n.label ? ` ("${n.label}")` : ''}`)
+        .join(', ');
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Currently selected: ${list}. Use ${
+              sel.nodeIds.length === 1 ? 'this id' : 'these ids'
+            } with update_diagram to edit the selection.`,
+          },
+        ],
+      };
+    },
+  );
 
   return server;
 }

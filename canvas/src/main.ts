@@ -161,6 +161,17 @@ function buildStyle(theme: Theme): cytoscape.StylesheetStyle[] {
         }),
       },
     },
+    // Selected node (KAN-7) — a bright ring so the user sees what they clicked.
+    {
+      selector: 'node:selected',
+      style: ext({
+        'border-width': 4,
+        'border-color': '#38bdf8',
+        'overlay-color': '#38bdf8',
+        'overlay-opacity': 0.12,
+        'overlay-padding': 6,
+      }),
+    },
     // Curated style classes the CLI can set per element (KAN-26, option A).
     {
       selector: 'node.big',
@@ -450,12 +461,15 @@ function render(elements: CyElement[]): void {
 // Validate before rendering so a bad model shows an error, not a blank canvas
 // (FR-1, TC-2). The render itself is guarded too, in case Cytoscape rejects
 // input the validator didn't anticipate.
+let currentDiagramId: string | undefined;
+
 function handleDiagram(msg: DiagramMessage): void {
   const result = validateGraphModel(msg.elements);
   if (!result.ok) {
     showError(result.errors);
     return;
   }
+  currentDiagramId = msg.diagramId;
   setTitle(msg.title);
   try {
     render(result.elements);
@@ -464,6 +478,32 @@ function handleDiagram(msg: DiagramMessage): void {
     showError([`Cytoscape could not render this model: ${String(err)}`]);
   }
 }
+
+// Selection (KAN-7): tapping a node selects it and tells the extension which node
+// is selected, so the CLI can act on "this"/"the selected node". Tapping the
+// background clears the selection.
+function emitSelection(nodeIds: string[]): void {
+  vscode?.postMessage({
+    type: 'node_selected',
+    sessionId: 'webview',
+    diagramId: currentDiagramId ?? '',
+    nodeIds,
+  });
+}
+
+cy.on('tap', 'node', (evt) => {
+  const node = evt.target as cytoscape.NodeSingular;
+  cy.nodes().unselect();
+  node.select();
+  emitSelection([node.id()]);
+});
+
+cy.on('tap', (evt) => {
+  if (evt.target === cy) {
+    cy.nodes().unselect();
+    emitSelection([]);
+  }
+});
 
 window.addEventListener('message', (event: MessageEvent<CanvasMessage>) => {
   const msg = event.data;
