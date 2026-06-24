@@ -32,11 +32,19 @@ marked `user-invocable: true`, so they appear under `/`:
 
 | Slash command | Renders | MCP tool it calls |
 |---------------|---------|-------------------|
+| `/diagram <what>` | **auto-detects** the type from your request, then routes | the matching tool below (or `create_diagram`) |
 | `/diagram-dependency <what>` | dependency / architecture graph | `diagram_dependency` |
 | `/diagram-flowchart <what>` | flowchart | `diagram_flowchart` |
 | `/diagram-state-machine <what>` | state machine | `diagram_state_machine` |
 | `/diagram-class <what>` | UML class diagram | `diagram_class` |
 | `/diagram-er <what>` | entity/relationship diagram | `diagram_er` |
+
+`/diagram` is the **umbrella dispatcher**: it reads your request, detects the diagram
+type (by the type you name and/or the shape of what you describe), and calls the
+matching tool — falling back to `create_diagram` for anything that isn't one of the
+five types. The explicit `/diagram-<type>` commands **force** a specific type. So
+`/diagram a flowchart for login` and `/diagram-flowchart for login` both render a
+flowchart; `/diagram the data model for sales` auto-routes to the ER tool.
 
 Example: `/diagram-state-machine an order: new → paid → shipped → delivered`.
 
