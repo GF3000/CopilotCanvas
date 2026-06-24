@@ -5,7 +5,9 @@
   "type": "module",
   "dependencies": {
     "@canvas/shared": "*",
-    "cytoscape": "^3.30.0"
+    "cytoscape": "^3.30.0",
+    "cytoscape-dagre": "^4.0.0",
+    "dagre": "^0.8.5"
   },
   "devDependencies": {
     "@types/cytoscape": "^3.21.0"

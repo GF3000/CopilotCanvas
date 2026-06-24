@@ -3,6 +3,7 @@
 // models with Cytoscape, and offers built-in pan/zoom plus a fit/reset control.
 // An invalid graph model surfaces a readable error instead of a blank canvas.
 import cytoscape from 'cytoscape';
+import dagre from 'cytoscape-dagre';
 import {
   PROTOCOL_VERSION,
   isDiagramMessage,
@@ -13,6 +14,23 @@ import {
   type PatchMessage,
 } from '@canvas/shared';
 import { validateGraphModel } from './graphModel';
+
+cytoscape.use(dagre);
+
+// Hierarchical layout that respects node sizes and avoids overlap — a good fit
+// for the directed flow / dependency / state diagrams we render. dagre is a
+// Cytoscape extension, so its options aren't in the typed LayoutOptions union.
+function dagreLayout(fit: boolean): cytoscape.LayoutOptions {
+  return {
+    name: 'dagre',
+    rankDir: 'TB',
+    nodeSep: 45,
+    edgeSep: 12,
+    rankSep: 70,
+    fit,
+    padding: FIT_PADDING,
+  } as unknown as cytoscape.LayoutOptions;
+}
 
 // Available when running inside a VS Code webview; undefined in a plain browser.
 declare function acquireVsCodeApi():
@@ -165,7 +183,7 @@ document.documentElement.dataset.theme = currentTheme;
 const cy = cytoscape({
   container: document.getElementById('cy'),
   elements: [],
-  layout: { name: 'breadthfirst', directed: true, spacingFactor: 1.25 },
+  layout: dagreLayout(true),
   // Built-in pan/zoom (FR-3); zoom bounds keep large graphs legible.
   userPanningEnabled: true,
   userZoomingEnabled: true,
@@ -286,8 +304,9 @@ function clearError(): void {
   if (errorPanel) errorPanel.hidden = true;
 }
 
-// Apply an in-place patch WITHOUT re-laying-out or re-fitting, so the current
-// view (pan, zoom, node positions) is preserved (KAN-25).
+// Apply an in-place patch. Pure edits (relabel/annotate/remove) preserve the view
+// exactly — no layout runs. Structural ADDS re-run the dagre layout (without
+// re-fitting, so zoom/pan are kept) so new nodes are placed without overlap (KAN-25).
 function handlePatch(msg: PatchMessage): void {
   cy.batch(() => {
     // Remove first so an add can reuse an id.
@@ -301,38 +320,25 @@ function handlePatch(msg: PatchMessage): void {
       const target = cy.getElementById(id);
       if (target.nonempty()) target.data({ ...element.data });
     }
-    // Add new elements; place new nodes near the current viewport centre so they
-    // appear in view without disturbing the existing layout.
-    const additions = msg.add as cytoscape.ElementDefinition[];
-    if (additions.length > 0) {
-      const view = cy.extent();
-      const mid = {
-        x: (view.x1 + view.x2) / 2,
-        y: (view.y1 + view.y2) / 2,
-      };
-      for (const def of additions) {
-        const isNode =
-          def.data.source === undefined && def.data.target === undefined;
-        cy.add(
-          isNode
-            ? {
-                ...def,
-                position: {
-                  x: mid.x + (Math.random() - 0.5) * 60,
-                  y: mid.y + (Math.random() - 0.5) * 60,
-                },
-              }
-            : def,
-        );
-      }
+    if (msg.add.length > 0) {
+      cy.add(msg.add as cytoscape.ElementDefinition[]);
     }
   });
+
+  // Only re-layout when nodes were added (avoids overlap). `fit: false` keeps the
+  // current zoom/pan. Pure relabels never reach here, so they don't move.
+  const addedNode = msg.add.some(
+    (el) => el.data.source === undefined && el.data.target === undefined,
+  );
+  if (addedNode) {
+    cy.layout(dagreLayout(false)).run();
+  }
 }
 
 function render(elements: CyElement[]): void {
   cy.elements().remove();
   cy.add(elements as cytoscape.ElementDefinition[]);
-  cy.layout({ name: 'breadthfirst', directed: true, spacingFactor: 1.25 }).run();
+  cy.layout(dagreLayout(true)).run();
   cy.fit(undefined, FIT_PADDING);
 }
 
