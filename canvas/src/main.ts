@@ -22,10 +22,15 @@ const vscode =
 
 const FIT_PADDING = 30;
 
+// Cytoscape 3.34 supports squircle corners, gradient fills and underlay glows,
+// but @types/cytoscape doesn't type them yet — route those props through here.
+const ext = (props: Record<string, unknown>): cytoscape.Css.Node =>
+  props as unknown as cytoscape.Css.Node;
+
 const cy = cytoscape({
   container: document.getElementById('cy'),
   elements: [],
-  layout: { name: 'breadthfirst', directed: true },
+  layout: { name: 'breadthfirst', directed: true, spacingFactor: 1.25 },
   // Built-in pan/zoom (FR-3); zoom bounds keep large graphs legible.
   userPanningEnabled: true,
   userZoomingEnabled: true,
@@ -43,36 +48,91 @@ const cy = cytoscape({
         'font-weight': 600,
         width: 'label',
         height: 'label',
-        padding: '12px',
+        padding: '16px',
         shape: 'round-rectangle',
         'text-wrap': 'wrap',
-        'text-max-width': '150px',
-        'background-color': '#8b5cf6',
+        'text-max-width': '160px',
         'border-width': 1,
-        'border-color': 'rgba(255, 255, 255, 0.22)',
+        'border-color': 'rgba(255, 255, 255, 0.2)',
+        'text-outline-width': 1.5,
+        'text-outline-color': '#241a3d',
+        'background-color': '#8b5cf6',
+        // Squircle corners + a soft two-tone gradient and a faint colour glow.
+        ...ext({
+          'corner-radius': '18px',
+          'background-fill': 'linear-gradient',
+          'background-gradient-direction': 'to-bottom-right',
+          'background-gradient-stop-colors': '#8b5cf6 #6d28d9',
+          'background-gradient-stop-positions': '0% 100%',
+          'underlay-color': '#8b5cf6',
+          'underlay-opacity': 0.18,
+          'underlay-padding': 8,
+        }),
       },
     },
-    // Semantic node colours — a cohesive violet palette (D3: canvas owns styling).
-    { selector: 'node[kind = "entrypoint"]', style: { 'background-color': '#d946ef' } },
-    { selector: 'node[kind = "service"]', style: { 'background-color': '#8b5cf6' } },
-    { selector: 'node[kind = "module"]', style: { 'background-color': '#6366f1' } },
-    { selector: 'node[kind = "datastore"]', style: { 'background-color': '#06b6d4' } },
-    { selector: 'node[kind = "external"]', style: { 'background-color': '#ec4899' } },
+    // Semantic node colours — cohesive violet palette (D3: canvas owns styling).
+    {
+      selector: 'node[kind = "entrypoint"]',
+      style: ext({
+        'background-color': '#d946ef',
+        'background-gradient-stop-colors': '#e879f9 #a21caf',
+        'underlay-color': '#d946ef',
+      }),
+    },
+    {
+      selector: 'node[kind = "service"]',
+      style: ext({
+        'background-color': '#8b5cf6',
+        'background-gradient-stop-colors': '#a78bfa #6d28d9',
+        'underlay-color': '#8b5cf6',
+      }),
+    },
+    {
+      selector: 'node[kind = "module"]',
+      style: ext({
+        'background-color': '#6366f1',
+        'background-gradient-stop-colors': '#818cf8 #4338ca',
+        'underlay-color': '#6366f1',
+      }),
+    },
+    {
+      selector: 'node[kind = "datastore"]',
+      style: ext({
+        'background-color': '#06b6d4',
+        'background-gradient-stop-colors': '#22d3ee #0e7490',
+        'underlay-color': '#06b6d4',
+      }),
+    },
+    {
+      selector: 'node[kind = "external"]',
+      style: ext({
+        'background-color': '#ec4899',
+        'background-gradient-stop-colors': '#f472b6 #be185d',
+        'underlay-color': '#ec4899',
+      }),
+    },
     {
       selector: 'edge',
       style: {
         label: 'data(label)',
         'curve-style': 'bezier',
-        width: 2,
+        width: 2.5,
         'target-arrow-shape': 'triangle',
-        'line-color': 'rgba(167, 139, 250, 0.5)',
-        'target-arrow-color': 'rgba(167, 139, 250, 0.75)',
+        'target-arrow-color': '#d946ef',
+        'arrow-scale': 1.05,
         'font-size': 9,
         color: '#cbbdf2',
         'text-background-color': '#161325',
         'text-background-opacity': 0.85,
         'text-background-padding': '3px',
         'text-background-shape': 'roundrectangle',
+        // Gradient edges (violet → fuchsia) to match the node palette.
+        ...ext({
+          'line-fill': 'linear-gradient',
+          'line-gradient-stop-colors': '#8b5cf6 #d946ef',
+          'line-gradient-stop-positions': '0% 100%',
+          'line-cap': 'round',
+        }),
       },
     },
   ],
@@ -130,7 +190,7 @@ function clearError(): void {
 function render(elements: CyElement[]): void {
   cy.elements().remove();
   cy.add(elements as cytoscape.ElementDefinition[]);
-  cy.layout({ name: 'breadthfirst', directed: true }).run();
+  cy.layout({ name: 'breadthfirst', directed: true, spacingFactor: 1.25 }).run();
   cy.fit(undefined, FIT_PADDING);
 }
 
