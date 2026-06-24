@@ -100,7 +100,8 @@ palette + fonts so the canvas looks cohesive.
 ## Per-type conventions
 
 ### Dependency (`diagram_dependency`, KAN-20)
-- **Nodes**: `kind` `module` (default), `service`, or `external`.
+- **Nodes**: `kind` is any canvas node kind — `module` (default), `service`,
+  `datastore` (databases/caches/queues), `entrypoint`, `external`, or `note`.
 - **Edges**: `dependencies: [{ from, to }]` — `from` *depends on* `to`. Direction
   carries the meaning; an optional `label` is allowed.
 - **Scope (level)**: optional `scope` — `package` | `module` | `function` | `service`

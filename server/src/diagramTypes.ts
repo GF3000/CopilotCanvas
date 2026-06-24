@@ -4,6 +4,7 @@
 // `DiagramInput` consumed by `buildDiagram`. This keeps every diagram type on the
 // same render/validation path (edges to unknown nodes are dropped there) while
 // giving each type a tuned shape and the right semantic kinds/classes/labels.
+import type { NodeKind } from '@canvas/shared';
 import type { DiagramInput, DiagramInputNode, DiagramInputEdge } from './diagram';
 
 /* ─── Dependency (KAN-20) ───────────────────────────────────────────────────
@@ -24,8 +25,11 @@ export interface DependencyInput {
   nodes: {
     id: string;
     label: string;
-    /** Defaults from `scope` (service → `service`, else `module`). */
-    kind?: 'module' | 'service' | 'external';
+    /**
+     * Any canvas node kind (defaults from `scope`): `module`, `service`,
+     * `datastore` (databases/caches/queues), `entrypoint`, `external`, `note`.
+     */
+    kind?: NodeKind;
   }[];
   /** A depends on B: `from` requires/uses `to`. */
   dependencies: { from: string; to: string; label?: string }[];

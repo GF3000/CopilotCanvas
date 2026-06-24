@@ -79,16 +79,20 @@ describe('buildDependencyDiagram (KAN-20)', () => {
       }),
     );
     expect(pkg.node('a')?.data.kind).toBe('module');
-    // per-node kind still wins over the scope default
+    // per-node kind still wins over the scope default — incl. datastore.
     const explicit = render(
       buildDependencyDiagram({
         title: 'Mixed',
         scope: 'service',
-        nodes: [{ id: 'a', label: 'A', kind: 'external' }],
+        nodes: [
+          { id: 'a', label: 'A', kind: 'external' },
+          { id: 'db', label: 'DB', kind: 'datastore' },
+        ],
         dependencies: [],
       }),
     );
     expect(explicit.node('a')?.data.kind).toBe('external');
+    expect(explicit.node('db')?.data.kind).toBe('datastore');
   });
 });
 

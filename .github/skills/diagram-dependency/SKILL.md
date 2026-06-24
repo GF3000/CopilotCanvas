@@ -38,8 +38,9 @@ prompt asks for it. Reflect the chosen scope in the `title` (e.g. "Server call g
 2. Call the **`diagram_dependency`** MCP tool (Canvas for Copilot) with:
    - `title` — a short title, e.g. "Server module dependencies".
    - `scope` — the level above, when the prompt names one (sets the default node kind).
-   - `nodes` — each `{ id, label, kind? }`; `kind` is `module`, `service`, or
-     `external` (defaults from `scope`).
+   - `nodes` — each `{ id, label, kind? }`; `kind` is any canvas kind — `module`,
+     `service`, `datastore` (databases/caches/queues), `entrypoint`, `external`, or
+     `note` (defaults from `scope`).
    - `dependencies` — each `{ from, to, label? }` meaning **`from` depends on `to`**.
 3. Keep it focused (~4–12 nodes). Cycles are fine — render them as-is.
 

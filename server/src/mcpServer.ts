@@ -610,9 +610,12 @@ const DEPENDENCY_SCHEMA = {
         id: z.string().describe('Stable unique id, e.g. "auth".'),
         label: z.string().describe('Short display label.'),
         kind: z
-          .enum(['module', 'service', 'external'])
+          .enum(NODE_KINDS)
           .optional()
-          .describe('Semantic kind for styling (defaults from `scope`).'),
+          .describe(
+            'Semantic kind for styling (defaults from `scope`): module, service, ' +
+              'datastore (databases/caches/queues), entrypoint, external, or note.',
+          ),
       }),
     )
     .describe('The packages / modules / functions / services (about 4-12).'),
