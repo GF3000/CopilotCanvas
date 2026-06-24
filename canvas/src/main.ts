@@ -640,6 +640,60 @@ cy.on('tap', (evt) => {
   }
 });
 
+// Right-click context menu on a node (KAN-32).
+const contextMenu = document.getElementById('context-menu');
+const ctxOpenCode = document.getElementById('ctx-open-code');
+const ctxCenter = document.getElementById('ctx-center');
+let contextNodeId: string | undefined;
+
+function hideContextMenu(): void {
+  if (contextMenu) contextMenu.hidden = true;
+  contextNodeId = undefined;
+}
+
+cy.on('cxttap', 'node', (evt) => {
+  const node = evt.target as cytoscape.NodeSingular;
+  contextNodeId = node.id();
+  cy.elements().unselect();
+  node.select();
+  emitSelection([node.id()]);
+  if (!contextMenu) return;
+  const oe = evt.originalEvent as MouseEvent | undefined;
+  const x = oe?.clientX ?? evt.renderedPosition.x;
+  const y = oe?.clientY ?? evt.renderedPosition.y;
+  contextMenu.style.left = `${Math.min(x, window.innerWidth - 180)}px`;
+  contextMenu.style.top = `${Math.min(y, window.innerHeight - 100)}px`;
+  contextMenu.hidden = false;
+});
+
+ctxOpenCode?.addEventListener('click', () => {
+  if (contextNodeId) {
+    vscode?.postMessage({ type: 'node_action', action: 'open_code', nodeId: contextNodeId });
+  }
+  hideContextMenu();
+});
+
+ctxCenter?.addEventListener('click', () => {
+  if (contextNodeId) {
+    const node = cy.getElementById(contextNodeId);
+    if (node.nonempty()) {
+      cy.animate({ center: { eles: node }, duration: 200, easing: 'ease-out' });
+    }
+  }
+  hideContextMenu();
+});
+
+// Dismiss the menu on any outside interaction.
+window.addEventListener('pointerdown', (e) => {
+  if (contextMenu && !contextMenu.hidden && !contextMenu.contains(e.target as Node)) {
+    hideContextMenu();
+  }
+});
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') hideContextMenu();
+});
+cy.on('pan zoom tapstart', hideContextMenu);
+
 window.addEventListener('message', (event: MessageEvent<CanvasMessage>) => {
   const msg = event.data;
   if (isDiagramMessage(msg)) handleDiagram(msg);

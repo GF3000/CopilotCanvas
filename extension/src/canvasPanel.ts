@@ -91,7 +91,12 @@ export class CanvasPanel {
 
     this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
     this.panel.webview.onDidReceiveMessage(
-      (msg: { type?: string; nodeIds?: unknown }) => {
+      (msg: {
+        type?: string;
+        nodeIds?: unknown;
+        action?: unknown;
+        nodeId?: unknown;
+      }) => {
         if (msg?.type === 'hello') {
           this.ready = true;
           this.flush();
@@ -99,11 +104,63 @@ export class CanvasPanel {
           this.selection = Array.isArray(msg.nodeIds)
             ? msg.nodeIds.filter((id): id is string => typeof id === 'string')
             : [];
+        } else if (
+          msg?.type === 'node_action' &&
+          msg.action === 'open_code' &&
+          typeof msg.nodeId === 'string'
+        ) {
+          void this.handleOpenCode(msg.nodeId);
         }
       },
       null,
       this.disposables,
     );
+  }
+
+  /**
+   * Context-menu "Open in editor": open the node's code. If it isn't linked yet,
+   * try to resolve it via the workspace symbol provider (by the node's label),
+   * link it, then open. If nothing is found, ask the user to have Copilot link it.
+   */
+  private async handleOpenCode(nodeId: string): Promise<void> {
+    const node = this.nodes.get(nodeId);
+    if (!node) return;
+
+    if (!node.codeRefs?.length) {
+      const resolved = await this.resolveCodeFor(nodeId, node.label ?? nodeId);
+      if (!resolved) {
+        void vscode.window.showInformationMessage(
+          `Canvas for Copilot: couldn't locate code for "${node.label ?? nodeId}". Ask Copilot to link it (e.g. "link this node to its code").`,
+        );
+        return;
+      }
+    }
+    await CanvasPanel.openNodeCode(nodeId);
+  }
+
+  /** Best-effort: find a workspace symbol matching the label and link the node. */
+  private async resolveCodeFor(
+    nodeId: string,
+    query: string,
+  ): Promise<boolean> {
+    const symbols = await vscode.commands.executeCommand<
+      vscode.SymbolInformation[]
+    >('vscode.executeWorkspaceSymbolProvider', query);
+    if (!symbols?.length) return false;
+    const best =
+      symbols.find((s) => s.name === query) ??
+      symbols.find((s) => s.name.toLowerCase() === query.toLowerCase()) ??
+      symbols[0];
+    const loc = best.location;
+    CanvasPanel.linkNodeToCode(nodeId, {
+      path: vscode.workspace.asRelativePath(loc.uri),
+      range: {
+        startLine: loc.range.start.line + 1,
+        endLine: loc.range.end.line + 1,
+      },
+      symbol: best.name,
+    });
+    return true;
   }
 
   /** The current canvas selection (empty if nothing selected / no canvas open). */
