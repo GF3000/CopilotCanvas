@@ -42,6 +42,8 @@ interface PersistedState {
 
 export class CanvasPanel {
   public static current: CanvasPanel | undefined;
+  /** Optional channel for tracing canvas → extension messages (KAN-17). */
+  public static log: vscode.OutputChannel | undefined;
   private static readonly viewType = 'canvasForCopilot';
   private static context: vscode.ExtensionContext | undefined;
   private static readonly stateKey = 'canvasForCopilot.canvasState';
@@ -150,6 +152,9 @@ export class CanvasPanel {
         depth?: unknown;
         focus?: unknown;
       }) => {
+        CanvasPanel.log?.appendLine(
+          `[canvas→ext] ${CanvasPanel.summarize(msg)}`,
+        );
         if (msg?.type === 'hello') {
           // Fired on first load AND after every webview reload. Replay the last
           // known diagram (+ patches) so a reload re-renders, not blanks.
@@ -189,6 +194,26 @@ export class CanvasPanel {
       null,
       this.disposables,
     );
+  }
+
+  /** Short, readable summary of a canvas → extension message for the trace log. */
+  private static summarize(msg: {
+    type?: string;
+    action?: unknown;
+    nodeId?: unknown;
+    nodeIds?: unknown;
+  }): string {
+    const type = msg?.type ?? 'unknown';
+    if (type === 'node_selected') {
+      const ids = Array.isArray(msg.nodeIds) ? msg.nodeIds.join(', ') : '';
+      return `node_selected [${ids}]`;
+    }
+    if (type === 'node_action') {
+      const action = typeof msg.action === 'string' ? msg.action : '?';
+      const nodeId = typeof msg.nodeId === 'string' ? msg.nodeId : '?';
+      return `node_action:${action} (${nodeId})`;
+    }
+    return type;
   }
 
   /**
