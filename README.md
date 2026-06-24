@@ -43,6 +43,8 @@ and the definition of done. Then continue with the document map below.
 | – | [`docs/DECISIONS.md`](docs/DECISIONS.md) | Log of why choices were made |
 | – | [`docs/COMPETITIVE_LANDSCAPE.md`](docs/COMPETITIVE_LANDSCAPE.md) | Prior art & adjacent tools |
 | – | [`docs/SETUP.md`](docs/SETUP.md) | Env setup & run instructions |
+| – | [`docs/DIAGRAM_TOOLS.md`](docs/DIAGRAM_TOOLS.md) | The diagram tools/skills (dependency, flowchart, state machine, class, ER) + drill-down |
+| – | [`examples/shopflow/`](examples/shopflow/) | Example project to **try the diagram tools** — see its [`TEST_PROMPTS.md`](examples/shopflow/TEST_PROMPTS.md) |
 
 ## Suggested flow
 
