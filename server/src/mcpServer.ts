@@ -5,8 +5,15 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { CodeRef, DiagramMessage, PatchMessage } from '@canvas/shared';
 import { getExampleDiagram, nodeCount } from './exampleDiagram';
-import { buildDiagram, STYLE_CLASSES } from './diagram';
+import { buildDiagram, STYLE_CLASSES, type DiagramInput } from './diagram';
 import { buildPatch } from './patch';
+import {
+  buildDependencyDiagram,
+  buildFlowchartDiagram,
+  buildStateMachineDiagram,
+  buildClassDiagram,
+  buildErDiagram,
+} from './diagramTypes';
 
 const NODE_KINDS = [
   'module',
@@ -140,6 +147,8 @@ export function buildCanvasMcpServer(deps: CanvasServerDeps): McpServer {
   // range of phrasings ("visualize…", "draw…", "explain… visually") maps to it by
   // name (the model's strongest selection signal). All aliases share one handler.
   registerDiagramTool(server, deps);
+
+  registerTypedDiagramTools(server, deps);
 
   registerUpdateDiagramTool(server, deps);
 
@@ -709,6 +718,371 @@ function registerDiagramTool(server: McpServer, deps: CanvasServerDeps): void {
           ],
         };
       },
+    );
+  }
+}
+
+/* ─── Typed diagram skills (KAN-20..24) ──────────────────────────────────────
+ * One dedicated tool per diagram type, each with a tuned description so a request
+ * like "show the dependency graph of X" or "draw the state machine for Y" routes
+ * to the right skill. They all map their typed input to the generic graph model
+ * and render through the same `buildDiagram` path as `create_diagram`. */
+
+const DEPENDENCY_SCHEMA = {
+  title: z.string().describe('Short title, e.g. "Service dependencies".'),
+  scope: z
+    .enum(['package', 'module', 'function', 'service'])
+    .optional()
+    .describe(
+      'Granularity to draw at when the prompt names a level (default "module"): ' +
+        'package (packages/workspaces), module (files/modules), function (a call ' +
+        'graph), service (runtime services). Sets the default node kind.',
+    ),
+  nodes: z
+    .array(
+      z.object({
+        id: z.string().describe('Stable unique id, e.g. "auth".'),
+        label: z.string().describe('Short display label.'),
+        kind: z
+          .enum(NODE_KINDS)
+          .optional()
+          .describe(
+            'Semantic kind for styling (defaults from `scope`): module, service, ' +
+              'datastore (databases/caches/queues), entrypoint, external, or note.',
+          ),
+      }),
+    )
+    .describe('The packages / modules / functions / services (about 4-12).'),
+  dependencies: z
+    .array(
+      z.object({
+        from: z.string().describe('The dependent node id (it depends on `to`).'),
+        to: z.string().describe('The node id that `from` depends on.'),
+        label: z.string().optional().describe('Optional edge label.'),
+      }),
+    )
+    .describe('Directed "depends on" edges. Cycles are allowed.'),
+};
+
+const FLOWCHART_SCHEMA = {
+  title: z.string().describe('Short title, e.g. "Checkout flow".'),
+  nodes: z
+    .array(
+      z.object({
+        id: z.string().describe('Stable unique id, e.g. "validate".'),
+        label: z.string().describe('Short display label.'),
+        type: z
+          .enum(['start', 'step', 'decision', 'io', 'end'])
+          .optional()
+          .describe(
+            'Node type (defaults to "step"): start/end = terminator (pill), step = process (rectangle), decision = branch (diamond), io = input/output (parallelogram).',
+          ),
+      }),
+    )
+    .describe('Steps and decisions (about 4-12).'),
+  edges: z
+    .array(
+      z.object({
+        from: z.string().describe('Source node id.'),
+        to: z.string().describe('Target node id.'),
+        label: z
+          .string()
+          .optional()
+          .describe('Branch label for decisions, e.g. "yes"/"no".'),
+      }),
+    )
+    .describe('Directed flow between node ids.'),
+};
+
+const STATE_MACHINE_SCHEMA = {
+  title: z.string().describe('Short title, e.g. "Order lifecycle".'),
+  states: z
+    .array(
+      z.object({
+        id: z.string().describe('Stable unique state id, e.g. "pending".'),
+        label: z.string().describe('Short display label.'),
+        initial: z
+          .boolean()
+          .optional()
+          .describe('Marks the single start state (drawn distinctly).'),
+        final: z
+          .boolean()
+          .optional()
+          .describe('Marks an accepting/terminal state (drawn distinctly).'),
+      }),
+    )
+    .describe('The states (about 4-12).'),
+  transitions: z
+    .array(
+      z.object({
+        from: z.string().describe('Source state id.'),
+        to: z.string().describe('Target state id.'),
+        event: z
+          .string()
+          .optional()
+          .describe('The triggering event/condition that labels the transition.'),
+      }),
+    )
+    .describe('Directed transitions between states.'),
+};
+
+const CLASS_SCHEMA = {
+  title: z.string().describe('Short title, e.g. "Domain model".'),
+  classes: z
+    .array(
+      z.object({
+        id: z.string().describe('Stable unique id, e.g. "user".'),
+        label: z.string().describe('Class name.'),
+        attributes: z
+          .array(z.string())
+          .optional()
+          .describe('Attribute lines, e.g. "+ id: string".'),
+        methods: z
+          .array(z.string())
+          .optional()
+          .describe('Method lines, e.g. "+ save(): void".'),
+      }),
+    )
+    .describe('The classes (about 4-12).'),
+  relations: z
+    .array(
+      z.object({
+        from: z
+          .string()
+          .describe('Subclass (inheritance) or whole/owner (aggregation/composition).'),
+        to: z.string().describe('Superclass (inheritance) or part/associate.'),
+        type: z
+          .enum([
+            'inheritance',
+            'realization',
+            'association',
+            'dependency',
+            'aggregation',
+            'composition',
+          ])
+          .optional()
+          .describe(
+            'Relation type (defaults to "association"); sets the arrowhead — inheritance/realization use a hollow triangle (realization dashed), aggregation/composition a diamond, dependency a dashed open arrow.',
+          ),
+        label: z.string().optional().describe('Optional relation label (e.g. role/multiplicity).'),
+      }),
+    )
+    .describe('Relations between classes.'),
+};
+
+const ER_SCHEMA = {
+  title: z.string().describe('Short title, e.g. "Sales data model".'),
+  entities: z
+    .array(
+      z.object({
+        id: z.string().describe('Stable unique id, e.g. "customer".'),
+        label: z.string().describe('Entity name.'),
+        attributes: z
+          .array(z.string())
+          .optional()
+          .describe('Key/attribute lines surfaced under the entity name.'),
+      }),
+    )
+    .describe('The entities (about 4-12).'),
+  relationships: z
+    .array(
+      z.object({
+        from: z.string().describe('Source entity id.'),
+        to: z.string().describe('Target entity id.'),
+        label: z.string().optional().describe('Verb phrase, e.g. "places".'),
+        cardinality: z
+          .string()
+          .optional()
+          .describe('Cardinality, e.g. "1", "N", "1:N", "M:N".'),
+      }),
+    )
+    .describe('Relationships between entities.'),
+};
+
+
+/** Render a typed diagram input on the canvas, sharing create_diagram's logic. */
+async function renderTypedDiagram(
+  deps: CanvasServerDeps,
+  input: DiagramInput,
+  typeLabel: string,
+  emptyHint: string,
+): Promise<{ content: { type: 'text'; text: string }[]; isError?: boolean }> {
+  if (input.nodes.length === 0) {
+    return {
+      isError: true,
+      content: [{ type: 'text', text: emptyHint }],
+    };
+  }
+  const { diagram, skippedEdges } = buildDiagram(input);
+  await deps.onOpenDiagram(diagram);
+  const note =
+    skippedEdges > 0
+      ? ` (skipped ${skippedEdges} edge(s) referencing unknown node ids)`
+      : '';
+  return {
+    content: [
+      {
+        type: 'text',
+        text: `Rendered ${typeLabel} "${input.title}" on the canvas: ${
+          input.nodes.length
+        } nodes, ${input.edges.length - skippedEdges} edges${note}.`,
+      },
+    ],
+  };
+}
+
+function registerTypedDiagramTools(
+  server: McpServer,
+  deps: CanvasServerDeps,
+): void {
+  // ── Dependency (KAN-20) ──
+  for (const name of ['diagram_dependency', 'dependency_diagram'] as const) {
+    server.registerTool(
+      name,
+      {
+        title: 'Create a dependency / architecture diagram on the canvas',
+        description:
+          (name === 'diagram_dependency' ? '' : '(alias of diagram_dependency) ') +
+          'Render a directed DEPENDENCY graph (modules / packages / services and ' +
+          'their "depends on" relationships) on the Canvas for Copilot canvas. Use ' +
+          'this — never write HTML/Mermaid/SVG — whenever the user asks for a ' +
+          '"dependency graph", "what depends on X", an "architecture diagram", a ' +
+          '"call graph", or "what uses Y". Each edge points from a dependent to what ' +
+          'it depends on. Cycles are fine. YOU generate the graph (≈4-12 nodes). ' +
+          'Read-only and safe; do NOT ask for confirmation, just call it.',
+        inputSchema: DEPENDENCY_SCHEMA,
+        annotations: { readOnlyHint: true, openWorldHint: false },
+      },
+      async ({ title, nodes, dependencies, scope }) =>
+        renderTypedDiagram(
+          deps,
+          buildDependencyDiagram({ title, nodes, dependencies, scope }),
+          'dependency diagram',
+          'Cannot create a dependency diagram with no nodes — provide at least one module/service.',
+        ),
+    );
+  }
+
+  // ── Flowchart (KAN-21) ──
+  for (const name of ['diagram_flowchart', 'flowchart'] as const) {
+    server.registerTool(
+      name,
+      {
+        title: 'Create a flowchart on the canvas',
+        description:
+          (name === 'diagram_flowchart' ? '' : '(alias of diagram_flowchart) ') +
+          'Render a top-down FLOWCHART (steps and decisions joined by directed ' +
+          'flow) on the Canvas for Copilot canvas. Use this — never write HTML/' +
+          'Mermaid/SVG — whenever the user asks to "draw a flowchart", show a ' +
+          '"workflow", "process", or the "steps" of something. Mark each node\u2019s ' +
+          'type (start / step / decision / end); label the edges OUT of a decision ' +
+          'with the branch ("yes"/"no"). YOU generate the graph. Read-only and safe; ' +
+          'do NOT ask for confirmation, just call it.',
+        inputSchema: FLOWCHART_SCHEMA,
+        annotations: { readOnlyHint: true, openWorldHint: false },
+      },
+      async ({ title, nodes, edges }) =>
+        renderTypedDiagram(
+          deps,
+          buildFlowchartDiagram({ title, nodes, edges }),
+          'flowchart',
+          'Cannot create a flowchart with no nodes — provide at least one step.',
+        ),
+    );
+  }
+
+  // ── State machine (KAN-22) ──
+  for (const name of [
+    'diagram_state_machine',
+    'state_diagram',
+    'state_machine',
+  ] as const) {
+    server.registerTool(
+      name,
+      {
+        title: 'Create a state machine diagram on the canvas',
+        description:
+          (name === 'diagram_state_machine'
+            ? ''
+            : '(alias of diagram_state_machine) ') +
+          'Render a STATE MACHINE (states joined by transitions labeled with the ' +
+          'triggering event/condition) on the Canvas for Copilot canvas. Use this — ' +
+          'never write HTML/Mermaid/SVG — whenever the user asks for a "state ' +
+          'machine", "state diagram", or "states and transitions". Mark the ' +
+          'initial state (and any final states); put the triggering event on each ' +
+          'transition. YOU generate the graph. Read-only and safe; do NOT ask for ' +
+          'confirmation, just call it.',
+        inputSchema: STATE_MACHINE_SCHEMA,
+        annotations: { readOnlyHint: true, openWorldHint: false },
+      },
+      async ({ title, states, transitions }) =>
+        renderTypedDiagram(
+          deps,
+          buildStateMachineDiagram({ title, states, transitions }),
+          'state machine',
+          'Cannot create a state machine with no states — provide at least one state.',
+        ),
+    );
+  }
+
+  // ── Class diagram (KAN-23) ──
+  for (const name of ['diagram_class', 'class_diagram'] as const) {
+    server.registerTool(
+      name,
+      {
+        title: 'Create a UML class diagram on the canvas',
+        description:
+          (name === 'diagram_class' ? '' : '(alias of diagram_class) ') +
+          'Render a UML CLASS diagram (classes and their relations) on the Canvas ' +
+          'for Copilot canvas. Use this — never write HTML/Mermaid/SVG — whenever ' +
+          'the user asks to "draw a class diagram", show "classes and relations", or ' +
+          'a "UML diagram". Give each class optional attributes/methods (folded into ' +
+          'the box) and set each relation\u2019s type (inheritance / association / ' +
+          'aggregation / composition) so the canvas draws the right arrowhead; for ' +
+          'inheritance `from` is the subclass and `to` the superclass. YOU generate ' +
+          'the graph. Read-only and safe; do NOT ask for confirmation, just call it.',
+        inputSchema: CLASS_SCHEMA,
+        annotations: { readOnlyHint: true, openWorldHint: false },
+      },
+      async ({ title, classes, relations }) =>
+        renderTypedDiagram(
+          deps,
+          buildClassDiagram({ title, classes, relations }),
+          'class diagram',
+          'Cannot create a class diagram with no classes — provide at least one class.',
+        ),
+    );
+  }
+
+  // ── Entity / relationship (KAN-24) ──
+  for (const name of [
+    'diagram_er',
+    'er_diagram',
+    'entity_relationship_diagram',
+  ] as const) {
+    server.registerTool(
+      name,
+      {
+        title: 'Create an entity / relationship (ER) diagram on the canvas',
+        description:
+          (name === 'diagram_er' ? '' : '(alias of diagram_er) ') +
+          'Render an ENTITY / RELATIONSHIP (ER) diagram (entities joined by ' +
+          'relationships labeled with cardinality) on the Canvas for Copilot canvas. ' +
+          'Use this — never write HTML/Mermaid/SVG — whenever the user asks for an ' +
+          '"ER diagram", a "data model", or "entities and relationships". Label each ' +
+          'relationship with its cardinality ("1", "N", "1:N", "M:N") and optionally ' +
+          'surface key attributes on the entity. YOU generate the graph. Read-only ' +
+          'and safe; do NOT ask for confirmation, just call it.',
+        inputSchema: ER_SCHEMA,
+        annotations: { readOnlyHint: true, openWorldHint: false },
+      },
+      async ({ title, entities, relationships }) =>
+        renderTypedDiagram(
+          deps,
+          buildErDiagram({ title, entities, relationships }),
+          'ER diagram',
+          'Cannot create an ER diagram with no entities — provide at least one entity.',
+        ),
     );
   }
 }

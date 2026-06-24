@@ -16,6 +16,7 @@ import {
   type PatchMessage,
 } from '@canvas/shared';
 import { validateGraphModel } from './graphModel';
+import { closedNeighbourhood, countNodes, nodeLabel } from './scope';
 
 cytoscape.use(dagre);
 
@@ -321,6 +322,174 @@ function buildStyle(theme: Theme): cytoscape.StylesheetStyle[] {
       selector: 'edge.warning',
       style: ext({ 'line-fill': 'solid', 'line-color': '#f59e0b', 'target-arrow-color': '#f59e0b' }),
     },
+
+    /* ── Per-type diagram notation (KAN-20..24) ──────────────────────────────
+     * Each diagram type uses its conventional shapes/arrowheads, but stays on the
+     * shared violet palette + fonts so the look is cohesive. Node-shape classes
+     * override the base `round-rectangle`; relation classes override the base edge
+     * arrowhead. */
+
+    // Flowchart (KAN-21) ----------------------------------------------------
+    // Terminator (start/end) — a rounded "pill".
+    {
+      selector: 'node.fc-terminator',
+      style: ext({ shape: 'round-rectangle', 'corner-radius': '999px' }),
+    },
+    // End terminator — emerald fill signalling completion (distinct from the
+    // `success` status class so it never pollutes the legend).
+    {
+      selector: 'node.fc-end',
+      style: ext({
+        'background-fill': 'solid',
+        'background-color': '#059669',
+        'border-color': '#064e3b',
+      }),
+    },
+    // Process step — a sharp-cornered rectangle.
+    {
+      selector: 'node.fc-process',
+      style: ext({ shape: 'rectangle', 'corner-radius': '2px' }),
+    },
+    // Input / output — a parallelogram.
+    {
+      selector: 'node.fc-io',
+      style: ext({ shape: 'rhomboid' }),
+    },
+    // Decision — a diamond so branch points read as decisions.
+    {
+      selector: 'node.decision',
+      style: ext({
+        shape: 'diamond',
+        'background-color': '#f59e0b',
+        'background-gradient-stop-colors': '#fbbf24 #b45309',
+        'border-color': '#b45309',
+        'text-max-width': '120px',
+        padding: '20px',
+      }),
+    },
+
+    // State machine (KAN-22) ------------------------------------------------
+    // Initial state — a bright emerald fill marks the start.
+    {
+      selector: 'node.initial',
+      style: ext({
+        'background-fill': 'solid',
+        'background-color': '#10b981',
+        'border-width': 4,
+        'border-color': '#a7f3d0',
+        color: '#04231a',
+      }),
+    },
+    // Final / accepting state — a thick double border (bullseye-like).
+    {
+      selector: 'node.final',
+      style: ext({
+        'border-width': 5,
+        'border-style': 'double',
+        'border-color': '#f6f4ff',
+      }),
+    },
+    // Transition — UML uses an open (stick) arrowhead, not a filled triangle.
+    {
+      selector: 'edge.sm-transition',
+      style: ext({ 'target-arrow-shape': 'vee' }),
+    },
+
+    // Class diagram (KAN-23) ------------------------------------------------
+    // Class box — a sharp-cornered rectangle. UML relations all share one neutral
+    // violet line and differ only by arrowhead + line-style, the UML convention.
+    {
+      selector: 'node.uml-class',
+      style: ext({ shape: 'rectangle', 'corner-radius': '3px' }),
+    },
+    // Generalization (inheritance): solid line, hollow triangle at the superclass.
+    {
+      selector: 'edge.inheritance',
+      style: ext({
+        'line-fill': 'solid',
+        'line-color': '#a78bfa',
+        'target-arrow-shape': 'triangle',
+        'target-arrow-fill': 'hollow',
+        'target-arrow-color': '#a78bfa',
+        'arrow-scale': 1.4,
+      }),
+    },
+    // Realization (implements): dashed line, hollow triangle at the interface.
+    {
+      selector: 'edge.realization',
+      style: ext({
+        'line-fill': 'solid',
+        'line-color': '#a78bfa',
+        'line-style': 'dashed',
+        'target-arrow-shape': 'triangle',
+        'target-arrow-fill': 'hollow',
+        'target-arrow-color': '#a78bfa',
+        'arrow-scale': 1.4,
+      }),
+    },
+    // Association: solid line, plain open arrow (vee).
+    {
+      selector: 'edge.association',
+      style: ext({
+        'line-fill': 'solid',
+        'line-color': '#a78bfa',
+        'target-arrow-shape': 'vee',
+        'target-arrow-color': '#a78bfa',
+      }),
+    },
+    // Dependency («use»): dashed line, plain open arrow (vee).
+    {
+      selector: 'edge.dependency',
+      style: ext({
+        'line-fill': 'solid',
+        'line-color': '#a78bfa',
+        'line-style': 'dashed',
+        'target-arrow-shape': 'vee',
+        'target-arrow-color': '#a78bfa',
+      }),
+    },
+    // Aggregation: hollow diamond at the whole/owner (`from` = source end).
+    {
+      selector: 'edge.aggregation',
+      style: ext({
+        'line-fill': 'solid',
+        'line-color': '#a78bfa',
+        'source-arrow-shape': 'diamond',
+        'source-arrow-fill': 'hollow',
+        'source-arrow-color': '#a78bfa',
+        'target-arrow-shape': 'none',
+        'arrow-scale': 1.3,
+      }),
+    },
+    // Composition: filled diamond at the whole/owner (`from` = source end).
+    {
+      selector: 'edge.composition',
+      style: ext({
+        'line-fill': 'solid',
+        'line-color': '#a78bfa',
+        'source-arrow-shape': 'diamond',
+        'source-arrow-fill': 'filled',
+        'source-arrow-color': '#a78bfa',
+        'target-arrow-shape': 'none',
+        'arrow-scale': 1.3,
+      }),
+    },
+
+    // Entity / relationship (KAN-24) ----------------------------------------
+    // Entity — a sharp-cornered "table" box.
+    {
+      selector: 'node.er-entity',
+      style: ext({ shape: 'rectangle', 'corner-radius': '3px' }),
+    },
+    // Relationship — a plain line (no arrowhead); cardinality rides in the label.
+    {
+      selector: 'edge.er-rel',
+      style: ext({
+        'line-fill': 'solid',
+        'line-color': '#22d3ee',
+        'target-arrow-shape': 'none',
+      }),
+    },
   ];
 }
 
@@ -459,6 +628,7 @@ setTitle(undefined);
 const nodeMenu = document.getElementById('node-menu');
 const labelInput = document.getElementById('node-label-input');
 const swatchContainer = document.getElementById('node-swatches');
+const menuExpand = document.getElementById('ctx-expand');
 let menuNode: cytoscape.NodeSingular | undefined;
 
 function styleNodeColor(
@@ -484,6 +654,8 @@ function openNodeMenu(node: cytoscape.NodeSingular, x: number, y: number): void 
   if (labelInput instanceof HTMLInputElement) {
     labelInput.value = String(node.data('label') ?? '');
   }
+  // Only offer "Expand element" when the node has neighbours to drill into.
+  if (menuExpand) menuExpand.hidden = !isExpandable(node.id());
   renderCodeRefs(node);
   nodeMenu.hidden = false;
   // Keep the menu inside the viewport.
@@ -651,6 +823,16 @@ nodeExpandBtn?.addEventListener('click', () => {
   closeNodeMenu(true);
   if (nodeId) openExpandDialog(nodeId);
 });
+
+// "Expand element" action — client-side drill-down into the node's neighbourhood
+// as a sub-scope of the same diagram (FR-7), distinct from the server-side
+// "Expand node" above.
+menuExpand?.addEventListener('click', () => {
+  const id = menuNode?.id();
+  closeNodeMenu(false);
+  if (id) expandElement(id);
+});
+
 expandSubmitBtn?.addEventListener('click', submitExpand);
 expandCancelBtn?.addEventListener('click', closeExpandDialog);
 window.addEventListener('keydown', (event) => {
@@ -890,6 +1072,83 @@ legendToggle?.addEventListener('click', () => {
 // input the validator didn't anticipate.
 let currentDiagramId: string | undefined;
 
+// ── Drill-down / scope navigation ───────────────────────────────────────────
+// "Expand element" (node context menu) focuses a node + its directly-connected
+// neighbours as a sub-scope of the SAME diagram (same elements/notation); a
+// "Back" breadcrumb steps to the previous scope. A fresh diagram from the host
+// resets the stack (it's a new top-level scope). All client-side — no re-gen.
+interface Scope {
+  title: string;
+  elements: CyElement[];
+}
+let currentScopeElements: CyElement[] = [];
+const scopeStack: Scope[] = [];
+const scopeBackBtn = document.getElementById('scope-back-btn');
+
+/** Render an elements subset as the active view, returning whether it rendered. */
+function showElements(elements: CyElement[], title: string): boolean {
+  const result = validateGraphModel(elements);
+  if (!result.ok) {
+    showError(result.errors);
+    return false;
+  }
+  setTitle(title);
+  try {
+    render(result.elements);
+    clearError();
+    updateLegend();
+    return true;
+  } catch (err) {
+    showError([`Cytoscape could not render this model: ${String(err)}`]);
+    return false;
+  }
+}
+
+/** Show/hide the Back button and label it with the scope it returns to. */
+function updateScopeBar(): void {
+  if (!scopeBackBtn) return;
+  scopeBackBtn.hidden = scopeStack.length === 0;
+  const parent = scopeStack[scopeStack.length - 1];
+  scopeBackBtn.title = parent
+    ? `Back to "${parent.title || 'previous scope'}"`
+    : 'Back to previous scope';
+}
+
+/** Can this node be drilled into (does it have at least one neighbour)? */
+function isExpandable(nodeId: string): boolean {
+  return countNodes(closedNeighbourhood(currentScopeElements, nodeId)) > 1;
+}
+
+/** Drill into a node: focus it + its neighbours, pushing the current scope. */
+function expandElement(nodeId: string): void {
+  const subset = closedNeighbourhood(currentScopeElements, nodeId);
+  if (countNodes(subset) <= 1) return; // nothing to drill into
+  const label = nodeLabel(currentScopeElements, nodeId) ?? nodeId;
+  const parentTitle = currentTitle;
+  const childTitle = parentTitle ? `${parentTitle} › ${label}` : label;
+  scopeStack.push({ title: parentTitle, elements: currentScopeElements });
+  if (showElements(subset, childTitle)) {
+    currentScopeElements = subset;
+    updateScopeBar();
+  } else {
+    scopeStack.pop(); // render failed — undo the push
+  }
+}
+
+/** Step back to the previous scope on the stack. */
+function scopeBack(): void {
+  const prev = scopeStack.pop();
+  if (!prev) return;
+  if (showElements(prev.elements, prev.title)) {
+    currentScopeElements = prev.elements;
+  } else {
+    scopeStack.push(prev); // restore on failure
+  }
+  updateScopeBar();
+}
+
+scopeBackBtn?.addEventListener('click', () => scopeBack());
+
 function handleDiagram(msg: DiagramMessage): void {
   const result = validateGraphModel(msg.elements);
   if (!result.ok) {
@@ -897,6 +1156,9 @@ function handleDiagram(msg: DiagramMessage): void {
     return;
   }
   currentDiagramId = msg.diagramId;
+  // A new diagram from the host is a fresh top-level scope.
+  scopeStack.length = 0;
+  currentScopeElements = msg.elements;
   setTitle(msg.title);
   try {
     render(result.elements);
@@ -905,6 +1167,7 @@ function handleDiagram(msg: DiagramMessage): void {
   } catch (err) {
     showError([`Cytoscape could not render this model: ${String(err)}`]);
   }
+  updateScopeBar();
 }
 
 // Selection (KAN-7): tapping a node selects it and tells the extension which node

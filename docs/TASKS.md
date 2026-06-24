@@ -27,7 +27,7 @@ Mirror these tasks on the Jira **KAN** board and keep both in sync. Target
 | Epic | Owner | Tasks (KAN keys) |
 |------|-------|-------|
 | **Frontend / Canvas UI** (`/canvas`) | **US (3p)** | `canvas-render` (KAN-6), `node-selection` (KAN-7), `expand-node` render (KAN-11), `live-update` render (KAN-13) |
-| **MCP logic / tools** (`/server`) | **Dublin (2p)** | `mcp-server` (KAN-9), `create_diagram` (KAN-19), `explain-node` (KAN-8), `expand-node` (KAN-11), `node-code-refs` (KAN-12), `modify-from-node` (KAN-10) |
+| **MCP logic / tools** (`/server`) | **Dublin (2p)** | `mcp-server` (KAN-9), `create_diagram` (KAN-19), typed diagram skills `diagram-dependency`/`diagram-flowchart`/`diagram-state-machine`/`diagram-class`/`diagram-er` (KAN-20..24), `explain-node` (KAN-8), `expand-node` (KAN-11), `node-code-refs` (KAN-12), `modify-from-node` (KAN-10) |
 | **VS Code extension / bridge** (`/extension`) | **India (1p)** | `mcp-apps-host-spike` (KAN-16), `vscode-extension` (KAN-17), `mcp-app-launch` (KAN-18), `live-update` (KAN-13), `multi-host-validation` (KAN-15), `diagram-edit-to-code` (KAN-14) |
 | **Shared kick-off** (do first, together) | All | `repo-scaffold` (KAN-5), `shared-protocol` (KAN-4) |
 
@@ -47,6 +47,10 @@ _As of the example-diagram + create_diagram prototype landing (keep in sync with
 - 🟢 **Ready to start now** (dependencies satisfied): `mcp-server` (KAN-9),
   `canvas-render` (KAN-6), `vscode-extension` (KAN-17). The prototype already seeds
   all three, so each epic can begin immediately.
+- 🟡 **In progress:** typed diagram skills (KAN-20..24) — `diagram_dependency`,
+  `diagram_flowchart`, `diagram_state_machine`, `diagram_class`, `diagram_er` built on
+  `create_diagram` (KAN-19), each also a `/diagram-*` CLI skill with per-type notation
+  (see `docs/DIAGRAM_TOOLS.md`).
 - ⛔ **Blocked (waiting):** everything downstream of `mcp-app-launch` (KAN-18, the
   Goal-1 integration) — see the dependency links on the board or the graph below.
 

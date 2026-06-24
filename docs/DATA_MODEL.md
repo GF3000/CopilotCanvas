@@ -14,13 +14,18 @@ and unsuitable for **order/time** diagrams (what-happens-when).
 
 | Diagram type | Supported | Notes |
 |--------------|-----------|-------|
-| Flowchart | ✅ Yes | Nodes + directed edges; use `breadthfirst`/`dagre` layout |
-| Dependency / call graph / architecture | ✅ Yes (primary) | Cytoscape's sweet spot — the main use case |
-| Entity/relationship graph | ✅ Yes | Entities = nodes, relations = edges |
-| State machine | ✅ Yes | States = nodes, transitions = labeled edges |
-| Class diagram | ⚠️ Partial | Classes/relations work; UML compartments (attrs/methods) and distinct arrowheads need a styling extension |
+| Flowchart | ✅ Yes | `diagram_flowchart` (KAN-21): terminator/process/decision/io shapes, labeled branches |
+| Dependency / call graph / architecture | ✅ Yes (primary) | `diagram_dependency` (KAN-20): Cytoscape's sweet spot — the main use case; cycles OK |
+| Entity/relationship graph | ✅ Yes | `diagram_er` (KAN-24): entity "table" boxes; cardinality-labeled relationship lines |
+| State machine | ✅ Yes | `diagram_state_machine` (KAN-22): states; initial/final marked; open-arrow transitions labeled with events |
+| Class diagram | ⚠️ Partial | `diagram_class` (KAN-23): distinct UML arrowheads (inheritance/realization/association/dependency/aggregation/composition); UML compartments (attrs/methods) folded into the node label, not separate sections — see docs/DIAGRAM_TOOLS.md |
 | Sequence diagram | ❌ No | Needs lifelines + time ordering; Cytoscape models topology, not time |
 | Timeline / Gantt | ❌ No | Needs a time axis + explicit positions, which D2 forbids (canvas auto-layouts) |
+
+Each ✅ type has a dedicated MCP **skill/tool** built on `create_diagram` (KAN-19); the
+tool applies the type's **notation** (conventional shapes/arrowheads) via internal
+`classes` the canvas stylesheet defines. See `docs/DIAGRAM_TOOLS.md` for the full
+per-type notation and the `/diagram*` slash commands.
 
 **Rule of thumb:** graph-shaped (who-connects-to-whom) ✅; order/time-shaped
 (what-happens-when) ❌. Supporting sequence/timeline would require relaxing D2 (let
@@ -241,6 +246,11 @@ the user can do X."*
   - **Style classes** (`CyElement.classes`) — a curated vocabulary the canvas
     defines: `big`, `small`, `highlight`, `muted`, `danger`, `success`, `warning`,
     `annotation` (dashed arrowless leader line for notes).
+    - The typed diagram tools (KAN-20..24) additionally emit **internal notation
+      classes** the canvas styles per diagram type — e.g. `decision`, `fc-process`,
+      `fc-terminator`, `initial`/`final`, `uml-class`, `inheritance`/`composition`,
+      `er-entity`. These are produced server-side by the typed builders, not part of
+      the model-facing `create_diagram` vocabulary above. See `docs/DIAGRAM_TOOLS.md`.
   - **Inline style subset** (`CyElement.style: CyStyle`) — whitelisted
     `{ color?, fontSize?, size? }` only (`color` → node fill / edge line;
     `fontSize` → label px; `size` → node label-padding px, ignored for edges).
