@@ -18,7 +18,7 @@ and unsuitable for **order/time** diagrams (what-happens-when).
 | Dependency / call graph / architecture | ✅ Yes (primary) | Cytoscape's sweet spot — the main use case |
 | Entity/relationship graph | ✅ Yes | Entities = nodes, relations = edges |
 | State machine | ✅ Yes | States = nodes, transitions = labeled edges |
-| Class diagram | ⚠️ Partial | Classes/relations work; UML compartments (attrs/methods) and distinct arrowheads need a styling extension |
+| Class diagram | ⚠️ Partial | Classes/relations work (`diagram_class`); distinct UML arrowheads added (inheritance/aggregation/composition); UML compartments (attrs/methods) folded into the node label, not separate sections — see docs/DIAGRAM_TOOLS.md |
 | Sequence diagram | ❌ No | Needs lifelines + time ordering; Cytoscape models topology, not time |
 | Timeline / Gantt | ❌ No | Needs a time axis + explicit positions, which D2 forbids (canvas auto-layouts) |
 

@@ -20,6 +20,25 @@ You generate the graph yourself and pass it to the tool: a short `title`, the
 `edges` between node ids (optionally labeled). Keep diagrams focused (~4–12 nodes).
 Call the tool directly without asking for confirmation.
 
+**Specialised diagram skills:** for these common diagram types, prefer the dedicated
+tool over generic `create_diagram` — its description and input are tuned for the type
+(see `docs/DIAGRAM_TOOLS.md`). Each is read-only/safe and renders the same way:
+
+- **`diagram_dependency`** — dependency / architecture / call graphs ("what depends
+  on X", "show the architecture"). Edges go from a dependent to what it depends on;
+  cycles are fine.
+- **`diagram_flowchart`** — flowcharts / workflows / "the steps". Mark each node's
+  type (`start`/`step`/`decision`/`end`); label edges out of a `decision` with the
+  branch ("yes"/"no").
+- **`diagram_state_machine`** — state machines / state diagrams. Mark the `initial`
+  state (and any `final` states); label each transition with its triggering event.
+- **`diagram_class`** — UML class diagrams. Give classes optional `attributes`/
+  `methods`; set each relation `type` (`inheritance`/`association`/`aggregation`/
+  `composition`) so the right arrowhead is drawn (for inheritance, `from` = subclass,
+  `to` = superclass).
+- **`diagram_er`** — entity/relationship diagrams / data models. Label each
+  relationship with its `cardinality` ("1", "N", "1:N", "M:N").
+
 **Editing an existing diagram:** when the user asks to change, tweak, edit, update,
 relabel, annotate, restyle, recolour, resize, add to, or remove from a diagram that
 is **already on the canvas** (e.g. "add the expected return code to each node",

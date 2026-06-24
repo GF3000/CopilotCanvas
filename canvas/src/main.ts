@@ -320,6 +320,88 @@ function buildStyle(theme: Theme): cytoscape.StylesheetStyle[] {
       selector: 'edge.warning',
       style: ext({ 'line-fill': 'solid', 'line-color': '#f59e0b', 'target-arrow-color': '#f59e0b' }),
     },
+    // Flowchart decision (KAN-21) — a diamond so branch points read as decisions.
+    {
+      selector: 'node.decision',
+      style: ext({
+        shape: 'diamond',
+        'background-color': '#f59e0b',
+        'background-gradient-stop-colors': '#fbbf24 #b45309',
+        'border-color': '#b45309',
+        'text-max-width': '120px',
+        padding: '20px',
+      }),
+    },
+    // State machine initial state (KAN-22) — a bright emerald ring marks the start.
+    {
+      selector: 'node.initial',
+      style: ext({
+        'background-fill': 'solid',
+        'background-color': '#10b981',
+        'border-width': 4,
+        'border-color': '#a7f3d0',
+        color: '#04231a',
+      }),
+    },
+    // State machine final/accepting state (KAN-22) — a thick double border.
+    {
+      selector: 'node.final',
+      style: ext({
+        'border-width': 5,
+        'border-style': 'double',
+        'border-color': '#f6f4ff',
+      }),
+    },
+    // UML class-diagram relations (KAN-23) — distinct arrowheads so inheritance vs
+    // association vs aggregation vs composition are visually distinguishable.
+    // Inheritance: hollow triangle pointing at the superclass (`to`).
+    {
+      selector: 'edge.inheritance',
+      style: ext({
+        'line-fill': 'solid',
+        'line-color': '#a78bfa',
+        'target-arrow-shape': 'triangle',
+        'target-arrow-fill': 'hollow',
+        'target-arrow-color': '#a78bfa',
+        'arrow-scale': 1.4,
+      }),
+    },
+    // Association: a plain directional arrow (vee).
+    {
+      selector: 'edge.association',
+      style: ext({
+        'line-fill': 'solid',
+        'line-color': '#cbbdf2',
+        'target-arrow-shape': 'vee',
+        'target-arrow-color': '#cbbdf2',
+      }),
+    },
+    // Aggregation: hollow diamond at the whole/owner (`from` = source end).
+    {
+      selector: 'edge.aggregation',
+      style: ext({
+        'line-fill': 'solid',
+        'line-color': '#22d3ee',
+        'source-arrow-shape': 'diamond',
+        'source-arrow-fill': 'hollow',
+        'source-arrow-color': '#22d3ee',
+        'target-arrow-shape': 'none',
+        'arrow-scale': 1.3,
+      }),
+    },
+    // Composition: filled diamond at the whole/owner (`from` = source end).
+    {
+      selector: 'edge.composition',
+      style: ext({
+        'line-fill': 'solid',
+        'line-color': '#f472b6',
+        'source-arrow-shape': 'diamond',
+        'source-arrow-fill': 'filled',
+        'source-arrow-color': '#f472b6',
+        'target-arrow-shape': 'none',
+        'arrow-scale': 1.3,
+      }),
+    },
   ];
 }
 
