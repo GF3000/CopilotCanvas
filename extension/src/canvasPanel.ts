@@ -34,9 +34,17 @@ interface EdgeInfo {
   label?: string;
 }
 
+/** What we persist so the canvas can be rebuilt after a full window reload. */
+interface PersistedState {
+  diagram: DiagramMessage;
+  patches: PatchMessage[];
+}
+
 export class CanvasPanel {
   public static current: CanvasPanel | undefined;
   private static readonly viewType = 'canvasForCopilot';
+  private static context: vscode.ExtensionContext | undefined;
+  private static readonly stateKey = 'canvasForCopilot.canvasState';
 
   private readonly panel: vscode.WebviewPanel;
   private readonly canvasDistUri: vscode.Uri;
@@ -44,9 +52,45 @@ export class CanvasPanel {
   private ready = false;
   private readonly queue: unknown[] = [];
   private currentDiagramId: string | undefined;
+  // Last full diagram + the patches applied since, persisted so the canvas can be
+  // replayed after a webview reload or a full window reload instead of going blank
+  // (FR-4 / NFR-4 / TC-7).
+  private lastDiagram: DiagramMessage | undefined;
+  private readonly patches: PatchMessage[] = [];
   private selection: string[] = [];
   private readonly nodes = new Map<string, NodeInfo>();
   private readonly edges = new Map<string, EdgeInfo>();
+
+  /**
+   * Enable reload recovery: remember the extension context and register a webview
+   * serializer so VS Code restores the canvas tab after a window reload, replaying
+   * the persisted diagram. Call once from `activate`.
+   */
+  static register(context: vscode.ExtensionContext): void {
+    CanvasPanel.context = context;
+    context.subscriptions.push(
+      vscode.window.registerWebviewPanelSerializer(CanvasPanel.viewType, {
+        deserializeWebviewPanel(panel: vscode.WebviewPanel): Thenable<void> {
+          const distUri = vscode.Uri.joinPath(
+            context.extensionUri,
+            '..',
+            'canvas',
+            'dist',
+          );
+          const revived = new CanvasPanel(panel, distUri);
+          CanvasPanel.current = revived;
+          const saved = context.workspaceState.get<PersistedState>(
+            CanvasPanel.stateKey,
+          );
+          if (saved?.diagram) {
+            revived.render(saved.diagram);
+            for (const p of saved.patches ?? []) revived.applyPatch(p);
+          }
+          return Promise.resolve();
+        },
+      }),
+    );
+  }
 
   /** Open (or reveal) the canvas tab and render the given diagram. */
   static show(extensionUri: vscode.Uri, diagram: DiagramMessage): void {
@@ -87,6 +131,11 @@ export class CanvasPanel {
   private constructor(panel: vscode.WebviewPanel, canvasDistUri: vscode.Uri) {
     this.panel = panel;
     this.canvasDistUri = canvasDistUri;
+    // Re-assert options (a restored panel may come back without them).
+    this.panel.webview.options = {
+      enableScripts: true,
+      localResourceRoots: [canvasDistUri],
+    };
     this.panel.webview.html = this.getHtml();
 
     this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
@@ -98,8 +147,10 @@ export class CanvasPanel {
         nodeId?: unknown;
       }) => {
         if (msg?.type === 'hello') {
+          // Fired on first load AND after every webview reload. Replay the last
+          // known diagram (+ patches) so a reload re-renders, not blanks.
           this.ready = true;
-          this.flush();
+          this.replayState();
         } else if (msg?.type === 'node_selected') {
           this.selection = Array.isArray(msg.nodeIds)
             ? msg.nodeIds.filter((id): id is string => typeof id === 'string')
@@ -227,7 +278,7 @@ export class CanvasPanel {
     if (!panel || !node) return false;
     node.codeRefs = [...(node.codeRefs ?? []), ref];
     // Mark the node 'linked' on the canvas so the user sees it has code.
-    panel.send({
+    panel.sendPatch({
       type: 'patch',
       sessionId: 'cli',
       diagramId: panel.currentDiagramId ?? '',
@@ -317,9 +368,13 @@ export class CanvasPanel {
 
   private render(diagram: DiagramMessage): void {
     this.currentDiagramId = diagram.diagramId;
+    // A fresh diagram replaces all prior state, so reset the replay/persist log.
+    this.lastDiagram = diagram;
+    this.patches.length = 0;
     this.nodes.clear();
     this.edges.clear();
     for (const el of diagram.elements) this.indexElement(el);
+    this.persist();
     this.send(diagram);
   }
 
@@ -349,12 +404,45 @@ export class CanvasPanel {
     }
     for (const el of patch.add) this.indexElement(el);
     // Stamp the live diagram id so the patch targets what's on screen.
-    this.send({ ...patch, diagramId: this.currentDiagramId ?? patch.diagramId });
+    this.sendPatch({
+      ...patch,
+      diagramId: this.currentDiagramId ?? patch.diagramId,
+    });
   }
 
   private send(message: unknown): void {
     this.queue.push(message);
     if (this.ready) this.flush();
+  }
+
+  /** Send a patch and remember it so a reload can replay it. */
+  private sendPatch(patch: PatchMessage): void {
+    this.patches.push(patch);
+    this.persist();
+    this.send(patch);
+  }
+
+  /** Persist the current diagram + patches so it survives a full window reload. */
+  private persist(): void {
+    if (!this.lastDiagram) return;
+    void CanvasPanel.context?.workspaceState.update(CanvasPanel.stateKey, {
+      diagram: this.lastDiagram,
+      patches: this.patches,
+    } satisfies PersistedState);
+  }
+
+  /**
+   * Rebuild the outgoing queue from the last known diagram (+ patches) and flush.
+   * Called on every `hello`, so when the webview reloads (its JS restarts and
+   * re-sends `hello` with nothing queued) the current graph re-renders instead of
+   * showing a blank canvas (FR-4 / NFR-4 / TC-7).
+   */
+  private replayState(): void {
+    if (this.lastDiagram) {
+      this.queue.length = 0;
+      this.queue.push(this.lastDiagram, ...this.patches);
+    }
+    this.flush();
   }
 
   private flush(): void {
