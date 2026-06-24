@@ -322,6 +322,48 @@
         display: none;
       }
 
+      /* Expand-node dialog — centered modal to choose expansion type/depth. */
+      #expand-dialog {
+        position: fixed;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 60;
+        min-width: 260px;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        border-radius: 14px;
+        background: var(--surface);
+        backdrop-filter: blur(16px) saturate(160%);
+        -webkit-backdrop-filter: blur(16px) saturate(160%);
+        border: 1px solid var(--surface-border);
+        box-shadow:
+          0 18px 50px var(--surface-shadow),
+          inset 0 1px 0 var(--surface-inset);
+        color: var(--text);
+      }
+
+      #expand-dialog[hidden] {
+        display: none;
+      }
+
+      .expand-field {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--text-muted);
+      }
+
+      select.menu-input {
+        cursor: pointer;
+      }
+
       .menu-section {
         font-size: 11px;
         font-weight: 600;
@@ -500,53 +542,78 @@
         border-top: 3px solid currentColor;
       }
 
-      /* Right-click context menu on a node (KAN-32). */
-      #context-menu {
-        position: absolute;
-        z-index: 30;
-        min-width: 168px;
-        padding: 6px;
-        border-radius: 12px;
-        background: var(--surface-solid);
-        border: 1px solid var(--surface-border);
-        box-shadow: 0 14px 36px rgba(0, 0, 0, 0.4);
-        color: var(--text);
-        font-size: 13px;
-        user-select: none;
+      /* Code references + actions inside the node context menu (KAN-31/32). */
+      #node-code {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
       }
 
-      #context-menu[hidden] {
+      #node-code[hidden] {
         display: none;
       }
 
-      .ctx-item {
+      .coderefs {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        max-height: 168px;
+        overflow-y: auto;
+      }
+
+      .coderef-row {
         display: flex;
         align-items: center;
-        gap: 9px;
+        gap: 8px;
         width: 100%;
-        padding: 8px 10px;
-        border: none;
+        padding: 7px 9px;
+        border: 1px solid var(--surface-border);
         border-radius: 8px;
-        background: transparent;
-        color: inherit;
+        background: var(--hover-bg);
+        color: var(--text);
         font: inherit;
+        font-size: 12.5px;
         text-align: left;
         cursor: pointer;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        transition: background 0.14s ease;
       }
 
-      .ctx-item:hover {
-        background: var(--hover-bg);
-      }
-
-      .ctx-item svg {
-        width: 16px;
-        height: 16px;
+      .coderef-row::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #34d399;
         flex: none;
-        fill: none;
-        stroke: currentColor;
-        stroke-width: 2;
-        stroke-linecap: round;
-        stroke-linejoin: round;
+      }
+
+      .coderef-row:hover {
+        background: var(--hover-bg-strong);
+      }
+
+      .menu-actions {
+        display: flex;
+        gap: 6px;
+      }
+
+      .menu-action {
+        flex: 1;
+        padding: 7px 10px;
+        border: 1px solid var(--surface-border);
+        border-radius: 8px;
+        background: var(--hover-bg);
+        color: var(--text);
+        font: inherit;
+        font-size: 12.5px;
+        cursor: pointer;
+        transition: background 0.14s ease;
+      }
+
+      .menu-action:hover {
+        background: var(--hover-bg-strong);
       }
     </style>
   </head>
@@ -658,31 +725,7 @@
       <div id="legend-rows"></div>
     </div>
 
-    <div id="node-menu" hidden role="menu" aria-label="Node menu">
-      <button id="ctx-expand" class="ctx-item" type="button" role="menuitem">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M15 3h6v6" />
-          <path d="M9 21H3v-6" />
-          <path d="M21 3l-8 8" />
-          <path d="M3 21l8-8" />
-        </svg>
-        Expand element
-      </button>
-      <button id="ctx-open-code" class="ctx-item" type="button" role="menuitem">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M9 6l-6 6 6 6" />
-          <path d="M15 6l6 6-6 6" />
-        </svg>
-        Open in editor
-      </button>
-      <button id="ctx-center" class="ctx-item" type="button" role="menuitem">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <circle cx="12" cy="12" r="3" />
-          <path d="M12 3v3M12 18v3M3 12h3M18 12h3" />
-        </svg>
-        Center on node
-      </button>
-      <div class="menu-divider"></div>
+    <div id="node-menu" hidden role="menu" aria-label="Edit node">
       <span class="menu-section">Label</span>
       <input
         id="node-label-input"
@@ -694,6 +737,63 @@
       />
       <span class="menu-section">Colour</span>
       <div id="node-swatches" class="swatches"></div>
+      <div id="node-code" hidden>
+        <span class="menu-section">Code references</span>
+        <div id="node-coderefs" class="coderefs"></div>
+      </div>
+      <div class="menu-actions">
+        <button id="node-explain" class="menu-action" type="button">
+          Explain node
+        </button>
+        <button id="node-expand" class="menu-action" type="button">
+          Expand node
+        </button>
+        <button id="ctx-expand" class="menu-action" type="button">
+          Expand element
+        </button>
+        <button id="node-center" class="menu-action" type="button">
+          Center on node
+        </button>
+      </div>
+    </div>
+
+    <div id="expand-dialog" hidden role="dialog" aria-label="Expand node">
+      <span class="menu-section">Expand node</span>
+      <label class="expand-field">
+        <span>Type of expansion</span>
+        <select id="expand-mode" class="menu-input">
+          <option value="annotation">Brief annotation / note</option>
+          <option value="detail" selected>More detail (a few nodes)</option>
+          <option value="subgraph">Full sub-graph</option>
+        </select>
+      </label>
+      <label class="expand-field">
+        <span>Depth</span>
+        <select id="expand-depth" class="menu-input">
+          <option value="1" selected>1 level</option>
+          <option value="2">2 levels</option>
+          <option value="3">3 levels</option>
+        </select>
+      </label>
+      <label class="expand-field">
+        <span>Focus (optional)</span>
+        <input
+          id="expand-focus"
+          class="menu-input"
+          type="text"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="e.g. error handling"
+        />
+      </label>
+      <div class="menu-actions">
+        <button id="expand-cancel" class="menu-action" type="button">
+          Cancel
+        </button>
+        <button id="expand-submit" class="menu-action" type="button">
+          Expand
+        </button>
+      </div>
     </div>
 
     <div id="error" role="alert" hidden>

@@ -23,6 +23,16 @@ export async function activate(
     }),
   );
 
+  // Restore the canvas tab (and its diagram) after a window reload.
+  CanvasPanel.register(context);
+
+  // Trace channel for canvas → extension events, useful for debugging the
+  // webview round-trip (cherry-picked from KAN-17). Visible under Output →
+  // "Canvas for Copilot".
+  const log = vscode.window.createOutputChannel('Canvas for Copilot');
+  context.subscriptions.push(log);
+  CanvasPanel.log = log;
+
   // Host the MCP server so Copilot CLI can drive the canvas.
   try {
     httpServer = await startCanvasMcpHttpServer({

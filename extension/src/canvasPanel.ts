@@ -34,9 +34,19 @@ interface EdgeInfo {
   label?: string;
 }
 
+/** What we persist so the canvas can be rebuilt after a full window reload. */
+interface PersistedState {
+  diagram: DiagramMessage;
+  patches: PatchMessage[];
+}
+
 export class CanvasPanel {
   public static current: CanvasPanel | undefined;
+  /** Optional channel for tracing canvas → extension messages (KAN-17). */
+  public static log: vscode.OutputChannel | undefined;
   private static readonly viewType = 'canvasForCopilot';
+  private static context: vscode.ExtensionContext | undefined;
+  private static readonly stateKey = 'canvasForCopilot.canvasState';
 
   private readonly panel: vscode.WebviewPanel;
   private readonly canvasDistUri: vscode.Uri;
@@ -44,9 +54,45 @@ export class CanvasPanel {
   private ready = false;
   private readonly queue: unknown[] = [];
   private currentDiagramId: string | undefined;
+  // Last full diagram + the patches applied since, persisted so the canvas can be
+  // replayed after a webview reload or a full window reload instead of going blank
+  // (FR-4 / NFR-4 / TC-7).
+  private lastDiagram: DiagramMessage | undefined;
+  private readonly patches: PatchMessage[] = [];
   private selection: string[] = [];
   private readonly nodes = new Map<string, NodeInfo>();
   private readonly edges = new Map<string, EdgeInfo>();
+
+  /**
+   * Enable reload recovery: remember the extension context and register a webview
+   * serializer so VS Code restores the canvas tab after a window reload, replaying
+   * the persisted diagram. Call once from `activate`.
+   */
+  static register(context: vscode.ExtensionContext): void {
+    CanvasPanel.context = context;
+    context.subscriptions.push(
+      vscode.window.registerWebviewPanelSerializer(CanvasPanel.viewType, {
+        deserializeWebviewPanel(panel: vscode.WebviewPanel): Thenable<void> {
+          const distUri = vscode.Uri.joinPath(
+            context.extensionUri,
+            '..',
+            'canvas',
+            'dist',
+          );
+          const revived = new CanvasPanel(panel, distUri);
+          CanvasPanel.current = revived;
+          const saved = context.workspaceState.get<PersistedState>(
+            CanvasPanel.stateKey,
+          );
+          if (saved?.diagram) {
+            revived.render(saved.diagram);
+            for (const p of saved.patches ?? []) revived.applyPatch(p);
+          }
+          return Promise.resolve();
+        },
+      }),
+    );
+  }
 
   /** Open (or reveal) the canvas tab and render the given diagram. */
   static show(extensionUri: vscode.Uri, diagram: DiagramMessage): void {
@@ -87,6 +133,11 @@ export class CanvasPanel {
   private constructor(panel: vscode.WebviewPanel, canvasDistUri: vscode.Uri) {
     this.panel = panel;
     this.canvasDistUri = canvasDistUri;
+    // Re-assert options (a restored panel may come back without them).
+    this.panel.webview.options = {
+      enableScripts: true,
+      localResourceRoots: [canvasDistUri],
+    };
     this.panel.webview.html = this.getHtml();
 
     this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
@@ -96,10 +147,19 @@ export class CanvasPanel {
         nodeIds?: unknown;
         action?: unknown;
         nodeId?: unknown;
+        refIndex?: unknown;
+        mode?: unknown;
+        depth?: unknown;
+        focus?: unknown;
       }) => {
+        CanvasPanel.log?.appendLine(
+          `[canvas→ext] ${CanvasPanel.summarize(msg)}`,
+        );
         if (msg?.type === 'hello') {
+          // Fired on first load AND after every webview reload. Replay the last
+          // known diagram (+ patches) so a reload re-renders, not blanks.
           this.ready = true;
-          this.flush();
+          this.replayState();
         } else if (msg?.type === 'node_selected') {
           this.selection = Array.isArray(msg.nodeIds)
             ? msg.nodeIds.filter((id): id is string => typeof id === 'string')
@@ -109,7 +169,26 @@ export class CanvasPanel {
           msg.action === 'open_code' &&
           typeof msg.nodeId === 'string'
         ) {
-          void this.handleOpenCode(msg.nodeId);
+          const refIndex =
+            typeof msg.refIndex === 'number' ? msg.refIndex : undefined;
+          void this.handleOpenCode(msg.nodeId, refIndex);
+        } else if (
+          msg?.type === 'node_action' &&
+          msg.action === 'explain' &&
+          typeof msg.nodeId === 'string'
+        ) {
+          this.handleExplain(msg.nodeId);
+        } else if (
+          msg?.type === 'node_action' &&
+          msg.action === 'expand' &&
+          typeof msg.nodeId === 'string'
+        ) {
+          this.handleExpand(
+            msg.nodeId,
+            typeof msg.mode === 'string' ? msg.mode : undefined,
+            typeof msg.depth === 'number' ? msg.depth : undefined,
+            typeof msg.focus === 'string' ? msg.focus : undefined,
+          );
         }
       },
       null,
@@ -117,12 +196,35 @@ export class CanvasPanel {
     );
   }
 
+  /** Short, readable summary of a canvas → extension message for the trace log. */
+  private static summarize(msg: {
+    type?: string;
+    action?: unknown;
+    nodeId?: unknown;
+    nodeIds?: unknown;
+  }): string {
+    const type = msg?.type ?? 'unknown';
+    if (type === 'node_selected') {
+      const ids = Array.isArray(msg.nodeIds) ? msg.nodeIds.join(', ') : '';
+      return `node_selected [${ids}]`;
+    }
+    if (type === 'node_action') {
+      const action = typeof msg.action === 'string' ? msg.action : '?';
+      const nodeId = typeof msg.nodeId === 'string' ? msg.nodeId : '?';
+      return `node_action:${action} (${nodeId})`;
+    }
+    return type;
+  }
+
   /**
    * Context-menu "Open in editor": open the node's code. If it isn't linked yet,
    * try to resolve it via the workspace symbol provider (by the node's label),
    * link it, then open. If nothing is found, ask the user to have Copilot link it.
    */
-  private async handleOpenCode(nodeId: string): Promise<void> {
+  private async handleOpenCode(
+    nodeId: string,
+    refIndex?: number,
+  ): Promise<void> {
     const node = this.nodes.get(nodeId);
     if (!node) return;
 
@@ -135,7 +237,7 @@ export class CanvasPanel {
         return;
       }
     }
-    await CanvasPanel.openNodeCode(nodeId);
+    await CanvasPanel.openNodeCode(nodeId, refIndex);
   }
 
   /** Best-effort: find a workspace symbol matching the label and link the node. */
@@ -161,6 +263,68 @@ export class CanvasPanel {
       symbol: best.name,
     });
     return true;
+  }
+
+  /**
+   * "Explain node" context-menu action: send a prompt to the Copilot CLI terminal
+   * asking it to explain this node. Copilot calls describe_node (per the canvas
+   * instruction) and prints the full explanation in the CLI — closing the
+   * canvas → CLI loop, since the stateless MCP server can't push a turn itself.
+   */
+  private handleExplain(nodeId: string): void {
+    const label = this.nodes.get(nodeId)?.label;
+    const name = label ? `"${label}" (id: ${nodeId})` : `id: ${nodeId}`;
+    this.sendToTerminal(
+      `Explain the node ${name} on the Canvas for Copilot diagram.`,
+    );
+  }
+
+  /**
+   * "Expand node" context-menu action: the webview dialog has already collected the
+   * kind of expansion and depth, so build a fully-specified prompt and send it to
+   * the CLI. Copilot calls expand_node with those settings and the canvas
+   * re-renders the new sub-graph in place.
+   */
+  private handleExpand(
+    nodeId: string,
+    mode: string | undefined,
+    depth: number | undefined,
+    focus: string | undefined,
+  ): void {
+    const label = this.nodes.get(nodeId)?.label;
+    const name = label ? `"${label}" (id: ${nodeId})` : `id: ${nodeId}`;
+    const kind =
+      mode === 'annotation'
+        ? 'a brief annotation/note'
+        : mode === 'subgraph'
+          ? 'a full richer sub-graph'
+          : 'a few extra detail nodes';
+    const levels = depth && depth > 0 ? `${depth} level(s) deep` : '1 level deep';
+    const focusPart = focus?.trim() ? ` Focus on: ${focus.trim()}.` : '';
+    this.sendToTerminal(
+      `Expand the node ${name} on the Canvas for Copilot diagram as ${kind}, ${levels}.` +
+        focusPart +
+        ' Use the expand_node tool to add the new nodes in place, connecting them to ' +
+        'this node. Use these settings — no need to ask me.',
+    );
+  }
+
+  /**
+   * Inject a prompt into the active integrated terminal (where Copilot CLI runs)
+   * and submit it. The CLI input treats a trailing newline as a soft line-break, so
+   * type the text then send an explicit carriage return shortly after to run it.
+   */
+  private sendToTerminal(prompt: string): void {
+    const terminal = vscode.window.activeTerminal ?? vscode.window.terminals[0];
+    if (!terminal) {
+      void vscode.window.showWarningMessage(
+        'Canvas for Copilot: open a Copilot CLI terminal first, then try the action again to see the result there.',
+      );
+      return;
+    }
+    terminal.show();
+    terminal.sendText(prompt, false);
+    setTimeout(() => terminal.sendText('\r', false), 150);
   }
 
   /** The current canvas selection (empty if nothing selected / no canvas open). */
@@ -227,7 +391,7 @@ export class CanvasPanel {
     if (!panel || !node) return false;
     node.codeRefs = [...(node.codeRefs ?? []), ref];
     // Mark the node 'linked' on the canvas so the user sees it has code.
-    panel.send({
+    panel.sendPatch({
       type: 'patch',
       sessionId: 'cli',
       diagramId: panel.currentDiagramId ?? '',
@@ -240,7 +404,10 @@ export class CanvasPanel {
   }
 
   /** Open a node's linked code in the editor (defaults to the selection). */
-  static async openNodeCode(id?: string): Promise<{
+  static async openNodeCode(
+    id?: string,
+    refIndex?: number,
+  ): Promise<{
     opened: boolean;
     reason?: 'no-canvas' | 'no-node' | 'not-linked' | 'open-failed';
     nodeId?: string;
@@ -251,7 +418,9 @@ export class CanvasPanel {
     if (!panel) return { opened: false, reason: 'no-canvas' };
     const nodeId = id ?? panel.selection.find((s) => panel.nodes.has(s));
     if (!nodeId) return { opened: false, reason: 'no-node' };
-    const ref = panel.nodes.get(nodeId)?.codeRefs?.[0];
+    const refs = panel.nodes.get(nodeId)?.codeRefs;
+    const ref =
+      (refIndex !== undefined ? refs?.[refIndex] : undefined) ?? refs?.[0];
     if (!ref) return { opened: false, reason: 'not-linked', nodeId };
 
     const root = vscode.workspace.workspaceFolders?.[0]?.uri;
@@ -317,9 +486,13 @@ export class CanvasPanel {
 
   private render(diagram: DiagramMessage): void {
     this.currentDiagramId = diagram.diagramId;
+    // A fresh diagram replaces all prior state, so reset the replay/persist log.
+    this.lastDiagram = diagram;
+    this.patches.length = 0;
     this.nodes.clear();
     this.edges.clear();
     for (const el of diagram.elements) this.indexElement(el);
+    this.persist();
     this.send(diagram);
   }
 
@@ -349,12 +522,45 @@ export class CanvasPanel {
     }
     for (const el of patch.add) this.indexElement(el);
     // Stamp the live diagram id so the patch targets what's on screen.
-    this.send({ ...patch, diagramId: this.currentDiagramId ?? patch.diagramId });
+    this.sendPatch({
+      ...patch,
+      diagramId: this.currentDiagramId ?? patch.diagramId,
+    });
   }
 
   private send(message: unknown): void {
     this.queue.push(message);
     if (this.ready) this.flush();
+  }
+
+  /** Send a patch and remember it so a reload can replay it. */
+  private sendPatch(patch: PatchMessage): void {
+    this.patches.push(patch);
+    this.persist();
+    this.send(patch);
+  }
+
+  /** Persist the current diagram + patches so it survives a full window reload. */
+  private persist(): void {
+    if (!this.lastDiagram) return;
+    void CanvasPanel.context?.workspaceState.update(CanvasPanel.stateKey, {
+      diagram: this.lastDiagram,
+      patches: this.patches,
+    } satisfies PersistedState);
+  }
+
+  /**
+   * Rebuild the outgoing queue from the last known diagram (+ patches) and flush.
+   * Called on every `hello`, so when the webview reloads (its JS restarts and
+   * re-sends `hello` with nothing queued) the current graph re-renders instead of
+   * showing a blank canvas (FR-4 / NFR-4 / TC-7).
+   */
+  private replayState(): void {
+    if (this.lastDiagram) {
+      this.queue.length = 0;
+      this.queue.push(this.lastDiagram, ...this.patches);
+    }
+    this.flush();
   }
 
   private flush(): void {

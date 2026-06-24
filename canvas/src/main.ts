@@ -9,6 +9,7 @@ import {
   isDiagramMessage,
   isPatchMessage,
   type CanvasMessage,
+  type CodeRef,
   type CyElement,
   type CyStyle,
   type DiagramMessage,
@@ -628,8 +629,6 @@ const nodeMenu = document.getElementById('node-menu');
 const labelInput = document.getElementById('node-label-input');
 const swatchContainer = document.getElementById('node-swatches');
 const menuExpand = document.getElementById('ctx-expand');
-const menuOpenCode = document.getElementById('ctx-open-code');
-const menuCenter = document.getElementById('ctx-center');
 let menuNode: cytoscape.NodeSingular | undefined;
 
 function styleNodeColor(
@@ -657,10 +656,7 @@ function openNodeMenu(node: cytoscape.NodeSingular, x: number, y: number): void 
   }
   // Only offer "Expand element" when the node has neighbours to drill into.
   if (menuExpand) menuExpand.hidden = !isExpandable(node.id());
-  // Only offer "Open in editor" when the node is actually linked to code.
-  const refs = node.data('codeRefs') as unknown[] | undefined;
-  const linked = node.hasClass('linked') || (Array.isArray(refs) && refs.length > 0);
-  if (menuOpenCode) menuOpenCode.hidden = !linked;
+  renderCodeRefs(node);
   nodeMenu.hidden = false;
   // Keep the menu inside the viewport.
   const { width, height } = nodeMenu.getBoundingClientRect();
@@ -712,42 +708,162 @@ if (swatchContainer) {
   swatchContainer.append(custom);
 }
 
-// Node-menu action buttons (drill-down / open code / center). They act on the
-// node the menu was opened for (`menuNode`); capture its id before closing.
+/* Code references + node actions inside the unified right-click menu (KAN-31/32). */
+const nodeCodeWrap = document.getElementById('node-code');
+const nodeCodeRefs = document.getElementById('node-coderefs');
+const nodeCenterBtn = document.getElementById('node-center');
+const nodeExplainBtn = document.getElementById('node-explain');
+const nodeExpandBtn = document.getElementById('node-expand');
+
+function formatCodeRef(ref: CodeRef): string {
+  const file = ref.path.split(/[\\/]/).pop() || ref.path;
+  const line = ref.range ? `:${ref.range.startLine}` : '';
+  return ref.symbol ? `${ref.symbol} · ${file}${line}` : `${file}${line}`;
+}
+
+// Ask the extension to open a node's code at a specific ref (KAN-31/32).
+function openNodeCode(nodeId: string, refIndex: number): void {
+  vscode?.postMessage({
+    type: 'node_action',
+    action: 'open_code',
+    nodeId,
+    refIndex,
+  });
+  closeNodeMenu(true);
+}
+
+// Populate (and show/hide) the "Code references" section for the menu's node so
+// the user can see — and jump to — the code each node maps to.
+function renderCodeRefs(node: cytoscape.NodeSingular): void {
+  if (!nodeCodeWrap || !nodeCodeRefs) return;
+  const refs = (node.data('codeRefs') as CodeRef[] | undefined) ?? [];
+  nodeCodeRefs.replaceChildren();
+  if (refs.length === 0) {
+    nodeCodeWrap.hidden = true;
+    return;
+  }
+  const nodeId = node.id();
+  refs.forEach((ref, index) => {
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'coderef-row';
+    row.title = `Open ${ref.path}${ref.range ? `:${ref.range.startLine}` : ''}`;
+    row.textContent = formatCodeRef(ref);
+    row.addEventListener('click', () => openNodeCode(nodeId, index));
+    nodeCodeRefs.append(row);
+  });
+  nodeCodeWrap.hidden = false;
+}
+
+// "Center on node" action — re-frame the view on the menu's node.
+nodeCenterBtn?.addEventListener('click', () => {
+  const node = menuNode;
+  closeNodeMenu(true);
+  if (node)
+    cy.animate({ center: { eles: node }, duration: 200, easing: 'ease-out' });
+});
+
+// "Explain node" action — ask the extension to have Copilot explain this node;
+// the full explanation is produced in the CLI (it calls describe_node).
+nodeExplainBtn?.addEventListener('click', () => {
+  const nodeId = menuNode?.id();
+  closeNodeMenu(true);
+  if (nodeId) vscode?.postMessage({ type: 'node_action', action: 'explain', nodeId });
+});
+
+/* ─── Expand node: dialog to choose the kind & depth of expansion (KAN-11) ─── */
+const expandDialog = document.getElementById('expand-dialog');
+const expandModeSel = document.getElementById('expand-mode');
+const expandDepthSel = document.getElementById('expand-depth');
+const expandFocusInput = document.getElementById('expand-focus');
+const expandSubmitBtn = document.getElementById('expand-submit');
+const expandCancelBtn = document.getElementById('expand-cancel');
+let expandNodeId: string | undefined;
+
+function openExpandDialog(nodeId: string): void {
+  if (!expandDialog) return;
+  expandNodeId = nodeId;
+  if (expandFocusInput instanceof HTMLInputElement) expandFocusInput.value = '';
+  expandDialog.hidden = false;
+  if (expandModeSel instanceof HTMLSelectElement) expandModeSel.focus();
+}
+
+function closeExpandDialog(): void {
+  if (expandDialog) expandDialog.hidden = true;
+  expandNodeId = undefined;
+}
+
+function submitExpand(): void {
+  const nodeId = expandNodeId;
+  const mode =
+    expandModeSel instanceof HTMLSelectElement ? expandModeSel.value : 'detail';
+  const depth =
+    expandDepthSel instanceof HTMLSelectElement
+      ? Number(expandDepthSel.value)
+      : 1;
+  const focus =
+    expandFocusInput instanceof HTMLInputElement
+      ? expandFocusInput.value.trim()
+      : '';
+  closeExpandDialog();
+  if (nodeId)
+    vscode?.postMessage({
+      type: 'node_action',
+      action: 'expand',
+      nodeId,
+      mode,
+      depth,
+      focus,
+    });
+}
+
+// "Expand node" action — open the dialog to gather the expansion preferences.
+nodeExpandBtn?.addEventListener('click', () => {
+  const nodeId = menuNode?.id();
+  closeNodeMenu(true);
+  if (nodeId) openExpandDialog(nodeId);
+});
+
+// "Expand element" action — client-side drill-down into the node's neighbourhood
+// as a sub-scope of the same diagram (FR-7), distinct from the server-side
+// "Expand node" above.
 menuExpand?.addEventListener('click', () => {
   const id = menuNode?.id();
   closeNodeMenu(false);
   if (id) expandElement(id);
 });
 
-menuOpenCode?.addEventListener('click', () => {
-  const id = menuNode?.id();
-  closeNodeMenu(false);
-  if (id) {
-    vscode?.postMessage({ type: 'node_action', action: 'open_code', nodeId: id });
+expandSubmitBtn?.addEventListener('click', submitExpand);
+expandCancelBtn?.addEventListener('click', closeExpandDialog);
+window.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && expandDialog && !expandDialog.hidden) {
+    closeExpandDialog();
   }
 });
 
-menuCenter?.addEventListener('click', () => {
-  const id = menuNode?.id();
-  closeNodeMenu(false);
-  if (!id) return;
-  const node = cy.getElementById(id);
-  if (node.nonempty()) {
-    cy.animate({ center: { eles: node }, duration: 200, easing: 'ease-out' });
+// Escape closes the menu even when focus isn't in the label field.
+window.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && nodeMenu && !nodeMenu.hidden) {
+    closeNodeMenu(false);
   }
 });
 
-// Right-click a node: select it (so "this" resolves) and open its menu. Suppress
-// the browser menu over the canvas.
-cy.container()?.addEventListener('contextmenu', (event) => event.preventDefault());
+// Right-click a node to edit it (label / colour / code refs) and select it so the
+// CLI knows the target. Suppress the browser menu over the canvas.
+cy.container()?.addEventListener('contextmenu', (event) =>
+  event.preventDefault(),
+);
 cy.on('cxttap', 'node', (event) => {
   const node = event.target as cytoscape.NodeSingular;
   cy.elements().unselect();
   node.select();
   emitSelection([node.id()]);
-  const mouse = event.originalEvent as MouseEvent;
-  openNodeMenu(node, mouse.clientX, mouse.clientY);
+  const mouse = event.originalEvent as MouseEvent | undefined;
+  openNodeMenu(
+    node,
+    mouse?.clientX ?? event.renderedPosition.x,
+    mouse?.clientY ?? event.renderedPosition.y,
+  );
 });
 cy.on('cxttap', (event) => {
   if (event.target === cy) closeNodeMenu(false);
@@ -805,6 +921,9 @@ function handlePatch(msg: PatchMessage): void {
       const target = cy.getElementById(id);
       if (target.empty()) continue;
       target.data({ ...element.data });
+      if (element.codeRefs && element.codeRefs.length > 0) {
+        target.data('codeRefs', element.codeRefs);
+      }
       if (element.classes) target.addClass(element.classes);
       const style = mapStyle(element.style, target.isEdge());
       if (style) target.style(style as cytoscape.Css.Node);
@@ -856,8 +975,12 @@ function isEdgeElement(el: CyElement): boolean {
 // Convert a protocol CyElement to a Cytoscape element definition, carrying
 // classes and the mapped inline style.
 function toElementDef(el: CyElement): cytoscape.ElementDefinition {
+  // Carry codeRefs (a top-level CyElement field) onto the node data so the canvas
+  // can display them and detect linked nodes (KAN-31/32).
+  const data = { ...el.data } as Record<string, unknown>;
+  if (el.codeRefs && el.codeRefs.length > 0) data.codeRefs = el.codeRefs;
   const def: cytoscape.ElementDefinition = {
-    data: el.data as cytoscape.ElementDefinition['data'],
+    data: data as cytoscape.ElementDefinition['data'],
   };
   if (el.classes) def.classes = el.classes;
   const style = mapStyle(el.style, isEdgeElement(el));
@@ -1079,6 +1202,9 @@ cy.on('tap', (evt) => {
     emitSelection([]);
   }
 });
+
+// Node selection on right-click and the menu actions are handled by the unified
+// node context menu above (label / colour / code references / center).
 
 window.addEventListener('message', (event: MessageEvent<CanvasMessage>) => {
   const msg = event.data;
