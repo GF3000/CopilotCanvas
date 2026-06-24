@@ -3,7 +3,13 @@
 // ready (KAN-17 seed).
 import * as vscode from 'vscode';
 import * as fs from 'node:fs';
-import type { DiagramMessage, PatchMessage } from '@canvas/shared';
+import {
+  isHelloMessage,
+  isNodeSelectedMessage,
+  type CanvasToServerMessage,
+  type DiagramMessage,
+  type PatchMessage,
+} from '@canvas/shared';
 
 /** The node(s) currently selected on the canvas, resolved with their labels. */
 export interface CanvasSelection {
@@ -14,6 +20,15 @@ export interface CanvasSelection {
 
 export class CanvasPanel {
   public static current: CanvasPanel | undefined;
+  /**
+   * Sink for events coming back from the canvas webview (KAN-17). The extension
+   * sets this; KAN-18 will forward the events on to the MCP server / Copilot CLI.
+   */
+  public static onCanvasEvent:
+    | ((msg: CanvasToServerMessage) => void)
+    | undefined;
+  /** Optional channel for tracing canvas ↔ extension messages. */
+  public static log: vscode.OutputChannel | undefined;
   private static readonly viewType = 'canvasForCopilot';
 
   private readonly panel: vscode.WebviewPanel;
@@ -68,16 +83,7 @@ export class CanvasPanel {
 
     this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
     this.panel.webview.onDidReceiveMessage(
-      (msg: { type?: string; nodeIds?: unknown }) => {
-        if (msg?.type === 'hello') {
-          this.ready = true;
-          this.flush();
-        } else if (msg?.type === 'node_selected') {
-          this.selection = Array.isArray(msg.nodeIds)
-            ? msg.nodeIds.filter((id): id is string => typeof id === 'string')
-            : [];
-        }
-      },
+      (raw: unknown) => this.handleMessage(raw),
       null,
       this.disposables,
     );
@@ -136,6 +142,35 @@ export class CanvasPanel {
     while (this.queue.length > 0) {
       void this.panel.webview.postMessage(this.queue.shift());
     }
+  }
+
+  /**
+   * Handle a message coming back from the webview (canvas → extension). The
+   * `hello` handshake is consumed here (mark ready + send any buffered diagram);
+   * every other event is handed to `onCanvasEvent` for routing.
+   */
+  private handleMessage(raw: unknown): void {
+    const msg = raw as CanvasToServerMessage;
+    if (!msg || typeof msg.type !== 'string') return;
+
+    if (isHelloMessage(msg)) {
+      this.ready = true;
+      CanvasPanel.log?.appendLine(
+        `[canvas→ext] hello (client=${msg.client}, protocol=${msg.protocol})`,
+      );
+      this.flush();
+      return;
+    }
+
+    // Track the current selection so CanvasPanel.getSelection() (the server's
+    // get_selection tool, KAN-7) reflects what's on screen.
+    if (isNodeSelectedMessage(msg)) {
+      this.selection = msg.nodeIds;
+    }
+
+    // node_selected / interaction / diagram_edited / error / ack — let the
+    // extension decide what to do (KAN-18 forwards these to Copilot).
+    CanvasPanel.onCanvasEvent?.(msg);
   }
 
   private getHtml(): string {
