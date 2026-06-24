@@ -34,14 +34,25 @@ const ext = (props: Record<string, unknown>): cytoscape.Css.Node =>
 type Theme = 'dark' | 'light';
 
 // Per-theme bits of the Cytoscape stylesheet. Node fills are saturated and read
-// well on either background, so only the edge label chrome changes by theme.
-const EDGE_LABEL: Record<Theme, { color: string; background: string }> = {
-  dark: { color: '#cbbdf2', background: '#161325' },
-  light: { color: '#4b4564', background: 'rgba(255, 255, 255, 0.92)' },
+// well on either background, so only the node border and edge label change.
+const CY_THEME: Record<
+  Theme,
+  { nodeBorder: string; edgeColor: string; edgeBackground: string }
+> = {
+  dark: {
+    nodeBorder: 'rgba(0, 0, 0, 0.4)',
+    edgeColor: '#cbbdf2',
+    edgeBackground: '#161325',
+  },
+  light: {
+    nodeBorder: 'rgba(0, 0, 0, 0.18)',
+    edgeColor: '#4b4564',
+    edgeBackground: 'rgba(255, 255, 255, 0.92)',
+  },
 };
 
 function buildStyle(theme: Theme): cytoscape.StylesheetStyle[] {
-  const edge = EDGE_LABEL[theme];
+  const palette = CY_THEME[theme];
   return [
     {
       selector: 'node',
@@ -61,7 +72,7 @@ function buildStyle(theme: Theme): cytoscape.StylesheetStyle[] {
         'text-max-width': '160px',
         'background-color': '#8b5cf6',
         'border-width': 1,
-        'border-color': 'rgba(0, 0, 0, 0.4)',
+        'border-color': palette.nodeBorder,
         // Squircle corners + a soft two-tone gradient. (No underlay — it renders
         // as a hard-edged second box rather than a blurred glow.)
         ...ext({
@@ -120,8 +131,8 @@ function buildStyle(theme: Theme): cytoscape.StylesheetStyle[] {
         'arrow-scale': 1.05,
         'font-family': FONT_FAMILY,
         'font-size': 9,
-        color: edge.color,
-        'text-background-color': edge.background,
+        color: palette.edgeColor,
+        'text-background-color': palette.edgeBackground,
         'text-background-opacity': 0.9,
         'text-background-padding': '3px',
         'text-background-shape': 'roundrectangle',
@@ -171,6 +182,7 @@ const errorList = document.getElementById('error-list');
 const zoomInButton = document.getElementById('zoom-in-btn');
 const zoomOutButton = document.getElementById('zoom-out-btn');
 const resetButton = document.getElementById('reset-btn');
+const titleEl = document.getElementById('diagram-title');
 
 const ZOOM_FACTOR = 1.25;
 
@@ -222,6 +234,21 @@ themeToggle?.addEventListener('click', () =>
 // Sync the toggle's label with the initial theme set at startup.
 applyTheme(currentTheme);
 
+const TITLE_PLACEHOLDER = 'Untitled diagram';
+
+// Show the diagram's title, or a muted placeholder when none is provided yet.
+function setTitle(title: string | undefined): void {
+  const text = title?.trim() ?? '';
+  if (titleEl) {
+    titleEl.textContent = text || TITLE_PLACEHOLDER;
+    titleEl.classList.toggle('is-placeholder', text.length === 0);
+  }
+  document.title = text || 'Canvas for Copilot';
+}
+
+// Start with the placeholder until a diagram with a title arrives.
+setTitle(undefined);
+
 function showError(messages: string[]): void {
   if (!errorPanel || !errorList) return;
   errorList.replaceChildren(
@@ -254,7 +281,7 @@ function handleDiagram(msg: DiagramMessage): void {
     showError(result.errors);
     return;
   }
-  document.title = msg.title;
+  setTitle(msg.title);
   try {
     render(result.elements);
     clearError();
