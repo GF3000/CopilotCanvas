@@ -6,16 +6,130 @@
     <title>Canvas for Copilot</title>
     <style>
       html,
-      body,
-      #cy {
+      body {
         margin: 0;
         height: 100%;
         width: 100%;
+        font-family:
+          system-ui,
+          -apple-system,
+          'Segoe UI',
+          sans-serif;
+      }
+
+      #cy {
+        position: absolute;
+        inset: 0;
+        height: 100%;
+        width: 100%;
+      }
+
+      /* Fit/reset control — overlaid in the top-right corner (FR-3). */
+      #controls {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        z-index: 10;
+        display: flex;
+        gap: 8px;
+      }
+
+      .control-btn {
+        font: inherit;
+        font-size: 13px;
+        padding: 6px 12px;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        background: #ffffff;
+        color: #1e293b;
+        cursor: pointer;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
+      }
+
+      .control-btn:hover {
+        background: #f1f5f9;
+      }
+
+      .control-btn:active {
+        background: #e2e8f0;
+      }
+
+      /* Readable error overlay — shown instead of a blank canvas (FR-1, TC-2). */
+      #error {
+        position: absolute;
+        inset: 0;
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        background: rgba(15, 23, 42, 0.78);
+      }
+
+      #error[hidden] {
+        display: none;
+      }
+
+      .error-card {
+        max-width: 520px;
+        width: 100%;
+        background: #ffffff;
+        border-radius: 10px;
+        border-top: 4px solid #dc2626;
+        padding: 20px 24px;
+        box-shadow: 0 8px 30px rgba(15, 23, 42, 0.35);
+        color: #1e293b;
+      }
+
+      .error-card h2 {
+        margin: 0 0 8px;
+        font-size: 16px;
+        color: #b91c1c;
+      }
+
+      .error-hint {
+        margin: 0 0 12px;
+        font-size: 13px;
+        color: #475569;
+      }
+
+      #error-list {
+        margin: 0;
+        padding-left: 20px;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      #error-list li {
+        margin-bottom: 4px;
       }
     </style>
   </head>
   <body>
     <div id="cy"></div>
+
+    <div id="controls">
+      <button
+        id="fit-btn"
+        class="control-btn"
+        type="button"
+        title="Fit the diagram to the view"
+      >
+        Fit view
+      </button>
+    </div>
+
+    <div id="error" role="alert" hidden>
+      <div class="error-card">
+        <h2 id="error-title">Couldn't render the diagram</h2>
+        <p class="error-hint">
+          The graph model was invalid, so nothing was drawn. Fix the issues below
+          and regenerate the diagram.
+        </p>
+        <ul id="error-list"></ul>
+      </div>
+    </div>
+
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

@@ -1,11 +1,16 @@
-// Canvas webview entry (KAN-6 seed). Renders graph models pushed from the
-// extension over postMessage with Cytoscape, and tells the host when it's ready.
+// Canvas webview entry (KAN-6). Connects to the extension's postMessage channel,
+// announces readiness with `hello`, validates and renders incoming `diagram`
+// models with Cytoscape, and offers built-in pan/zoom plus a fit/reset control.
+// An invalid graph model surfaces a readable error instead of a blank canvas.
 import cytoscape from 'cytoscape';
 import {
+  PROTOCOL_VERSION,
   isDiagramMessage,
   type CanvasMessage,
   type CyElement,
+  type DiagramMessage,
 } from '@canvas/shared';
+import { validateGraphModel } from './graphModel';
 
 // Available when running inside a VS Code webview; undefined in a plain browser.
 declare function acquireVsCodeApi():
@@ -15,10 +20,17 @@ declare function acquireVsCodeApi():
 const vscode =
   typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : undefined;
 
+const FIT_PADDING = 30;
+
 const cy = cytoscape({
   container: document.getElementById('cy'),
   elements: [],
   layout: { name: 'breadthfirst', directed: true },
+  // Built-in pan/zoom (FR-3); zoom bounds keep large graphs legible.
+  userPanningEnabled: true,
+  userZoomingEnabled: true,
+  minZoom: 0.1,
+  maxZoom: 4,
   style: [
     {
       selector: 'node',
@@ -54,20 +66,62 @@ const cy = cytoscape({
   ],
 });
 
+const errorPanel = document.getElementById('error');
+const errorList = document.getElementById('error-list');
+const fitButton = document.getElementById('fit-btn');
+
+// Fit/reset view: re-frame the whole graph at a legible zoom (FR-3).
+fitButton?.addEventListener('click', () => cy.fit(undefined, FIT_PADDING));
+
+function showError(messages: string[]): void {
+  if (!errorPanel || !errorList) return;
+  errorList.replaceChildren(
+    ...messages.map((text) => {
+      const item = document.createElement('li');
+      item.textContent = text;
+      return item;
+    }),
+  );
+  errorPanel.hidden = false;
+}
+
+function clearError(): void {
+  if (errorPanel) errorPanel.hidden = true;
+}
+
 function render(elements: CyElement[]): void {
   cy.elements().remove();
   cy.add(elements as cytoscape.ElementDefinition[]);
   cy.layout({ name: 'breadthfirst', directed: true }).run();
-  cy.fit(undefined, 30);
+  cy.fit(undefined, FIT_PADDING);
+}
+
+// Validate before rendering so a bad model shows an error, not a blank canvas
+// (FR-1, TC-2). The render itself is guarded too, in case Cytoscape rejects
+// input the validator didn't anticipate.
+function handleDiagram(msg: DiagramMessage): void {
+  const result = validateGraphModel(msg.elements);
+  if (!result.ok) {
+    showError(result.errors);
+    return;
+  }
+  document.title = msg.title;
+  try {
+    render(result.elements);
+    clearError();
+  } catch (err) {
+    showError([`Cytoscape could not render this model: ${String(err)}`]);
+  }
 }
 
 window.addEventListener('message', (event: MessageEvent<CanvasMessage>) => {
   const msg = event.data;
-  if (isDiagramMessage(msg)) {
-    document.title = msg.title;
-    render(msg.elements);
-  }
+  if (isDiagramMessage(msg)) handleDiagram(msg);
 });
 
 // Tell the extension we're ready to receive a diagram (avoids a load race).
-vscode?.postMessage({ type: 'hello', client: 'webview', protocol: 1 });
+vscode?.postMessage({
+  type: 'hello',
+  client: 'webview',
+  protocol: PROTOCOL_VERSION,
+});
