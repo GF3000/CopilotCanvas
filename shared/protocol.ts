@@ -37,6 +37,8 @@ export interface CyElement {
   classes?: string;
   /** Whitelisted per-element style overrides applied over kind/class defaults (D14). */
   style?: CyStyle;
+  /** Code location(s) this element maps to, for "jump to code" (D16). */
+  codeRefs?: CodeRef[];
 }
 
 /**

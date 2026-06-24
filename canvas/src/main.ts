@@ -229,6 +229,16 @@ function buildStyle(theme: Theme): cytoscape.StylesheetStyle[] {
       selector: '.muted',
       style: { opacity: 0.4 },
     },
+    // Linked-to-code marker (KAN-31) — a dashed emerald ring so the user sees which
+    // nodes can jump to source.
+    {
+      selector: 'node.linked',
+      style: ext({
+        'border-width': 3,
+        'border-color': '#34d399',
+        'border-style': 'double',
+      }),
+    },
     // Dashed, arrowless leader line tying a note to what it explains (KAN-29).
     {
       selector: 'edge.annotation',
@@ -527,6 +537,7 @@ const STATUS_LEGEND: LegendEntry[] = [
   { key: 'danger', label: 'Error / danger', color: '#ef4444' },
   { key: 'success', label: 'Success', color: '#22c55e' },
   { key: 'warning', label: 'Warning', color: '#f59e0b' },
+  { key: 'linked', label: 'Linked to code', color: '#34d399' },
 ];
 
 const legendEl = document.getElementById('legend');

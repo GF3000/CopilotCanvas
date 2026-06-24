@@ -40,6 +40,13 @@ or the selection (e.g. "explain this node", "what does the Auth service do?"), c
 neighbours), then explain it in the CLI combining that context with your own
 knowledge. Omit `nodeId` to use the current selection.
 
+**Jumping to code:** a node can be linked to source. When you know where a node lives
+(from analysing the repo), link it with **`link_node_to_code`** (or pass `codeRefs`
+when creating the diagram). When the user asks to **see / show / open / jump to the
+code** for a node or the selection (e.g. "show me the code for this"), call
+**`open_node_code`** (omit `nodeId` for the selection). If the node isn't linked,
+say so — don't guess a location.
+
 If the Canvas for Copilot MCP tool is **not available** (e.g. the VS Code extension
 isn't running), say so and ask the user to start it — do **not** silently fall back
 to another diagram format.

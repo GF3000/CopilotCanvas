@@ -1,6 +1,6 @@
 // Build a diagram message from a simple {title, nodes, edges} graph the model
 // produces. Keeps the LLM-facing shape flat; converts to Cytoscape elements.
-import type { CyElement, CyStyle, DiagramMessage, NodeKind } from '@canvas/shared';
+import type { CodeRef, CyElement, CyStyle, DiagramMessage, NodeKind } from '@canvas/shared';
 
 const STYLE_CLASSES = [
   'big',
@@ -17,12 +17,35 @@ export type StyleClass = (typeof STYLE_CLASSES)[number];
 
 export { STYLE_CLASSES };
 
+/** Flat code-reference input the tools accept; converted to protocol CodeRef. */
+export interface CodeRefInput {
+  path: string;
+  startLine?: number;
+  endLine?: number;
+  symbol?: string;
+}
+
+export function toCodeRefs(
+  input: CodeRefInput[] | undefined,
+): CodeRef[] | undefined {
+  if (!input?.length) return undefined;
+  return input.map((r) => ({
+    path: r.path,
+    range:
+      typeof r.startLine === 'number'
+        ? { startLine: r.startLine, endLine: r.endLine ?? r.startLine }
+        : undefined,
+    symbol: r.symbol,
+  }));
+}
+
 export interface DiagramInputNode {
   id: string;
   label: string;
   kind?: NodeKind;
   classes?: string[];
   style?: CyStyle;
+  codeRefs?: CodeRefInput[];
 }
 
 export interface DiagramInputEdge {
@@ -95,11 +118,16 @@ export function buildDiagram(input: DiagramInput): BuildResult {
 
   const usedIds = new Set(ids);
   const elements: CyElement[] = [
-    ...input.nodes.map<CyElement>((n) => ({
-      data: compact({ id: n.id, label: n.label, kind: n.kind }),
-      classes: classesOf(n.classes),
-      style: styleOf(n.style),
-    })),
+    ...input.nodes.map<CyElement>((n) => {
+      const refs = toCodeRefs(n.codeRefs);
+      const cls = [...(n.classes ?? []), ...(refs ? ['linked'] : [])];
+      return {
+        data: compact({ id: n.id, label: n.label, kind: n.kind }),
+        classes: classesOf(cls),
+        style: styleOf(n.style),
+        codeRefs: refs,
+      };
+    }),
     ...validEdges.map<CyElement>((e) => ({
       data: compact({
         id: edgeId(e.source, e.target, usedIds),

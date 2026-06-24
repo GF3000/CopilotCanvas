@@ -3,7 +3,7 @@
 // extension, so a tool handler can render directly into the webview via `deps`.
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import type { DiagramMessage, PatchMessage } from '@canvas/shared';
+import type { CodeRef, DiagramMessage, PatchMessage } from '@canvas/shared';
 import { getExampleDiagram, nodeCount } from './exampleDiagram';
 import { buildDiagram, STYLE_CLASSES } from './diagram';
 import { buildPatch } from './patch';
@@ -41,6 +41,18 @@ const STYLE_SCHEMA = z
   .optional()
   .describe('Optional whitelisted style overrides (color, fontSize, size).');
 
+const CODEREFS_SCHEMA = z
+  .array(
+    z.object({
+      path: z.string().describe('Repo-relative file path.'),
+      startLine: z.number().optional().describe('1-based start line.'),
+      endLine: z.number().optional().describe('1-based end line.'),
+      symbol: z.string().optional().describe('Optional symbol name.'),
+    }),
+  )
+  .optional()
+  .describe('Code location(s) this node maps to, so the user can jump to the code.');
+
 export interface CanvasSelectionInfo {
   diagramId?: string;
   ids: string[];
@@ -68,6 +80,19 @@ export interface CanvasServerDeps {
   getSelection: () => CanvasSelectionInfo;
   /** Returns rich context for a node (defaults to the selection) for explanations. */
   getNodeContext: (id?: string) => CanvasNodeContext | undefined;
+  /** Attach a code reference to a node. Returns false if the node isn't found. */
+  linkNodeToCode: (id: string, ref: CodeRef) => boolean;
+  /**
+   * Open a node's linked code in the editor (defaults to the selection).
+   * Returns whether it opened, and why not if it didn't.
+   */
+  openNodeCode: (id?: string) => {
+    opened: boolean;
+    reason?: 'no-canvas' | 'no-node' | 'not-linked' | 'open-failed';
+    nodeId?: string;
+    path?: string;
+    line?: number;
+  };
 }
 
 /** Build a fresh McpServer with the Canvas tools registered. */
@@ -229,6 +254,94 @@ export function buildCanvasMcpServer(deps: CanvasServerDeps): McpServer {
     },
   );
 
+  server.registerTool(
+    'link_node_to_code',
+    {
+      title: 'Link a node to a code location',
+      description:
+        'Attach a code reference (file path + optional line range / symbol) to a ' +
+        'node, so the user can later jump from the node to that code. Call this when ' +
+        'you know where a node lives in the repo (from your analysis) or when the ' +
+        'user asks to "link this node to <file>". Paths are repo-relative.',
+      inputSchema: {
+        nodeId: z.string().describe('The node id to link.'),
+        path: z.string().describe('Repo-relative file path, e.g. "src/auth/jwt.ts".'),
+        startLine: z
+          .number()
+          .optional()
+          .describe('1-based start line of the relevant code.'),
+        endLine: z.number().optional().describe('1-based end line (defaults to start).'),
+        symbol: z.string().optional().describe('Optional symbol name, e.g. "issueToken".'),
+      },
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    ({ nodeId, path, startLine, endLine, symbol }) => {
+      const ref: CodeRef = {
+        path,
+        range:
+          typeof startLine === 'number'
+            ? { startLine, endLine: endLine ?? startLine }
+            : undefined,
+        symbol,
+      };
+      const ok = deps.linkNodeToCode(nodeId, ref);
+      if (!ok) {
+        return {
+          isError: true,
+          content: [
+            { type: 'text', text: `No node "${nodeId}" is on the canvas to link.` },
+          ],
+        };
+      }
+      const where = ref.range ? `${path}:${ref.range.startLine}` : path;
+      return {
+        content: [
+          { type: 'text', text: `Linked node "${nodeId}" to ${where}.` },
+        ],
+      };
+    },
+  );
+
+  server.registerTool(
+    'open_node_code',
+    {
+      title: 'Open a node\u2019s linked code in the editor',
+      description:
+        'Open the code linked to a node in the VS Code editor and jump to the line ' +
+        '(defaults to the currently selected node). Call this when the user asks to ' +
+        'see / show / open / "jump to" the code for a node or the selection (e.g. ' +
+        '"show me the code for this", "open this node\u2019s code"). If the node ' +
+        'isn\u2019t linked to any code, say so — do not guess.',
+      inputSchema: {
+        nodeId: z
+          .string()
+          .optional()
+          .describe('Node id; omit to use the current selection.'),
+      },
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    ({ nodeId }) => {
+      const r = deps.openNodeCode(nodeId);
+      if (r.opened) {
+        const at = r.line ? `${r.path}:${r.line}` : r.path;
+        return {
+          content: [
+            { type: 'text', text: `Opened ${at} in the editor for node "${r.nodeId}".` },
+          ],
+        };
+      }
+      const reason =
+        r.reason === 'not-linked'
+          ? `Node "${r.nodeId}" isn\u2019t linked to any code yet. Link it first with link_node_to_code, or tell the user it has no code reference.`
+          : r.reason === 'no-node'
+            ? 'No node is selected. Ask the user to click the node whose code they want.'
+            : r.reason === 'no-canvas'
+              ? 'No diagram is open on the canvas.'
+              : 'Could not open the linked file (it may not exist at that path).';
+      return { content: [{ type: 'text', text: reason }] };
+    },
+  );
+
   return server;
 }
 
@@ -364,6 +477,7 @@ const DIAGRAM_INPUT_SCHEMA = {
           .describe('Optional semantic kind, used for styling.'),
         classes: STYLE_CLASSES_SCHEMA,
         style: STYLE_SCHEMA,
+        codeRefs: CODEREFS_SCHEMA,
       }),
     )
     .describe('The graph nodes (about 4-12).'),

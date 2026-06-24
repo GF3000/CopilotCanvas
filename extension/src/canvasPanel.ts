@@ -3,7 +3,7 @@
 // ready (KAN-17 seed).
 import * as vscode from 'vscode';
 import * as fs from 'node:fs';
-import type { DiagramMessage, PatchMessage } from '@canvas/shared';
+import type { CodeRef, DiagramMessage, PatchMessage } from '@canvas/shared';
 
 /** The element(s) currently selected on the canvas, resolved with their labels. */
 export interface CanvasSelection {
@@ -26,6 +26,7 @@ interface NodeInfo {
   label?: string;
   kind?: string;
   classes?: string;
+  codeRefs?: CodeRef[];
 }
 interface EdgeInfo {
   source: string;
@@ -162,6 +163,79 @@ export class CanvasPanel {
     };
   }
 
+  /** Attach a code reference to a node; marks it visually as linked. */
+  static linkNodeToCode(id: string, ref: CodeRef): boolean {
+    const panel = CanvasPanel.current;
+    const node = panel?.nodes.get(id);
+    if (!panel || !node) return false;
+    node.codeRefs = [...(node.codeRefs ?? []), ref];
+    // Mark the node 'linked' on the canvas so the user sees it has code.
+    panel.send({
+      type: 'patch',
+      sessionId: 'cli',
+      diagramId: panel.currentDiagramId ?? '',
+      version: 0,
+      add: [],
+      remove: [],
+      update: [{ data: { id }, classes: 'linked' }],
+    });
+    return true;
+  }
+
+  /** Open a node's linked code in the editor (defaults to the selection). */
+  static openNodeCode(id?: string): {
+    opened: boolean;
+    reason?: 'no-canvas' | 'no-node' | 'not-linked' | 'open-failed';
+    nodeId?: string;
+    path?: string;
+    line?: number;
+  } {
+    const panel = CanvasPanel.current;
+    if (!panel) return { opened: false, reason: 'no-canvas' };
+    const nodeId = id ?? panel.selection.find((s) => panel.nodes.has(s));
+    if (!nodeId) return { opened: false, reason: 'no-node' };
+    const ref = panel.nodes.get(nodeId)?.codeRefs?.[0];
+    if (!ref) return { opened: false, reason: 'not-linked', nodeId };
+
+    const root = vscode.workspace.workspaceFolders?.[0]?.uri;
+    const uri =
+      root && !ref.path.match(/^([a-zA-Z]:[\\/]|[\\/])/)
+        ? vscode.Uri.joinPath(root, ref.path)
+        : vscode.Uri.file(ref.path);
+    const line = ref.range?.startLine;
+
+    void (async () => {
+      try {
+        const doc = await vscode.workspace.openTextDocument(uri);
+        const editor = await vscode.window.showTextDocument(doc, {
+          viewColumn: vscode.ViewColumn.One,
+          preview: false,
+        });
+        if (ref.range) {
+          const start = new vscode.Position(
+            Math.max(0, ref.range.startLine - 1),
+            0,
+          );
+          const end = new vscode.Position(
+            Math.max(0, (ref.range.endLine ?? ref.range.startLine) - 1),
+            0,
+          );
+          editor.selection = new vscode.Selection(start, end);
+          editor.revealRange(
+            new vscode.Range(start, end),
+            vscode.TextEditorRevealType.InCenter,
+          );
+        }
+      } catch {
+        void vscode.window.showErrorMessage(
+          `Canvas for Copilot: couldn't open ${ref.path}`,
+        );
+      }
+    })();
+
+    return { opened: true, nodeId, path: ref.path, line };
+  }
+
   private labelOf(id: string): string | undefined {
     return this.nodes.get(id)?.label ?? this.edges.get(id)?.label;
   }
@@ -169,6 +243,7 @@ export class CanvasPanel {
   private indexElement(el: {
     data: Record<string, unknown>;
     classes?: string;
+    codeRefs?: CodeRef[];
   }): void {
     const { id, label, source, target, kind } = el.data;
     if (typeof id !== 'string') return;
@@ -183,6 +258,7 @@ export class CanvasPanel {
         label: typeof label === 'string' ? label : undefined,
         kind: typeof kind === 'string' ? kind : undefined,
         classes: el.classes,
+        codeRefs: el.codeRefs,
       });
     }
   }

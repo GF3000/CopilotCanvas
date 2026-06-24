@@ -245,13 +245,17 @@ the user can do X."*
     `{ color?, fontSize?, size? }` only (`color` → node fill / edge line;
     `fontSize` → label px; `size` → node label-padding px, ignored for edges).
   - Exposed via the `create_diagram` and `update_diagram` tools (per node/edge).
-- **D15 — Semantic colour (KAN-30):** colour encodes meaning, not decoration.
-  **Node role** comes from `kind`, with a fixed palette: `entrypoint` = Entry point,
+- **D15 — Semantic colour (KAN-30):** colour encodes meaning, not decoration.  **Node role** comes from `kind`, with a fixed palette: `entrypoint` = Entry point,
   `service` = Service/process, `module` = Module, `datastore` = Data store,
   `external` = External, `note` = Note. **Status** comes from the classes `danger`
   (error), `success`, `warning`. The canvas shows a **legend** of the kinds/statuses
   present so colours are self-explanatory. Copilot is instructed to use `kind`/status
   consistently and only set an explicit `style.color` on direct user request.
+- **D16 — Code links (KAN-31):** a node may carry `codeRefs: CodeRef[]`
+  (`{ path, range?, symbol? }`, repo-relative paths). The `link_node_to_code` tool
+  attaches a ref (and marks the node `linked`); `open_node_code` opens the file and
+  reveals the range in the editor, or reports the node isn't linked. Nodes can also
+  carry `codeRefs` at creation via `create_diagram`.
 
 ## Protocol versioning
 

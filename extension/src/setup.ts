@@ -32,12 +32,14 @@ edits in place and preserves the current view (pan/zoom/positions). When the use
 refers to "this"/"the selected node"/"this link"/"it", call \`get_selection\` first
 to learn which node or edge they clicked, then act on that id. To explain/describe a
 node (e.g. "explain this node"), call \`describe_node\` to get its context, then
-explain it. To add an explanatory note, add a node with kind "note" (sticky note)
-plus an optional dashed \`annotation\` edge to the element it explains. Use colour to
-mean something: set a node's role with \`kind\` consistently
-(entrypoint/service/module/datastore/external) and outcomes with status classes
-(danger/success/warning); only set an explicit \`style.color\` when the user asks for
-a specific colour.
+explain it. To jump to a node's source, link it with \`link_node_to_code\` (or pass
+\`codeRefs\` when creating it) and open it with \`open_node_code\` when the user asks
+to see the code for a node; if it isn't linked, say so. To add an explanatory note,
+add a node with kind "note" (sticky note) plus an optional dashed \`annotation\` edge
+to the element it explains. Use colour to mean something: set a node's role with
+\`kind\` consistently (entrypoint/service/module/datastore/external) and outcomes with
+status classes (danger/success/warning); only set an explicit \`style.color\` when the
+user asks for a specific colour.
 ${MARKER_END}`;
 
 interface McpConfig {
