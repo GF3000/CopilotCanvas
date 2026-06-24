@@ -455,6 +455,7 @@ function handlePatch(msg: PatchMessage): void {
   if (addedNode) {
     cy.layout(dagreLayout(false)).run();
   }
+  updateLegend();
 }
 
 // Map the whitelisted inline style subset (KAN-26, option B) to Cytoscape
@@ -504,6 +505,75 @@ function render(elements: CyElement[]): void {
   cy.fit(undefined, FIT_PADDING);
 }
 
+// Semantic colour legend (KAN-30) — colours encode meaning, and this panel says
+// what. Swatch colours mirror the per-kind / status styles in buildStyle().
+interface LegendEntry {
+  key: string;
+  label: string;
+  color: string;
+  isEdge?: boolean;
+}
+
+const KIND_LEGEND: LegendEntry[] = [
+  { key: 'entrypoint', label: 'Entry point', color: '#d946ef' },
+  { key: 'service', label: 'Service / process', color: '#8b5cf6' },
+  { key: 'module', label: 'Module', color: '#6366f1' },
+  { key: 'datastore', label: 'Data store', color: '#06b6d4' },
+  { key: 'external', label: 'External', color: '#ec4899' },
+  { key: 'note', label: 'Note', color: '#fde68a' },
+];
+
+const STATUS_LEGEND: LegendEntry[] = [
+  { key: 'danger', label: 'Error / danger', color: '#ef4444' },
+  { key: 'success', label: 'Success', color: '#22c55e' },
+  { key: 'warning', label: 'Warning', color: '#f59e0b' },
+];
+
+const legendEl = document.getElementById('legend');
+const legendRows = document.getElementById('legend-rows');
+const legendToggle = document.getElementById('legend-toggle-btn');
+let legendCollapsed = false;
+
+function legendRow(entry: LegendEntry): HTMLElement {
+  const row = document.createElement('div');
+  row.className = 'legend-row';
+  const swatch = document.createElement('span');
+  swatch.className = entry.isEdge ? 'legend-swatch is-edge' : 'legend-swatch';
+  if (entry.isEdge) swatch.style.color = entry.color;
+  else swatch.style.background = entry.color;
+  const text = document.createElement('span');
+  text.textContent = entry.label;
+  row.append(swatch, text);
+  return row;
+}
+
+// Rebuild the legend from the kinds / status classes actually present, so it only
+// shows colours that mean something in the current diagram.
+function updateLegend(): void {
+  if (!legendEl || !legendRows) return;
+  const kinds = new Set<string>();
+  cy.nodes().forEach((n) => {
+    const k = n.data('kind') as unknown;
+    if (typeof k === 'string') kinds.add(k);
+  });
+  const statuses = new Set<string>();
+  cy.elements().forEach((el) => {
+    for (const c of el.classes()) statuses.add(c);
+  });
+
+  const entries = [
+    ...KIND_LEGEND.filter((e) => kinds.has(e.key)),
+    ...STATUS_LEGEND.filter((e) => statuses.has(e.key)),
+  ];
+  legendRows.replaceChildren(...entries.map(legendRow));
+  legendEl.hidden = legendCollapsed || entries.length === 0;
+}
+
+legendToggle?.addEventListener('click', () => {
+  legendCollapsed = !legendCollapsed;
+  updateLegend();
+});
+
 // Validate before rendering so a bad model shows an error, not a blank canvas
 // (FR-1, TC-2). The render itself is guarded too, in case Cytoscape rejects
 // input the validator didn't anticipate.
@@ -520,6 +590,7 @@ function handleDiagram(msg: DiagramMessage): void {
   try {
     render(result.elements);
     clearError();
+    updateLegend();
   } catch (err) {
     showError([`Cytoscape could not render this model: ${String(err)}`]);
   }
@@ -563,8 +634,6 @@ window.addEventListener('message', (event: MessageEvent<CanvasMessage>) => {
   if (isDiagramMessage(msg)) handleDiagram(msg);
   else if (isPatchMessage(msg)) handlePatch(msg);
 });
-
-// Tell the extension we're ready to receive a diagram (avoids a load race).
 vscode?.postMessage({
   type: 'hello',
   client: 'webview',

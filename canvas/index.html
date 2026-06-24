@@ -305,6 +305,62 @@
       #error-list li {
         margin-bottom: 4px;
       }
+
+      /* Colour legend — explains what node/status colours mean (KAN-30). */
+      #legend {
+        position: absolute;
+        bottom: 16px;
+        left: 16px;
+        z-index: 10;
+        max-width: 240px;
+        padding: 12px 14px;
+        border-radius: 14px;
+        background: var(--surface);
+        backdrop-filter: blur(14px) saturate(160%);
+        -webkit-backdrop-filter: blur(14px) saturate(160%);
+        border: 1px solid var(--surface-border);
+        box-shadow:
+          0 8px 26px var(--surface-shadow),
+          inset 0 1px 0 var(--surface-inset);
+        color: var(--text);
+        font-size: 12px;
+      }
+
+      #legend[hidden] {
+        display: none;
+      }
+
+      #legend h2 {
+        margin: 0 0 8px;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--text-muted);
+      }
+
+      .legend-row {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 2px 0;
+        line-height: 1.4;
+      }
+
+      .legend-swatch {
+        flex: none;
+        width: 13px;
+        height: 13px;
+        border-radius: 4px;
+        box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.2);
+      }
+
+      .legend-swatch.is-edge {
+        height: 0;
+        border-radius: 0;
+        box-shadow: none;
+        border-top: 3px solid currentColor;
+      }
     </style>
   </head>
   <body>
@@ -380,6 +436,27 @@
           <path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z" />
         </svg>
       </button>
+      <button
+        id="legend-toggle-btn"
+        class="control-btn reset-btn"
+        type="button"
+        title="Toggle colour legend"
+        aria-label="Toggle colour legend"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="6" cy="7" r="2.2" />
+          <line x1="11" y1="7" x2="20" y2="7" />
+          <circle cx="6" cy="12" r="2.2" />
+          <line x1="11" y1="12" x2="20" y2="12" />
+          <circle cx="6" cy="17" r="2.2" />
+          <line x1="11" y1="17" x2="20" y2="17" />
+        </svg>
+      </button>
+    </div>
+
+    <div id="legend" role="group" aria-label="Colour legend" hidden>
+      <h2>Legend</h2>
+      <div id="legend-rows"></div>
     </div>
 
     <div id="error" role="alert" hidden>

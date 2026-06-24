@@ -38,6 +38,14 @@ If the Canvas for Copilot MCP tool is **not available** (e.g. the VS Code extens
 isn't running), say so and ask the user to start it — do **not** silently fall back
 to another diagram format.
 
+**Use colour to mean something, not decoration:** encode a node's *role* with `kind`
+and apply it **consistently** so the same role is always the same colour — `entrypoint`
+(entry point), `service` (service/process), `module`, `datastore` (data store),
+`external` (third-party), `note` (annotation). Show *outcomes/state* with the status
+classes `danger` (error), `success`, `warning`. Only set an explicit `style.color`
+when the user specifically asks for a particular colour — otherwise prefer
+kind/status so the canvas legend explains the colours.
+
 **Explanatory notes:** to add a note / annotation with explanatory text, add a node
 with **`kind: "note"`** (it renders as a sticky note). To attach it to the element
 it explains, also add a dashed leader **edge with `classes: ["annotation"]`** from

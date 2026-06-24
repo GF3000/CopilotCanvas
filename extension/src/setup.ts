@@ -32,7 +32,10 @@ edits in place and preserves the current view (pan/zoom/positions). When the use
 refers to "this"/"the selected node"/"this link"/"it", call \`get_selection\` first
 to learn which node or edge they clicked, then act on that id. To add an explanatory
 note, add a node with kind "note" (sticky note) plus an optional dashed
-\`annotation\` edge to the element it explains.
+\`annotation\` edge to the element it explains. Use colour to mean something: set a
+node's role with \`kind\` consistently (entrypoint/service/module/datastore/external)
+and outcomes with status classes (danger/success/warning); only set an explicit
+\`style.color\` when the user asks for a specific colour.
 ${MARKER_END}`;
 
 interface McpConfig {
