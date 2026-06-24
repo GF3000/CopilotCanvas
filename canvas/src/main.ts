@@ -235,15 +235,39 @@ themeToggle?.addEventListener('click', () =>
 applyTheme(currentTheme);
 
 const TITLE_PLACEHOLDER = 'Untitled diagram';
+let currentTitle = '';
 
 // Show the diagram's title, or a muted placeholder when none is provided yet.
 function setTitle(title: string | undefined): void {
   const text = title?.trim() ?? '';
+  currentTitle = text;
   if (titleEl) {
     titleEl.textContent = text || TITLE_PLACEHOLDER;
     titleEl.classList.toggle('is-placeholder', text.length === 0);
   }
   document.title = text || 'Canvas for Copilot';
+}
+
+// Inline rename: the title bar is contenteditable; commit on Enter/blur, cancel
+// on Escape. Editing is local to the canvas (the protocol has no title message).
+if (titleEl) {
+  titleEl.addEventListener('focus', () => {
+    if (titleEl.classList.contains('is-placeholder')) {
+      titleEl.textContent = '';
+      titleEl.classList.remove('is-placeholder');
+    }
+  });
+  titleEl.addEventListener('blur', () => setTitle(titleEl.textContent ?? ''));
+  titleEl.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      titleEl.blur();
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      setTitle(currentTitle);
+      titleEl.blur();
+    }
+  });
 }
 
 // Start with the placeholder until a diagram with a title arrives.

@@ -201,8 +201,8 @@
         left: 16px;
         z-index: 10;
         max-width: 60vw;
-        padding: 8px 16px;
-        border-radius: 12px;
+        padding: 8px 14px;
+        border-radius: 14px;
         background: var(--surface);
         backdrop-filter: blur(14px) saturate(160%);
         -webkit-backdrop-filter: blur(14px) saturate(160%);
@@ -214,13 +214,29 @@
 
       #diagram-title {
         margin: 0;
-        font-size: 15px;
+        padding: 3px 8px;
+        font-size: 18px;
         font-weight: 600;
         line-height: 1.3;
         color: var(--text);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        border-radius: 8px;
+        cursor: text;
+        outline: none;
+        transition:
+          background 0.15s ease,
+          box-shadow 0.15s ease;
+      }
+
+      #diagram-title:hover {
+        background: var(--hover-bg);
+      }
+
+      #diagram-title:focus {
+        background: var(--hover-bg);
+        box-shadow: 0 0 0 2px var(--focus-ring);
       }
 
       #diagram-title.is-placeholder {
@@ -288,7 +304,16 @@
     <div id="cy"></div>
 
     <div id="title-bar">
-      <h1 id="diagram-title">Untitled diagram</h1>
+      <h1
+        id="diagram-title"
+        class="is-placeholder"
+        contenteditable="true"
+        spellcheck="false"
+        aria-label="Diagram title — click to rename"
+        title="Click to rename"
+      >
+        Untitled diagram
+      </h1>
     </div>
 
     <div id="controls" role="group" aria-label="Zoom and view controls">
