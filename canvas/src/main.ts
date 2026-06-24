@@ -540,6 +540,7 @@ if (swatchContainer) {
 const nodeCodeWrap = document.getElementById('node-code');
 const nodeCodeRefs = document.getElementById('node-coderefs');
 const nodeCenterBtn = document.getElementById('node-center');
+const nodeExplainBtn = document.getElementById('node-explain');
 
 function formatCodeRef(ref: CodeRef): string {
   const file = ref.path.split(/[\\/]/).pop() || ref.path;
@@ -587,6 +588,14 @@ nodeCenterBtn?.addEventListener('click', () => {
   closeNodeMenu(true);
   if (node)
     cy.animate({ center: { eles: node }, duration: 200, easing: 'ease-out' });
+});
+
+// "Explain node" action — ask the extension to have Copilot explain this node;
+// the full explanation is produced in the CLI (it calls describe_node).
+nodeExplainBtn?.addEventListener('click', () => {
+  const nodeId = menuNode?.id();
+  closeNodeMenu(true);
+  if (nodeId) vscode?.postMessage({ type: 'node_action', action: 'explain', nodeId });
 });
 
 // Escape closes the menu even when focus isn't in the label field.
