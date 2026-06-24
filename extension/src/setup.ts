@@ -30,12 +30,14 @@ When the user asks to edit/change/relabel/annotate/add to/remove from a diagram 
 is ALREADY on the canvas, call \`update_diagram\` instead of \`create_diagram\` — it
 edits in place and preserves the current view (pan/zoom/positions). When the user
 refers to "this"/"the selected node"/"this link"/"it", call \`get_selection\` first
-to learn which node or edge they clicked, then act on that id. To add an explanatory
-note, add a node with kind "note" (sticky note) plus an optional dashed
-\`annotation\` edge to the element it explains. Use colour to mean something: set a
-node's role with \`kind\` consistently (entrypoint/service/module/datastore/external)
-and outcomes with status classes (danger/success/warning); only set an explicit
-\`style.color\` when the user asks for a specific colour.
+to learn which node or edge they clicked, then act on that id. To explain/describe a
+node (e.g. "explain this node"), call \`describe_node\` to get its context, then
+explain it. To add an explanatory note, add a node with kind "note" (sticky note)
+plus an optional dashed \`annotation\` edge to the element it explains. Use colour to
+mean something: set a node's role with \`kind\` consistently
+(entrypoint/service/module/datastore/external) and outcomes with status classes
+(danger/success/warning); only set an explicit \`style.color\` when the user asks for
+a specific colour.
 ${MARKER_END}`;
 
 interface McpConfig {

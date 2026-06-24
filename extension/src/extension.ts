@@ -31,6 +31,7 @@ export async function activate(
         CanvasPanel.show(context.extensionUri, diagram),
       onPatchDiagram: (patch) => CanvasPanel.patch(patch),
       getSelection: () => CanvasPanel.getSelection(),
+      getNodeContext: (id) => CanvasPanel.getNodeContext(id),
     });
     void vscode.window.showInformationMessage(
       `Canvas for Copilot: MCP server ready at ${httpServer.url}`,

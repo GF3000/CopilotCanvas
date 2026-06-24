@@ -47,6 +47,15 @@ export interface CanvasSelectionInfo {
   elements: { id: string; label?: string; isEdge: boolean }[];
 }
 
+export interface CanvasNodeContext {
+  id: string;
+  label?: string;
+  kind?: string;
+  classes?: string;
+  incoming: { fromId: string; fromLabel?: string; edgeLabel?: string }[];
+  outgoing: { toId: string; toLabel?: string; edgeLabel?: string }[];
+}
+
 export interface CanvasServerDeps {
   /** Called when a tool wants to render a (new/replacement) diagram in the canvas. */
   onOpenDiagram: (diagram: DiagramMessage) => void | Promise<void>;
@@ -57,6 +66,8 @@ export interface CanvasServerDeps {
   onPatchDiagram: (patch: PatchMessage) => boolean | Promise<boolean>;
   /** Returns the node(s) currently selected on the canvas. */
   getSelection: () => CanvasSelectionInfo;
+  /** Returns rich context for a node (defaults to the selection) for explanations. */
+  getNodeContext: (id?: string) => CanvasNodeContext | undefined;
 }
 
 /** Build a fresh McpServer with the Canvas tools registered. */
@@ -150,6 +161,71 @@ export function buildCanvasMcpServer(deps: CanvasServerDeps): McpServer {
           },
         ],
       };
+    },
+  );
+
+  server.registerTool(
+    'describe_node',
+    {
+      title: 'Get a node\u2019s context so you can explain it',
+      description:
+        'Return rich context about a node on the Canvas for Copilot canvas — its ' +
+        'label, kind, and how it connects to its neighbours (incoming and outgoing ' +
+        'edges with their labels) — so you can give a relevant explanation. Call ' +
+        'this when the user asks to explain, describe, or "what is" a node or the ' +
+        'current selection (e.g. "explain this node", "what does the Auth service ' +
+        'do?"). If nodeId is omitted, the currently selected node is used. ' +
+        'Read-only. Combine the returned graph context with your own knowledge to ' +
+        'explain the node in the CLI.',
+      inputSchema: {
+        nodeId: z
+          .string()
+          .optional()
+          .describe('Node id to describe; omit to use the current selection.'),
+      },
+      annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+    },
+    ({ nodeId }) => {
+      const ctx = deps.getNodeContext(nodeId);
+      if (!ctx) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: nodeId
+                ? `No node "${nodeId}" is on the canvas.`
+                : 'No node is selected. Ask the user to click the node they want explained, or name it.',
+            },
+          ],
+        };
+      }
+      const name = `${ctx.id}${ctx.label ? ` ("${ctx.label}")` : ''}`;
+      const incoming =
+        ctx.incoming.length > 0
+          ? ctx.incoming
+              .map(
+                (e) =>
+                  `${e.fromLabel ?? e.fromId}${e.edgeLabel ? ` --(${e.edgeLabel})-->` : ' -->'} this`,
+              )
+              .join('; ')
+          : 'none';
+      const outgoing =
+        ctx.outgoing.length > 0
+          ? ctx.outgoing
+              .map(
+                (e) =>
+                  `this${e.edgeLabel ? ` --(${e.edgeLabel})-->` : ' -->'} ${e.toLabel ?? e.toId}`,
+              )
+              .join('; ')
+          : 'none';
+      const lines = [
+        `Node: ${name}`,
+        ctx.kind ? `Kind: ${ctx.kind}` : undefined,
+        ctx.classes ? `Classes: ${ctx.classes}` : undefined,
+        `Incoming: ${incoming}`,
+        `Outgoing: ${outgoing}`,
+      ].filter((l): l is string => l !== undefined);
+      return { content: [{ type: 'text', text: lines.join('\n') }] };
     },
   );
 

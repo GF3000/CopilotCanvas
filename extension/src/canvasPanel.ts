@@ -12,6 +12,27 @@ export interface CanvasSelection {
   elements: { id: string; label?: string; isEdge: boolean }[];
 }
 
+/** Rich context for a node so the model can explain it (KAN-8). */
+export interface NodeContext {
+  id: string;
+  label?: string;
+  kind?: string;
+  classes?: string;
+  incoming: { fromId: string; fromLabel?: string; edgeLabel?: string }[];
+  outgoing: { toId: string; toLabel?: string; edgeLabel?: string }[];
+}
+
+interface NodeInfo {
+  label?: string;
+  kind?: string;
+  classes?: string;
+}
+interface EdgeInfo {
+  source: string;
+  target: string;
+  label?: string;
+}
+
 export class CanvasPanel {
   public static current: CanvasPanel | undefined;
   private static readonly viewType = 'canvasForCopilot';
@@ -23,10 +44,8 @@ export class CanvasPanel {
   private readonly queue: unknown[] = [];
   private currentDiagramId: string | undefined;
   private selection: string[] = [];
-  private readonly elementInfo = new Map<
-    string,
-    { label?: string; isEdge: boolean }
-  >();
+  private readonly nodes = new Map<string, NodeInfo>();
+  private readonly edges = new Map<string, EdgeInfo>();
 
   /** Open (or reveal) the canvas tab and render the given diagram. */
   static show(extensionUri: vscode.Uri, diagram: DiagramMessage): void {
@@ -95,44 +114,112 @@ export class CanvasPanel {
       ids: [...panel.selection],
       elements: panel.selection.map((id) => ({
         id,
-        label: panel.elementInfo.get(id)?.label,
-        isEdge: panel.elementInfo.get(id)?.isEdge ?? false,
+        label: panel.labelOf(id),
+        isEdge: panel.edges.has(id),
       })),
     };
   }
 
-  private render(diagram: DiagramMessage): void {
-    this.currentDiagramId = diagram.diagramId;
-    // Rebuild the id→info map so selection can be resolved to labels.
-    this.elementInfo.clear();
-    for (const el of diagram.elements) {
-      const { id, label, source, target } = el.data;
-      if (typeof id !== 'string') continue;
-      const isEdge = source !== undefined || target !== undefined;
-      this.elementInfo.set(id, {
+  /**
+   * Rich context for a node so the model can explain it: its label/kind/classes
+   * and how it connects to neighbours. If `id` is omitted, uses the first selected
+   * node. Returns undefined if there's no such node.
+   */
+  static getNodeContext(id?: string): NodeContext | undefined {
+    const panel = CanvasPanel.current;
+    if (!panel) return undefined;
+    const targetId =
+      id ?? panel.selection.find((s) => panel.nodes.has(s));
+    if (!targetId) return undefined;
+    const node = panel.nodes.get(targetId);
+    if (!node) return undefined;
+
+    const incoming: NodeContext['incoming'] = [];
+    const outgoing: NodeContext['outgoing'] = [];
+    for (const e of panel.edges.values()) {
+      if (e.target === targetId) {
+        incoming.push({
+          fromId: e.source,
+          fromLabel: panel.nodes.get(e.source)?.label,
+          edgeLabel: e.label,
+        });
+      }
+      if (e.source === targetId) {
+        outgoing.push({
+          toId: e.target,
+          toLabel: panel.nodes.get(e.target)?.label,
+          edgeLabel: e.label,
+        });
+      }
+    }
+    return {
+      id: targetId,
+      label: node.label,
+      kind: node.kind,
+      classes: node.classes,
+      incoming,
+      outgoing,
+    };
+  }
+
+  private labelOf(id: string): string | undefined {
+    return this.nodes.get(id)?.label ?? this.edges.get(id)?.label;
+  }
+
+  private indexElement(el: {
+    data: Record<string, unknown>;
+    classes?: string;
+  }): void {
+    const { id, label, source, target, kind } = el.data;
+    if (typeof id !== 'string') return;
+    if (source !== undefined || target !== undefined) {
+      this.edges.set(id, {
+        source: String(source),
+        target: String(target),
         label: typeof label === 'string' ? label : undefined,
-        isEdge,
+      });
+    } else {
+      this.nodes.set(id, {
+        label: typeof label === 'string' ? label : undefined,
+        kind: typeof kind === 'string' ? kind : undefined,
+        classes: el.classes,
       });
     }
+  }
+
+  private render(diagram: DiagramMessage): void {
+    this.currentDiagramId = diagram.diagramId;
+    this.nodes.clear();
+    this.edges.clear();
+    for (const el of diagram.elements) this.indexElement(el);
     this.send(diagram);
   }
 
   private applyPatch(patch: PatchMessage): void {
-    // Keep the label map current so selection labels stay accurate after edits.
+    // Keep the graph index current so selection/context stay accurate after edits.
     for (const id of patch.remove) {
-      this.elementInfo.delete(id);
+      this.nodes.delete(id);
+      this.edges.delete(id);
+      // Drop edges touching a removed node (Cytoscape removes them too).
+      for (const [eid, e] of this.edges) {
+        if (e.source === id || e.target === id) this.edges.delete(eid);
+      }
       this.selection = this.selection.filter((s) => s !== id);
     }
-    for (const el of [...patch.update, ...patch.add]) {
-      const { id, label, source, target } = el.data;
+    for (const el of patch.update) {
+      const { id, label, kind } = el.data;
       if (typeof id !== 'string') continue;
-      const isEdge = source !== undefined || target !== undefined;
-      const prev = this.elementInfo.get(id);
-      this.elementInfo.set(id, {
-        label: typeof label === 'string' ? label : prev?.label,
-        isEdge: prev?.isEdge ?? isEdge,
-      });
+      const node = this.nodes.get(id);
+      if (node) {
+        if (typeof label === 'string') node.label = label;
+        if (typeof kind === 'string') node.kind = kind;
+        if (el.classes) node.classes = el.classes;
+      } else {
+        const edge = this.edges.get(id);
+        if (edge && typeof label === 'string') edge.label = label;
+      }
     }
+    for (const el of patch.add) this.indexElement(el);
     // Stamp the live diagram id so the patch targets what's on screen.
     this.send({ ...patch, diagramId: this.currentDiagramId ?? patch.diagramId });
   }

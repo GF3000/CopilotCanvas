@@ -34,6 +34,12 @@ on the canvas to select it. When the user refers to the selection deictically â€
 **`get_selection`** first to find out which element id they mean, then act on that id
 (usually with `update_diagram`).
 
+**Explaining a node:** when the user asks to **explain / describe / "what is"** a node
+or the selection (e.g. "explain this node", "what does the Auth service do?"), call
+**`describe_node`** to get the node's context (its kind and how it connects to its
+neighbours), then explain it in the CLI combining that context with your own
+knowledge. Omit `nodeId` to use the current selection.
+
 If the Canvas for Copilot MCP tool is **not available** (e.g. the VS Code extension
 isn't running), say so and ask the user to start it â€” do **not** silently fall back
 to another diagram format.
