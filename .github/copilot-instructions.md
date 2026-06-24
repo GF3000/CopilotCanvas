@@ -37,3 +37,9 @@ on the canvas to select it. When the user refers to the selection deictically â€
 If the Canvas for Copilot MCP tool is **not available** (e.g. the VS Code extension
 isn't running), say so and ask the user to start it â€” do **not** silently fall back
 to another diagram format.
+
+**Explanatory notes:** to add a note / annotation with explanatory text, add a node
+with **`kind: "note"`** (it renders as a sticky note). To attach it to the element
+it explains, also add a dashed leader **edge with `classes: ["annotation"]`** from
+the note to that element. Use `create_diagram` (for new diagrams) or `update_diagram`
+(to add a note to the diagram already on the canvas).

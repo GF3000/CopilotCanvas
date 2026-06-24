@@ -10,6 +10,7 @@ const STYLE_CLASSES = [
   'danger',
   'success',
   'warning',
+  'annotation',
 ] as const;
 
 export type StyleClass = (typeof STYLE_CLASSES)[number];

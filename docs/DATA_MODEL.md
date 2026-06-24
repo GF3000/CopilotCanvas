@@ -240,7 +240,8 @@ the user can do X."*
   kind/base styles. The canvas still owns the actual values — no raw Cytoscape
   style is accepted.
   - **Style classes** (`CyElement.classes`) — a curated vocabulary the canvas
-    defines: `big`, `small`, `highlight`, `muted`, `danger`, `success`, `warning`.
+    defines: `big`, `small`, `highlight`, `muted`, `danger`, `success`, `warning`,
+    `annotation` (dashed arrowless leader line for notes).
   - **Inline style subset** (`CyElement.style: CyStyle`) — whitelisted
     `{ color?, fontSize?, size? }` only (`color` → node fill / edge line;
     `fontSize` → label px; `size` → node label-padding px, ignored for edges).

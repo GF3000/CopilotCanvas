@@ -14,6 +14,7 @@ const NODE_KINDS = [
   'entrypoint',
   'datastore',
   'external',
+  'note',
 ] as const;
 
 // Curated style classes (canvas defines what each looks like) + a safe inline

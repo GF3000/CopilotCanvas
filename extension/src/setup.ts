@@ -30,7 +30,9 @@ When the user asks to edit/change/relabel/annotate/add to/remove from a diagram 
 is ALREADY on the canvas, call \`update_diagram\` instead of \`create_diagram\` — it
 edits in place and preserves the current view (pan/zoom/positions). When the user
 refers to "this"/"the selected node"/"this link"/"it", call \`get_selection\` first
-to learn which node or edge they clicked, then act on that id.
+to learn which node or edge they clicked, then act on that id. To add an explanatory
+note, add a node with kind "note" (sticky note) plus an optional dashed
+\`annotation\` edge to the element it explains.
 ${MARKER_END}`;
 
 interface McpConfig {

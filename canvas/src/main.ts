@@ -136,6 +136,27 @@ function buildStyle(theme: Theme): cytoscape.StylesheetStyle[] {
         'border-color': '#be185d',
       }),
     },
+    // Note / annotation (KAN-29) — a sticky-note look: amber, flat, left-aligned
+    // wrapped text, wider, no connector arrow styling.
+    {
+      selector: 'node[kind = "note"]',
+      style: ext({
+        shape: 'round-rectangle',
+        'background-fill': 'solid',
+        'background-color': '#fde68a',
+        'border-width': 1,
+        'border-color': '#f59e0b',
+        color: '#78350f',
+        'text-valign': 'center',
+        'text-halign': 'center',
+        'text-wrap': 'wrap',
+        'text-max-width': '220px',
+        'font-weight': 400,
+        'font-size': 11,
+        padding: '14px',
+        'corner-radius': '8px',
+      }),
+    },
     {
       selector: 'edge',
       style: {
@@ -207,6 +228,18 @@ function buildStyle(theme: Theme): cytoscape.StylesheetStyle[] {
     {
       selector: '.muted',
       style: { opacity: 0.4 },
+    },
+    // Dashed, arrowless leader line tying a note to what it explains (KAN-29).
+    {
+      selector: 'edge.annotation',
+      style: ext({
+        'line-style': 'dashed',
+        'line-fill': 'solid',
+        'line-color': '#f59e0b',
+        width: 1.5,
+        'target-arrow-shape': 'none',
+        label: '',
+      }),
     },
     {
       selector: 'node.danger',

@@ -58,7 +58,8 @@ export type NodeKind =
   | 'service'
   | 'entrypoint'
   | 'datastore'
-  | 'external';
+  | 'external'
+  | 'note';
 
 /** A concrete code location a node maps to (advanced tier). */
 export interface CodeRef {
