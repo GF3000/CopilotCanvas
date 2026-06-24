@@ -33,22 +33,11 @@ const ext = (props: Record<string, unknown>): cytoscape.Css.Node =>
 
 type Theme = 'dark' | 'light';
 
-// Per-theme bits of the Cytoscape stylesheet. Node fills are saturated and read
-// well on either background, so only the node border and edge label change.
-const CY_THEME: Record<
-  Theme,
-  { nodeBorder: string; edgeColor: string; edgeBackground: string }
-> = {
-  dark: {
-    nodeBorder: 'rgba(0, 0, 0, 0.4)',
-    edgeColor: '#cbbdf2',
-    edgeBackground: '#161325',
-  },
-  light: {
-    nodeBorder: 'rgba(0, 0, 0, 0.18)',
-    edgeColor: '#4b4564',
-    edgeBackground: 'rgba(255, 255, 255, 0.92)',
-  },
+// Per-theme bits of the Cytoscape stylesheet. Node fills (and their darker-shade
+// borders) read well on either background, so only the edge label changes.
+const CY_THEME: Record<Theme, { edgeColor: string; edgeBackground: string }> = {
+  dark: { edgeColor: '#cbbdf2', edgeBackground: '#161325' },
+  light: { edgeColor: '#4b4564', edgeBackground: 'rgba(255, 255, 255, 0.92)' },
 };
 
 function buildStyle(theme: Theme): cytoscape.StylesheetStyle[] {
@@ -72,9 +61,10 @@ function buildStyle(theme: Theme): cytoscape.StylesheetStyle[] {
         'text-max-width': '160px',
         'background-color': '#8b5cf6',
         'border-width': 1,
-        'border-color': palette.nodeBorder,
-        // Squircle corners + a soft two-tone gradient. (No underlay — it renders
-        // as a hard-edged second box rather than a blurred glow.)
+        // Border is a couple shades darker than the fill (overridden per kind).
+        'border-color': '#6d28d9',
+        // Squircle corners + a soft two-tone gradient. (The soft glow is a CSS
+        // drop-shadow on the canvas — Cytoscape has no blurred node shadow.)
         ...ext({
           'corner-radius': '18px',
           'background-fill': 'linear-gradient',
@@ -90,6 +80,7 @@ function buildStyle(theme: Theme): cytoscape.StylesheetStyle[] {
       style: ext({
         'background-color': '#d946ef',
         'background-gradient-stop-colors': '#e879f9 #a21caf',
+        'border-color': '#a21caf',
       }),
     },
     {
@@ -97,6 +88,7 @@ function buildStyle(theme: Theme): cytoscape.StylesheetStyle[] {
       style: ext({
         'background-color': '#8b5cf6',
         'background-gradient-stop-colors': '#a78bfa #6d28d9',
+        'border-color': '#6d28d9',
       }),
     },
     {
@@ -104,6 +96,7 @@ function buildStyle(theme: Theme): cytoscape.StylesheetStyle[] {
       style: ext({
         'background-color': '#6366f1',
         'background-gradient-stop-colors': '#818cf8 #4338ca',
+        'border-color': '#4338ca',
       }),
     },
     {
@@ -111,6 +104,7 @@ function buildStyle(theme: Theme): cytoscape.StylesheetStyle[] {
       style: ext({
         'background-color': '#06b6d4',
         'background-gradient-stop-colors': '#22d3ee #0e7490',
+        'border-color': '#0e7490',
       }),
     },
     {
@@ -118,6 +112,7 @@ function buildStyle(theme: Theme): cytoscape.StylesheetStyle[] {
       style: ext({
         'background-color': '#ec4899',
         'background-gradient-stop-colors': '#f472b6 #be185d',
+        'border-color': '#be185d',
       }),
     },
     {

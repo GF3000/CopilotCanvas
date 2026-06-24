@@ -27,6 +27,7 @@
         --list-text: #d9d4ee;
         --error-accent: #fb7185;
         --error-border: rgba(244, 63, 94, 0.4);
+        --node-glow: rgba(139, 92, 246, 0.5);
       }
 
       [data-theme='light'] {
@@ -51,6 +52,7 @@
         --list-text: #4b4564;
         --error-accent: #e11d48;
         --error-border: rgba(225, 29, 72, 0.35);
+        --node-glow: rgba(139, 92, 246, 0.32);
       }
 
       html,
@@ -87,6 +89,11 @@
           ),
           var(--bg-base);
         transition: background 0.3s ease;
+      }
+
+      /* Soft node/edge glow — a real blur (Cytoscape has no native shadow). */
+      #cy canvas {
+        filter: drop-shadow(0 0 5px var(--node-glow));
       }
 
       /* Zoom / reset / theme controls — glass cluster, top-right (FR-3). */
