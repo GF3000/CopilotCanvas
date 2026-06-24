@@ -113,6 +113,12 @@ export class CanvasPanel {
           const refIndex =
             typeof msg.refIndex === 'number' ? msg.refIndex : undefined;
           void this.handleOpenCode(msg.nodeId, refIndex);
+        } else if (
+          msg?.type === 'node_action' &&
+          msg.action === 'explain' &&
+          typeof msg.nodeId === 'string'
+        ) {
+          this.handleExplain(msg.nodeId);
         }
       },
       null,
@@ -167,6 +173,32 @@ export class CanvasPanel {
       symbol: best.name,
     });
     return true;
+  }
+
+  /**
+   * "Explain node" context-menu action: send a prompt to the Copilot CLI terminal
+   * asking it to explain this node. Copilot calls describe_node (per the canvas
+   * instruction) and prints the full explanation in the CLI — closing the
+   * canvas → CLI loop, since the stateless MCP server can't push a turn itself.
+   */
+  private handleExplain(nodeId: string): void {
+    const label = this.nodes.get(nodeId)?.label;
+    const name = label ? `"${label}" (id: ${nodeId})` : `id: ${nodeId}`;
+    const prompt = `Explain the node ${name} on the Canvas for Copilot diagram.`;
+
+    const terminal = vscode.window.activeTerminal ?? vscode.window.terminals[0];
+    if (!terminal) {
+      void vscode.window.showWarningMessage(
+        'Canvas for Copilot: open a Copilot CLI terminal first, then click "Explain node" again to see the explanation there.',
+      );
+      return;
+    }
+    terminal.show();
+    // Copilot CLI's input box treats a trailing newline as a soft line-break, not
+    // a submit, so type the prompt then send an explicit carriage return (Enter)
+    // a moment later to actually run it.
+    terminal.sendText(prompt, false);
+    setTimeout(() => terminal.sendText('\r', false), 150);
   }
 
   /** The current canvas selection (empty if nothing selected / no canvas open). */
