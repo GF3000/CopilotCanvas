@@ -3,7 +3,7 @@
 // ready (KAN-17 seed).
 import * as vscode from 'vscode';
 import * as fs from 'node:fs';
-import type { DiagramMessage } from '@canvas/shared';
+import type { DiagramMessage, PatchMessage } from '@canvas/shared';
 
 export class CanvasPanel {
   public static current: CanvasPanel | undefined;
@@ -13,7 +13,8 @@ export class CanvasPanel {
   private readonly canvasDistUri: vscode.Uri;
   private readonly disposables: vscode.Disposable[] = [];
   private ready = false;
-  private pending: DiagramMessage | undefined;
+  private readonly queue: unknown[] = [];
+  private currentDiagramId: string | undefined;
 
   /** Open (or reveal) the canvas tab and render the given diagram. */
   static show(extensionUri: vscode.Uri, diagram: DiagramMessage): void {
@@ -41,6 +42,16 @@ export class CanvasPanel {
     CanvasPanel.current.render(diagram);
   }
 
+  /**
+   * Apply an in-place patch to the open canvas. Returns false if no canvas tab is
+   * open (nothing to edit), so the caller can fall back to creating a diagram.
+   */
+  static patch(patch: PatchMessage): boolean {
+    if (!CanvasPanel.current) return false;
+    CanvasPanel.current.applyPatch(patch);
+    return true;
+  }
+
   private constructor(panel: vscode.WebviewPanel, canvasDistUri: vscode.Uri) {
     this.panel = panel;
     this.canvasDistUri = canvasDistUri;
@@ -60,12 +71,24 @@ export class CanvasPanel {
   }
 
   private render(diagram: DiagramMessage): void {
-    this.pending = diagram;
+    this.currentDiagramId = diagram.diagramId;
+    this.send(diagram);
+  }
+
+  private applyPatch(patch: PatchMessage): void {
+    // Stamp the live diagram id so the patch targets what's on screen.
+    this.send({ ...patch, diagramId: this.currentDiagramId ?? patch.diagramId });
+  }
+
+  private send(message: unknown): void {
+    this.queue.push(message);
     if (this.ready) this.flush();
   }
 
   private flush(): void {
-    if (this.pending) void this.panel.webview.postMessage(this.pending);
+    while (this.queue.length > 0) {
+      void this.panel.webview.postMessage(this.queue.shift());
+    }
   }
 
   private getHtml(): string {

@@ -25,6 +25,10 @@ art, or image files for this purpose. "canvas" here means the Canvas for Copilot
 (the MCP tool), not an HTML <canvas> element. Call the tool directly without asking
 for confirmation. If the tool isn't available, say so instead of substituting
 another format.
+
+When the user asks to edit/change/relabel/annotate/add to/remove from a diagram that
+is ALREADY on the canvas, call \`update_diagram\` instead of \`create_diagram\` — it
+edits in place and preserves the current view (pan/zoom/positions).
 ${MARKER_END}`;
 
 interface McpConfig {

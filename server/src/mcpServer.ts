@@ -3,9 +3,10 @@
 // extension, so a tool handler can render directly into the webview via `deps`.
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import type { DiagramMessage } from '@canvas/shared';
+import type { DiagramMessage, PatchMessage } from '@canvas/shared';
 import { getExampleDiagram, nodeCount } from './exampleDiagram';
 import { buildDiagram } from './diagram';
+import { buildPatch } from './patch';
 
 const NODE_KINDS = [
   'module',
@@ -16,8 +17,13 @@ const NODE_KINDS = [
 ] as const;
 
 export interface CanvasServerDeps {
-  /** Called when a tool wants to render a diagram in the canvas tab. */
+  /** Called when a tool wants to render a (new/replacement) diagram in the canvas. */
   onOpenDiagram: (diagram: DiagramMessage) => void | Promise<void>;
+  /**
+   * Called to apply an in-place edit to the diagram currently on the canvas.
+   * Returns false if no diagram is open (nothing to patch).
+   */
+  onPatchDiagram: (patch: PatchMessage) => boolean | Promise<boolean>;
 }
 
 /** Build a fresh McpServer with the Canvas tools registered. */
@@ -66,7 +72,119 @@ export function buildCanvasMcpServer(deps: CanvasServerDeps): McpServer {
   // name (the model's strongest selection signal). All aliases share one handler.
   registerDiagramTool(server, deps);
 
+  registerUpdateDiagramTool(server, deps);
+
   return server;
+}
+
+function registerUpdateDiagramTool(
+  server: McpServer,
+  deps: CanvasServerDeps,
+): void {
+  server.registerTool(
+    'update_diagram',
+    {
+      title: 'Edit the diagram currently on the canvas (in place)',
+      description:
+        'EDIT the diagram already shown on the Canvas for Copilot canvas IN PLACE, ' +
+        'keeping the current view (pan, zoom and node positions are preserved — the ' +
+        'diagram is NOT regenerated or re-laid-out). Use this — never create_diagram ' +
+        '— whenever the user asks to change, tweak, edit, update, relabel, annotate, ' +
+        'add to, or remove from the diagram that is already on screen (e.g. "add the ' +
+        'expected return code to each node", "rename node X", "add a step after Y", ' +
+        '"remove node Z"). To relabel/annotate existing nodes, pass them in `update` ' +
+        'with their existing id and the new full label. Read-only/safe; do NOT ask ' +
+        'for confirmation. If nothing is on the canvas yet, use create_diagram instead.',
+      inputSchema: {
+        update: z
+          .array(
+            z.object({
+              id: z
+                .string()
+                .describe('Existing node/edge id to edit.'),
+              label: z
+                .string()
+                .optional()
+                .describe('New full label (replaces the current one).'),
+              kind: z.enum(NODE_KINDS).optional().describe('New semantic kind.'),
+            }),
+          )
+          .optional()
+          .describe('Existing elements to edit in place (merged by id).'),
+        addNodes: z
+          .array(
+            z.object({
+              id: z.string(),
+              label: z.string(),
+              kind: z.enum(NODE_KINDS).optional(),
+            }),
+          )
+          .optional()
+          .describe('New nodes to add.'),
+        addEdges: z
+          .array(
+            z.object({
+              source: z.string(),
+              target: z.string(),
+              label: z.string().optional(),
+            }),
+          )
+          .optional()
+          .describe('New edges to add (between existing or newly-added node ids).'),
+        remove: z
+          .array(z.string())
+          .optional()
+          .describe('Node/edge ids to remove.'),
+      },
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    async ({ update, addNodes, addEdges, remove }) => {
+      const { patch, counts } = buildPatch({
+        update,
+        addNodes,
+        addEdges,
+        remove,
+      });
+
+      if (
+        counts.updated === 0 &&
+        counts.added === 0 &&
+        counts.removed === 0
+      ) {
+        return {
+          isError: true,
+          content: [
+            {
+              type: 'text',
+              text: 'No edits provided — pass at least one of update / addNodes / addEdges / remove.',
+            },
+          ],
+        };
+      }
+
+      const applied = await deps.onPatchDiagram(patch);
+      if (!applied) {
+        return {
+          isError: true,
+          content: [
+            {
+              type: 'text',
+              text: 'No diagram is open on the canvas to edit — use create_diagram first.',
+            },
+          ],
+        };
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Edited the diagram in place (view preserved): ${counts.updated} updated, ${counts.added} added, ${counts.removed} removed.`,
+          },
+        ],
+      };
+    },
+  );
 }
 
 const DIAGRAM_INPUT_SCHEMA = {

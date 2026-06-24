@@ -121,7 +121,7 @@ export interface DiagramMessage extends BaseMessage {
   version: number;
 }
 
-/** Incremental update applied in place via cy.add / cy.remove (D6). */
+/** Incremental update applied in place via cy.add / cy.remove / cy.data (D6). */
 export interface PatchMessage extends BaseMessage {
   type: 'patch';
   diagramId: string;
@@ -130,6 +130,12 @@ export interface PatchMessage extends BaseMessage {
   add: CyElement[];
   /** Node/edge ids to remove. */
   remove: string[];
+  /**
+   * Elements whose `data` should be merged into an existing node/edge with the
+   * same `data.id`, in place — preserving position and the current view. Used to
+   * edit a diagram (e.g. relabel nodes) without re-rendering or re-laying out.
+   */
+  update: CyElement[];
 }
 
 /** Focus/annotate nodes (e.g. show callers). */

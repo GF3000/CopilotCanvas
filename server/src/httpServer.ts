@@ -4,7 +4,7 @@
 // McpServer + transport per request.
 import http from 'node:http';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import type { DiagramMessage } from '@canvas/shared';
+import type { DiagramMessage, PatchMessage } from '@canvas/shared';
 import { buildCanvasMcpServer } from './mcpServer';
 
 export const DEFAULT_CANVAS_MCP_PORT = 4123;
@@ -13,6 +13,7 @@ export interface CanvasHttpServerOptions {
   port?: number;
   host?: string;
   onOpenDiagram: (diagram: DiagramMessage) => void | Promise<void>;
+  onPatchDiagram: (patch: PatchMessage) => boolean | Promise<boolean>;
 }
 
 export interface CanvasHttpServer {
@@ -62,7 +63,10 @@ async function handleRequest(
   }
 
   const body = await readJson(req).catch(() => undefined);
-  const mcp = buildCanvasMcpServer({ onOpenDiagram: opts.onOpenDiagram });
+  const mcp = buildCanvasMcpServer({
+    onOpenDiagram: opts.onOpenDiagram,
+    onPatchDiagram: opts.onPatchDiagram,
+  });
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
     enableJsonResponse: true,

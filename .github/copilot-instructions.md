@@ -20,6 +20,13 @@ You generate the graph yourself and pass it to the tool: a short `title`, the
 `edges` between node ids (optionally labeled). Keep diagrams focused (~4–12 nodes).
 Call the tool directly without asking for confirmation.
 
+**Editing an existing diagram:** when the user asks to change, tweak, edit, update,
+relabel, annotate, add to, or remove from a diagram that is **already on the
+canvas** (e.g. "add the expected return code to each node", "rename node X", "remove
+node Z"), call **`update_diagram`** instead — it edits in place and keeps the
+current view (pan/zoom/positions). Do **not** call `create_diagram` for edits (that
+regenerates and loses the view).
+
 If the Canvas for Copilot MCP tool is **not available** (e.g. the VS Code extension
 isn't running), say so and ask the user to start it — do **not** silently fall back
 to another diagram format.

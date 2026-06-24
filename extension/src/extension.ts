@@ -29,6 +29,7 @@ export async function activate(
       port: DEFAULT_CANVAS_MCP_PORT,
       onOpenDiagram: (diagram) =>
         CanvasPanel.show(context.extensionUri, diagram),
+      onPatchDiagram: (patch) => CanvasPanel.patch(patch),
     });
     void vscode.window.showInformationMessage(
       `Canvas for Copilot: MCP server ready at ${httpServer.url}`,

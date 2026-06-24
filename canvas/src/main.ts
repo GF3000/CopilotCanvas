@@ -6,9 +6,11 @@ import cytoscape from 'cytoscape';
 import {
   PROTOCOL_VERSION,
   isDiagramMessage,
+  isPatchMessage,
   type CanvasMessage,
   type CyElement,
   type DiagramMessage,
+  type PatchMessage,
 } from '@canvas/shared';
 import { validateGraphModel } from './graphModel';
 
@@ -284,6 +286,49 @@ function clearError(): void {
   if (errorPanel) errorPanel.hidden = true;
 }
 
+// Apply an in-place patch WITHOUT re-laying-out or re-fitting, so the current
+// view (pan, zoom, node positions) is preserved (KAN-25).
+function handlePatch(msg: PatchMessage): void {
+  cy.batch(() => {
+    // Remove first so an add can reuse an id.
+    for (const id of msg.remove) {
+      cy.getElementById(id).remove();
+    }
+    // Merge data into existing elements in place (preserves position).
+    for (const element of msg.update) {
+      const id = element.data.id;
+      if (typeof id !== 'string') continue;
+      const target = cy.getElementById(id);
+      if (target.nonempty()) target.data({ ...element.data });
+    }
+    // Add new elements; place new nodes near the current viewport centre so they
+    // appear in view without disturbing the existing layout.
+    const additions = msg.add as cytoscape.ElementDefinition[];
+    if (additions.length > 0) {
+      const view = cy.extent();
+      const mid = {
+        x: (view.x1 + view.x2) / 2,
+        y: (view.y1 + view.y2) / 2,
+      };
+      for (const def of additions) {
+        const isNode =
+          def.data.source === undefined && def.data.target === undefined;
+        cy.add(
+          isNode
+            ? {
+                ...def,
+                position: {
+                  x: mid.x + (Math.random() - 0.5) * 60,
+                  y: mid.y + (Math.random() - 0.5) * 60,
+                },
+              }
+            : def,
+        );
+      }
+    }
+  });
+}
+
 function render(elements: CyElement[]): void {
   cy.elements().remove();
   cy.add(elements as cytoscape.ElementDefinition[]);
@@ -312,6 +357,7 @@ function handleDiagram(msg: DiagramMessage): void {
 window.addEventListener('message', (event: MessageEvent<CanvasMessage>) => {
   const msg = event.data;
   if (isDiagramMessage(msg)) handleDiagram(msg);
+  else if (isPatchMessage(msg)) handlePatch(msg);
 });
 
 // Tell the extension we're ready to receive a diagram (avoids a load race).
