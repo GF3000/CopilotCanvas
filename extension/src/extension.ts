@@ -23,6 +23,9 @@ export async function activate(
     }),
   );
 
+  // Restore the canvas tab (and its diagram) after a window reload.
+  CanvasPanel.register(context);
+
   // Host the MCP server so Copilot CLI can drive the canvas.
   try {
     httpServer = await startCanvasMcpHttpServer({
