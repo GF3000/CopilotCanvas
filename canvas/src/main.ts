@@ -215,15 +215,13 @@ function buildStyle(theme: Theme): cytoscape.StylesheetStyle[] {
         }),
       },
     },
-    // Selected node (KAN-7) — a bright ring so the user sees what they clicked.
+    // Selected node (KAN-7) — use only the node border so the highlight keeps
+    // the same squircle shape (overlay looked like a mismatched rectangle).
     {
       selector: 'node:selected',
       style: ext({
-        'border-width': 4,
+        'border-width': 3,
         'border-color': '#38bdf8',
-        'overlay-color': '#38bdf8',
-        'overlay-opacity': 0.12,
-        'overlay-padding': 6,
       }),
     },
     // Selected edge (KAN-28) — thicker, bright line.
