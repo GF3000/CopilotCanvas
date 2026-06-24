@@ -330,6 +330,12 @@
         color: var(--text-muted);
       }
 
+      .menu-divider {
+        height: 1px;
+        margin: 2px 0;
+        background: var(--divider);
+      }
+
       .menu-input {
         font: inherit;
         font-size: 14px;
@@ -652,7 +658,16 @@
       <div id="legend-rows"></div>
     </div>
 
-    <div id="context-menu" role="menu" hidden>
+    <div id="node-menu" hidden role="menu" aria-label="Node menu">
+      <button id="ctx-expand" class="ctx-item" type="button" role="menuitem">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M15 3h6v6" />
+          <path d="M9 21H3v-6" />
+          <path d="M21 3l-8 8" />
+          <path d="M3 21l8-8" />
+        </svg>
+        Expand element
+      </button>
       <button id="ctx-open-code" class="ctx-item" type="button" role="menuitem">
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M9 6l-6 6 6 6" />
@@ -667,18 +682,7 @@
         </svg>
         Center on node
       </button>
-      <button id="ctx-expand" class="ctx-item" type="button" role="menuitem">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M15 3h6v6" />
-          <path d="M9 21H3v-6" />
-          <path d="M21 3l-8 8" />
-          <path d="M3 21l8-8" />
-        </svg>
-        Expand element
-      </button>
-    </div>
-
-    <div id="node-menu" hidden role="menu" aria-label="Edit node">
+      <div class="menu-divider"></div>
       <span class="menu-section">Label</span>
       <input
         id="node-label-input"

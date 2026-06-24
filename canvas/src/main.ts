@@ -627,6 +627,9 @@ setTitle(undefined);
 const nodeMenu = document.getElementById('node-menu');
 const labelInput = document.getElementById('node-label-input');
 const swatchContainer = document.getElementById('node-swatches');
+const menuExpand = document.getElementById('ctx-expand');
+const menuOpenCode = document.getElementById('ctx-open-code');
+const menuCenter = document.getElementById('ctx-center');
 let menuNode: cytoscape.NodeSingular | undefined;
 
 function styleNodeColor(
@@ -652,6 +655,12 @@ function openNodeMenu(node: cytoscape.NodeSingular, x: number, y: number): void 
   if (labelInput instanceof HTMLInputElement) {
     labelInput.value = String(node.data('label') ?? '');
   }
+  // Only offer "Expand element" when the node has neighbours to drill into.
+  if (menuExpand) menuExpand.hidden = !isExpandable(node.id());
+  // Only offer "Open in editor" when the node is actually linked to code.
+  const refs = node.data('codeRefs') as unknown[] | undefined;
+  const linked = node.hasClass('linked') || (Array.isArray(refs) && refs.length > 0);
+  if (menuOpenCode) menuOpenCode.hidden = !linked;
   nodeMenu.hidden = false;
   // Keep the menu inside the viewport.
   const { width, height } = nodeMenu.getBoundingClientRect();
@@ -703,11 +712,42 @@ if (swatchContainer) {
   swatchContainer.append(custom);
 }
 
-// Right-click a node to edit it; suppress the browser menu over the canvas.
+// Node-menu action buttons (drill-down / open code / center). They act on the
+// node the menu was opened for (`menuNode`); capture its id before closing.
+menuExpand?.addEventListener('click', () => {
+  const id = menuNode?.id();
+  closeNodeMenu(false);
+  if (id) expandElement(id);
+});
+
+menuOpenCode?.addEventListener('click', () => {
+  const id = menuNode?.id();
+  closeNodeMenu(false);
+  if (id) {
+    vscode?.postMessage({ type: 'node_action', action: 'open_code', nodeId: id });
+  }
+});
+
+menuCenter?.addEventListener('click', () => {
+  const id = menuNode?.id();
+  closeNodeMenu(false);
+  if (!id) return;
+  const node = cy.getElementById(id);
+  if (node.nonempty()) {
+    cy.animate({ center: { eles: node }, duration: 200, easing: 'ease-out' });
+  }
+});
+
+// Right-click a node: select it (so "this" resolves) and open its menu. Suppress
+// the browser menu over the canvas.
 cy.container()?.addEventListener('contextmenu', (event) => event.preventDefault());
 cy.on('cxttap', 'node', (event) => {
+  const node = event.target as cytoscape.NodeSingular;
+  cy.elements().unselect();
+  node.select();
+  emitSelection([node.id()]);
   const mouse = event.originalEvent as MouseEvent;
-  openNodeMenu(event.target as cytoscape.NodeSingular, mouse.clientX, mouse.clientY);
+  openNodeMenu(node, mouse.clientX, mouse.clientY);
 });
 cy.on('cxttap', (event) => {
   if (event.target === cy) closeNodeMenu(false);
@@ -1039,73 +1079,6 @@ cy.on('tap', (evt) => {
     emitSelection([]);
   }
 });
-
-// Right-click context menu on a node (KAN-32).
-const contextMenu = document.getElementById('context-menu');
-const ctxOpenCode = document.getElementById('ctx-open-code');
-const ctxCenter = document.getElementById('ctx-center');
-const ctxExpand = document.getElementById('ctx-expand');
-let contextNodeId: string | undefined;
-
-function hideContextMenu(): void {
-  if (contextMenu) contextMenu.hidden = true;
-  contextNodeId = undefined;
-}
-
-cy.on('cxttap', 'node', (evt) => {
-  const node = evt.target as cytoscape.NodeSingular;
-  contextNodeId = node.id();
-  cy.elements().unselect();
-  node.select();
-  emitSelection([node.id()]);
-  if (!contextMenu) return;
-  // Only offer "Open in editor" when the node is actually linked to code.
-  const refs = node.data('codeRefs') as unknown[] | undefined;
-  const linked = node.hasClass('linked') || (Array.isArray(refs) && refs.length > 0);
-  if (ctxOpenCode) ctxOpenCode.hidden = !linked;
-  // Only offer "Expand element" when the node has neighbours to drill into.
-  if (ctxExpand) ctxExpand.hidden = !isExpandable(node.id());
-  const oe = evt.originalEvent as MouseEvent | undefined;
-  const x = oe?.clientX ?? evt.renderedPosition.x;
-  const y = oe?.clientY ?? evt.renderedPosition.y;
-  contextMenu.style.left = `${Math.min(x, window.innerWidth - 180)}px`;
-  contextMenu.style.top = `${Math.min(y, window.innerHeight - 100)}px`;
-  contextMenu.hidden = false;
-});
-
-ctxOpenCode?.addEventListener('click', () => {
-  if (contextNodeId) {
-    vscode?.postMessage({ type: 'node_action', action: 'open_code', nodeId: contextNodeId });
-  }
-  hideContextMenu();
-});
-
-ctxExpand?.addEventListener('click', () => {
-  const id = contextNodeId;
-  hideContextMenu();
-  if (id) expandElement(id);
-});
-
-ctxCenter?.addEventListener('click', () => {
-  if (contextNodeId) {
-    const node = cy.getElementById(contextNodeId);
-    if (node.nonempty()) {
-      cy.animate({ center: { eles: node }, duration: 200, easing: 'ease-out' });
-    }
-  }
-  hideContextMenu();
-});
-
-// Dismiss the menu on any outside interaction.
-window.addEventListener('pointerdown', (e) => {
-  if (contextMenu && !contextMenu.hidden && !contextMenu.contains(e.target as Node)) {
-    hideContextMenu();
-  }
-});
-window.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') hideContextMenu();
-});
-cy.on('pan zoom tapstart', hideContextMenu);
 
 window.addEventListener('message', (event: MessageEvent<CanvasMessage>) => {
   const msg = event.data;
