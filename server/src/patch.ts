@@ -2,6 +2,7 @@
 // the currently displayed diagram in place (the canvas preserves pan/zoom and
 // node positions) instead of regenerating it.
 import type { CyElement, CyStyle, NodeKind, PatchMessage } from '@canvas/shared';
+import { edgeId } from './diagram';
 
 export interface PatchUpdate {
   id: string;
@@ -71,6 +72,7 @@ export function buildPatch(input: PatchInput): PatchBuildResult {
     style: styleOf(u.style),
   }));
 
+  const usedEdgeIds = new Set<string>();
   const add: CyElement[] = [
     ...(input.addNodes ?? []).map<CyElement>((n) => ({
       data: compactData({ id: n.id, label: n.label, kind: n.kind }),
@@ -78,7 +80,12 @@ export function buildPatch(input: PatchInput): PatchBuildResult {
       style: styleOf(n.style),
     })),
     ...(input.addEdges ?? []).map<CyElement>((e) => ({
-      data: compactData({ source: e.source, target: e.target, label: e.label }),
+      data: compactData({
+        id: edgeId(e.source, e.target, usedEdgeIds),
+        source: e.source,
+        target: e.target,
+        label: e.label,
+      }),
       classes: classesOf(e.classes),
       style: styleOf(e.style),
     })),

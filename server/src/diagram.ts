@@ -67,6 +67,20 @@ function classesOf(classes: string[] | undefined): string | undefined {
   return cleaned.length > 0 ? cleaned.join(' ') : undefined;
 }
 
+/** A stable, unique edge id so edges are addressable (selection/edit). */
+export function edgeId(
+  source: string,
+  target: string,
+  used: Set<string>,
+): string {
+  const base = `${source}->${target}`;
+  let id = base;
+  let n = 1;
+  while (used.has(id)) id = `${base}#${++n}`;
+  used.add(id);
+  return id;
+}
+
 /**
  * Convert a {title, nodes, edges} graph into a `diagram` message. Edges that
  * reference unknown node ids are dropped (and counted) so a small model mistake
@@ -78,6 +92,7 @@ export function buildDiagram(input: DiagramInput): BuildResult {
     (e) => ids.has(e.source) && ids.has(e.target),
   );
 
+  const usedIds = new Set(ids);
   const elements: CyElement[] = [
     ...input.nodes.map<CyElement>((n) => ({
       data: compact({ id: n.id, label: n.label, kind: n.kind }),
@@ -85,7 +100,12 @@ export function buildDiagram(input: DiagramInput): BuildResult {
       style: styleOf(n.style),
     })),
     ...validEdges.map<CyElement>((e) => ({
-      data: compact({ source: e.source, target: e.target, label: e.label }),
+      data: compact({
+        id: edgeId(e.source, e.target, usedIds),
+        source: e.source,
+        target: e.target,
+        label: e.label,
+      }),
       classes: classesOf(e.classes),
       style: styleOf(e.style),
     })),

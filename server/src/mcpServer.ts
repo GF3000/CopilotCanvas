@@ -42,8 +42,8 @@ const STYLE_SCHEMA = z
 
 export interface CanvasSelectionInfo {
   diagramId?: string;
-  nodeIds: string[];
-  nodes: { id: string; label?: string }[];
+  ids: string[];
+  elements: { id: string; label?: string; isEdge: boolean }[];
 }
 
 export interface CanvasServerDeps {
@@ -109,39 +109,43 @@ export function buildCanvasMcpServer(deps: CanvasServerDeps): McpServer {
   server.registerTool(
     'get_selection',
     {
-      title: 'Get the node(s) currently selected on the canvas',
+      title: 'Get the element(s) currently selected on the canvas',
       description:
-        'Return the node(s) the user has currently selected (clicked) on the Canvas ' +
-        'for Copilot canvas. ALWAYS call this first whenever the user refers to the ' +
-        'selection deictically — "this", "this node", "the selected node", "it", ' +
-        '"here", "that one" — so you know which node id they mean before editing it ' +
-        '(e.g. "increase the font size of this" → get_selection → update_diagram on ' +
-        'that id). Read-only; no input. Returns the selected node ids and labels, or ' +
-        'nothing if no node is selected.',
+        'Return the node or edge (link) the user has currently selected (clicked) on ' +
+        'the Canvas for Copilot canvas. ALWAYS call this first whenever the user ' +
+        'refers to the selection deictically — "this", "this node", "this link", ' +
+        '"the selected node/edge", "it", "here", "that one" — so you know which ' +
+        'element id they mean before editing it (e.g. "increase the font size of ' +
+        'this" or "rename this link" → get_selection → update_diagram on that id). ' +
+        'Read-only; no input. Returns the selected element ids, labels, and whether ' +
+        'each is an edge, or nothing if nothing is selected.',
       annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
     },
     () => {
       const sel = deps.getSelection();
-      if (sel.nodeIds.length === 0) {
+      if (sel.ids.length === 0) {
         return {
           content: [
             {
               type: 'text',
-              text: 'No node is currently selected on the canvas. Ask the user to click a node, or which node they mean.',
+              text: 'Nothing is currently selected on the canvas. Ask the user to click a node or link, or which element they mean.',
             },
           ],
         };
       }
-      const list = sel.nodes
-        .map((n) => `${n.id}${n.label ? ` ("${n.label}")` : ''}`)
+      const list = sel.elements
+        .map(
+          (e) =>
+            `${e.id}${e.label ? ` ("${e.label}")` : ''}${e.isEdge ? ' [edge]' : ' [node]'}`,
+        )
         .join(', ');
       return {
         content: [
           {
             type: 'text',
             text: `Currently selected: ${list}. Use ${
-              sel.nodeIds.length === 1 ? 'this id' : 'these ids'
-            } with update_diagram to edit the selection.`,
+              sel.ids.length === 1 ? 'this id' : 'these ids'
+            } with update_diagram to edit the selection (e.g. change its label, color, or size).`,
           },
         ],
       };

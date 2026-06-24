@@ -172,6 +172,19 @@ function buildStyle(theme: Theme): cytoscape.StylesheetStyle[] {
         'overlay-padding': 6,
       }),
     },
+    // Selected edge (KAN-28) — thicker, bright line.
+    {
+      selector: 'edge:selected',
+      style: ext({
+        width: 5,
+        'line-fill': 'solid',
+        'line-color': '#38bdf8',
+        'target-arrow-color': '#38bdf8',
+        'overlay-color': '#38bdf8',
+        'overlay-opacity': 0.12,
+        'overlay-padding': 4,
+      }),
+    },
     // Curated style classes the CLI can set per element (KAN-26, option A).
     {
       selector: 'node.big',
@@ -493,14 +506,21 @@ function emitSelection(nodeIds: string[]): void {
 
 cy.on('tap', 'node', (evt) => {
   const node = evt.target as cytoscape.NodeSingular;
-  cy.nodes().unselect();
+  cy.elements().unselect();
   node.select();
   emitSelection([node.id()]);
 });
 
+cy.on('tap', 'edge', (evt) => {
+  const edge = evt.target as cytoscape.EdgeSingular;
+  cy.elements().unselect();
+  edge.select();
+  emitSelection([edge.id()]);
+});
+
 cy.on('tap', (evt) => {
   if (evt.target === cy) {
-    cy.nodes().unselect();
+    cy.elements().unselect();
     emitSelection([]);
   }
 });

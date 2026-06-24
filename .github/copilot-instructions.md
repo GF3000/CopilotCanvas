@@ -27,11 +27,12 @@ is **already on the canvas** (e.g. "add the expected return code to each node",
 place and keeps the current view (pan/zoom/positions). Do **not** call
 `create_diagram` for edits (that regenerates and loses the view).
 
-**Resolving "this" / the selection:** the user can **click a node** on the canvas to
-select it. When the user refers to the selection deictically — "this", "this node",
-"the selected node", "it", "here", "that one" (e.g. "increase the font size of
-this") — call **`get_selection`** first to find out which node id they mean, then
-act on that id (usually with `update_diagram`).
+**Resolving "this" / the selection:** the user can **click a node or a link (edge)**
+on the canvas to select it. When the user refers to the selection deictically —
+"this", "this node", "this link", "the selected node/edge", "it", "here", "that one"
+(e.g. "increase the font size of this", "rename this link to 'returns 401'") — call
+**`get_selection`** first to find out which element id they mean, then act on that id
+(usually with `update_diagram`).
 
 If the Canvas for Copilot MCP tool is **not available** (e.g. the VS Code extension
 isn't running), say so and ask the user to start it — do **not** silently fall back

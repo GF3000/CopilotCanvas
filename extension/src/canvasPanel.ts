@@ -5,11 +5,11 @@ import * as vscode from 'vscode';
 import * as fs from 'node:fs';
 import type { DiagramMessage, PatchMessage } from '@canvas/shared';
 
-/** The node(s) currently selected on the canvas, resolved with their labels. */
+/** The element(s) currently selected on the canvas, resolved with their labels. */
 export interface CanvasSelection {
   diagramId: string | undefined;
-  nodeIds: string[];
-  nodes: { id: string; label?: string }[];
+  ids: string[];
+  elements: { id: string; label?: string; isEdge: boolean }[];
 }
 
 export class CanvasPanel {
@@ -23,7 +23,10 @@ export class CanvasPanel {
   private readonly queue: unknown[] = [];
   private currentDiagramId: string | undefined;
   private selection: string[] = [];
-  private readonly nodeLabels = new Map<string, string>();
+  private readonly elementInfo = new Map<
+    string,
+    { label?: string; isEdge: boolean }
+  >();
 
   /** Open (or reveal) the canvas tab and render the given diagram. */
   static show(extensionUri: vscode.Uri, diagram: DiagramMessage): void {
@@ -86,26 +89,30 @@ export class CanvasPanel {
   /** The current canvas selection (empty if nothing selected / no canvas open). */
   static getSelection(): CanvasSelection {
     const panel = CanvasPanel.current;
-    if (!panel) return { diagramId: undefined, nodeIds: [], nodes: [] };
+    if (!panel) return { diagramId: undefined, ids: [], elements: [] };
     return {
       diagramId: panel.currentDiagramId,
-      nodeIds: [...panel.selection],
-      nodes: panel.selection.map((id) => ({
+      ids: [...panel.selection],
+      elements: panel.selection.map((id) => ({
         id,
-        label: panel.nodeLabels.get(id),
+        label: panel.elementInfo.get(id)?.label,
+        isEdge: panel.elementInfo.get(id)?.isEdge ?? false,
       })),
     };
   }
 
   private render(diagram: DiagramMessage): void {
     this.currentDiagramId = diagram.diagramId;
-    // Rebuild the id→label map so selection can be resolved to labels.
-    this.nodeLabels.clear();
+    // Rebuild the id→info map so selection can be resolved to labels.
+    this.elementInfo.clear();
     for (const el of diagram.elements) {
       const { id, label, source, target } = el.data;
-      if (typeof id === 'string' && source === undefined && target === undefined) {
-        this.nodeLabels.set(id, typeof label === 'string' ? label : id);
-      }
+      if (typeof id !== 'string') continue;
+      const isEdge = source !== undefined || target !== undefined;
+      this.elementInfo.set(id, {
+        label: typeof label === 'string' ? label : undefined,
+        isEdge,
+      });
     }
     this.send(diagram);
   }
@@ -113,15 +120,18 @@ export class CanvasPanel {
   private applyPatch(patch: PatchMessage): void {
     // Keep the label map current so selection labels stay accurate after edits.
     for (const id of patch.remove) {
-      this.nodeLabels.delete(id);
+      this.elementInfo.delete(id);
       this.selection = this.selection.filter((s) => s !== id);
     }
     for (const el of [...patch.update, ...patch.add]) {
       const { id, label, source, target } = el.data;
-      if (typeof id === 'string' && source === undefined && target === undefined) {
-        if (typeof label === 'string') this.nodeLabels.set(id, label);
-        else if (!this.nodeLabels.has(id)) this.nodeLabels.set(id, id);
-      }
+      if (typeof id !== 'string') continue;
+      const isEdge = source !== undefined || target !== undefined;
+      const prev = this.elementInfo.get(id);
+      this.elementInfo.set(id, {
+        label: typeof label === 'string' ? label : prev?.label,
+        isEdge: prev?.isEdge ?? isEdge,
+      });
     }
     // Stamp the live diagram id so the patch targets what's on screen.
     this.send({ ...patch, diagramId: this.currentDiagramId ?? patch.diagramId });
