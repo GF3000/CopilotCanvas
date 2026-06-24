@@ -541,6 +541,7 @@ const nodeCodeWrap = document.getElementById('node-code');
 const nodeCodeRefs = document.getElementById('node-coderefs');
 const nodeCenterBtn = document.getElementById('node-center');
 const nodeExplainBtn = document.getElementById('node-explain');
+const nodeExpandBtn = document.getElementById('node-expand');
 
 function formatCodeRef(ref: CodeRef): string {
   const file = ref.path.split(/[\\/]/).pop() || ref.path;
@@ -596,6 +597,66 @@ nodeExplainBtn?.addEventListener('click', () => {
   const nodeId = menuNode?.id();
   closeNodeMenu(true);
   if (nodeId) vscode?.postMessage({ type: 'node_action', action: 'explain', nodeId });
+});
+
+/* ─── Expand node: dialog to choose the kind & depth of expansion (KAN-11) ─── */
+const expandDialog = document.getElementById('expand-dialog');
+const expandModeSel = document.getElementById('expand-mode');
+const expandDepthSel = document.getElementById('expand-depth');
+const expandFocusInput = document.getElementById('expand-focus');
+const expandSubmitBtn = document.getElementById('expand-submit');
+const expandCancelBtn = document.getElementById('expand-cancel');
+let expandNodeId: string | undefined;
+
+function openExpandDialog(nodeId: string): void {
+  if (!expandDialog) return;
+  expandNodeId = nodeId;
+  if (expandFocusInput instanceof HTMLInputElement) expandFocusInput.value = '';
+  expandDialog.hidden = false;
+  if (expandModeSel instanceof HTMLSelectElement) expandModeSel.focus();
+}
+
+function closeExpandDialog(): void {
+  if (expandDialog) expandDialog.hidden = true;
+  expandNodeId = undefined;
+}
+
+function submitExpand(): void {
+  const nodeId = expandNodeId;
+  const mode =
+    expandModeSel instanceof HTMLSelectElement ? expandModeSel.value : 'detail';
+  const depth =
+    expandDepthSel instanceof HTMLSelectElement
+      ? Number(expandDepthSel.value)
+      : 1;
+  const focus =
+    expandFocusInput instanceof HTMLInputElement
+      ? expandFocusInput.value.trim()
+      : '';
+  closeExpandDialog();
+  if (nodeId)
+    vscode?.postMessage({
+      type: 'node_action',
+      action: 'expand',
+      nodeId,
+      mode,
+      depth,
+      focus,
+    });
+}
+
+// "Expand node" action — open the dialog to gather the expansion preferences.
+nodeExpandBtn?.addEventListener('click', () => {
+  const nodeId = menuNode?.id();
+  closeNodeMenu(true);
+  if (nodeId) openExpandDialog(nodeId);
+});
+expandSubmitBtn?.addEventListener('click', submitExpand);
+expandCancelBtn?.addEventListener('click', closeExpandDialog);
+window.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && expandDialog && !expandDialog.hidden) {
+    closeExpandDialog();
+  }
 });
 
 // Escape closes the menu even when focus isn't in the label field.

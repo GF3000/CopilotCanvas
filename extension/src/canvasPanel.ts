@@ -97,6 +97,9 @@ export class CanvasPanel {
         action?: unknown;
         nodeId?: unknown;
         refIndex?: unknown;
+        mode?: unknown;
+        depth?: unknown;
+        focus?: unknown;
       }) => {
         if (msg?.type === 'hello') {
           this.ready = true;
@@ -119,6 +122,17 @@ export class CanvasPanel {
           typeof msg.nodeId === 'string'
         ) {
           this.handleExplain(msg.nodeId);
+        } else if (
+          msg?.type === 'node_action' &&
+          msg.action === 'expand' &&
+          typeof msg.nodeId === 'string'
+        ) {
+          this.handleExpand(
+            msg.nodeId,
+            typeof msg.mode === 'string' ? msg.mode : undefined,
+            typeof msg.depth === 'number' ? msg.depth : undefined,
+            typeof msg.focus === 'string' ? msg.focus : undefined,
+          );
         }
       },
       null,
@@ -184,19 +198,55 @@ export class CanvasPanel {
   private handleExplain(nodeId: string): void {
     const label = this.nodes.get(nodeId)?.label;
     const name = label ? `"${label}" (id: ${nodeId})` : `id: ${nodeId}`;
-    const prompt = `Explain the node ${name} on the Canvas for Copilot diagram.`;
+    this.sendToTerminal(
+      `Explain the node ${name} on the Canvas for Copilot diagram.`,
+    );
+  }
 
+  /**
+   * "Expand node" context-menu action: the webview dialog has already collected the
+   * kind of expansion and depth, so build a fully-specified prompt and send it to
+   * the CLI. Copilot calls expand_node with those settings and the canvas
+   * re-renders the new sub-graph in place.
+   */
+  private handleExpand(
+    nodeId: string,
+    mode: string | undefined,
+    depth: number | undefined,
+    focus: string | undefined,
+  ): void {
+    const label = this.nodes.get(nodeId)?.label;
+    const name = label ? `"${label}" (id: ${nodeId})` : `id: ${nodeId}`;
+    const kind =
+      mode === 'annotation'
+        ? 'a brief annotation/note'
+        : mode === 'subgraph'
+          ? 'a full richer sub-graph'
+          : 'a few extra detail nodes';
+    const levels = depth && depth > 0 ? `${depth} level(s) deep` : '1 level deep';
+    const focusPart = focus?.trim() ? ` Focus on: ${focus.trim()}.` : '';
+    this.sendToTerminal(
+      `Expand the node ${name} on the Canvas for Copilot diagram as ${kind}, ${levels}.` +
+        focusPart +
+        ' Use the expand_node tool to add the new nodes in place, connecting them to ' +
+        'this node. Use these settings — no need to ask me.',
+    );
+  }
+
+  /**
+   * Inject a prompt into the active integrated terminal (where Copilot CLI runs)
+   * and submit it. The CLI input treats a trailing newline as a soft line-break, so
+   * type the text then send an explicit carriage return shortly after to run it.
+   */
+  private sendToTerminal(prompt: string): void {
     const terminal = vscode.window.activeTerminal ?? vscode.window.terminals[0];
     if (!terminal) {
       void vscode.window.showWarningMessage(
-        'Canvas for Copilot: open a Copilot CLI terminal first, then click "Explain node" again to see the explanation there.',
+        'Canvas for Copilot: open a Copilot CLI terminal first, then try the action again to see the result there.',
       );
       return;
     }
     terminal.show();
-    // Copilot CLI's input box treats a trailing newline as a soft line-break, not
-    // a submit, so type the prompt then send an explicit carriage return (Enter)
-    // a moment later to actually run it.
     terminal.sendText(prompt, false);
     setTimeout(() => terminal.sendText('\r', false), 150);
   }
