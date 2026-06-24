@@ -75,6 +75,13 @@ The two prototype tools (both over the local MCP endpoint):
 - **`create_diagram`** — Copilot generates a graph (title + nodes + edges) from your
   request and renders it; opens the canvas tab if it isn't already open.
 
+There are also **specialised diagram tools/skills** built on `create_diagram` — one
+per diagram type, each with its own notation (dependency, flowchart, state machine,
+class, ER). Invoke them in natural language or with a `/` slash command
+(`/diagram-flowchart …`, or `/diagram …` to auto-detect the type). After first run,
+`/skills reload` in the CLI picks them up. See **`docs/DIAGRAM_TOOLS.md`** for the
+full list, per-type input, notation, and how to test each one.
+
 > Quick check without the CLI: run **Ctrl/Cmd+Shift+P → "Canvas for Copilot: Open
 > Canvas"** — it opens the example diagram directly.
 

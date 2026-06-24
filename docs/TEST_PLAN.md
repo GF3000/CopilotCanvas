@@ -7,7 +7,8 @@
 ## Test strategy
 
 - **Unit tests:** protocol type guards (`/shared`), graph-model → Cytoscape render
-  helper, message relay logic in the server.
+  helper, the typed diagram-type builders (`server/src/diagramTypes.test.ts`), and
+  message relay logic in the server.
 - **Integration tests:** drive the MCP server, simulate the MCP Apps channel, and
   assert message round-trips (`diagram` out, `node_selected`/`interaction` in).
 - **Manual / demo checks:** the end-to-end demo script below.
@@ -38,6 +39,12 @@ npm run build   # canvas bundle must build
 | TC-11 | FR-7 | Expand | Select node → "expand this node" | Subnodes/detail appear in place |
 | TC-12 | FR-9 | Modify | Select entrypoint → "add a new entrypoint to do X" | Clarifying questions asked, code edited, diagram updated |
 | TC-13 | NFR-3 | Second host (stretch) | Render the app in a second MCP host | Same diagram renders and accepts interactions, or limitation documented |
+| TC-14 | FR-11 | Dependency + cycles | Call `diagram_dependency` with a cyclic graph (A→B→A) | Directed dependency diagram renders; cycle renders without error |
+| TC-15 | FR-11 | Flowchart notation | Call `diagram_flowchart` with start/step/decision/io/end + yes/no branches | Terminator/process/diamond/parallelogram shapes; decision branches labeled |
+| TC-16 | FR-11 | State machine | Call `diagram_state_machine` with an initial + final state and events | Initial/final marked distinctly; open-arrow transitions labeled with events |
+| TC-17 | FR-11 | Class relations | Call `diagram_class` with inheritance/realization/aggregation/composition | Sharp class boxes; each relation drawn with its distinct UML arrowhead/line-style |
+| TC-18 | FR-11 | ER cardinality | Call `diagram_er` with 1:N and M:N relationships | Entity table boxes; relationship lines labeled with cardinality |
+| TC-19 | FR-11 | Bad edges dropped | Any typed tool with an edge referencing an unknown node id | Edge dropped + reported in the tool result; canvas not blank |
 
 ## Demo script (end-to-end)
 

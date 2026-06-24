@@ -104,6 +104,27 @@ evolve together.
 
 **Priority:** Could · **Depends on:** FR-9
 
+### FR-11: Typed diagram skills (dependency, flowchart, state machine, class, ER)
+**User story:** As a developer, I want to ask for a specific kind of diagram (or
+invoke it with a `/` command) and have it rendered with that type's conventional
+notation, so the diagram reads correctly for its domain.
+
+**Acceptance criteria:**
+- [ ] Dedicated MCP tools exist — `diagram_dependency`, `diagram_flowchart`,
+      `diagram_state_machine`, `diagram_class`, `diagram_er` — each built on
+      `create_diagram` (KAN-19), with a tuned description so the matching
+      natural-language request routes to it.
+- [ ] Each is also a Copilot CLI **skill** invocable with `/` (`/diagram-<type>`),
+      plus a `/diagram` dispatcher that auto-detects the type from the request.
+- [ ] Each type renders with its conventional **notation** (shapes + arrowheads) on
+      the shared palette: flowchart terminator/process/decision/io shapes; state
+      machine initial/final + open-arrow transitions; UML class boxes with distinct
+      relation arrowheads; ER table boxes with cardinality-labeled lines.
+- [ ] Edges referencing unknown node ids are dropped + reported (never blank the
+      canvas); cycles render without error.
+
+**Priority:** Should · **Depends on:** FR-1 (maps to KAN-20..24)
+
 ## Non-functional requirements
 
 | ID | Category | Requirement |
@@ -117,6 +138,6 @@ evolve together.
 ## Prioritization (MoSCoW)
 
 - **Must have:** FR-1..FR-7 (Goal 1 complete + core of Goal 2), FR-9
-- **Should have:** FR-8
+- **Should have:** FR-8, FR-11 (typed diagram skills)
 - **Could have:** FR-10, multi-host validation
 - **Won't have (this hackathon):** persistence, cloud hosting, non-graph formats

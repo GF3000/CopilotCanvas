@@ -25,17 +25,18 @@ classes/model they want, or infer it from the repo.
    - `classes` — each `{ id, label, attributes?, methods? }`; attributes/methods are
      string lines, e.g. `"+ id: string"`, `"+ save(): void"`.
    - `relations` — each `{ from, to, type?, label? }` where `type` is `inheritance`,
-     `association`, `aggregation`, or `composition`. For **inheritance**, `from` is the
-     subclass and `to` the superclass. For **aggregation/composition**, `from` is the
-     whole/owner and `to` the part.
+     `realization`, `association`, `dependency`, `aggregation`, or `composition`. For
+     **inheritance/realization**, `from` is the subclass/implementer and `to` the
+     superclass/interface. For **aggregation/composition**, `from` is the whole/owner
+     and `to` the part.
 3. Keep it focused (~4–12 classes).
 
 ## Note (limitation)
 
 Cytoscape has no UML *compartments*, so attributes/methods are folded into the node
 label (separated by a rule) rather than shown in separate sections. The relation kind
-is fully distinguishable via distinct arrowheads (▷ inheritance, ◇ aggregation,
-◆ composition, → association).
+is fully distinguishable via distinct arrowheads/line-styles (▷ inheritance, dashed ▷
+realization, → association, dashed → dependency, ◇ aggregation, ◆ composition).
 
 ## Rules
 

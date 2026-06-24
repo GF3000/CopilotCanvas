@@ -8,27 +8,44 @@ import type { DiagramInput, DiagramInputNode, DiagramInputEdge } from './diagram
 
 /* ─── Dependency (KAN-20) ───────────────────────────────────────────────────
  * Modules / packages / services and their "depends on" relationships. Cycles are
- * fine — the layout (dagre) and `buildDiagram` handle them without error. */
+ * fine — the layout (dagre) and `buildDiagram` handle them without error.
+ *
+ * `scope` is the granularity the graph is drawn at when the prompt asks for a
+ * particular level (e.g. "the package-level deps", "a call graph"). It only sets the
+ * default node `kind` (per-node `kind` still wins); the model picks the actual nodes
+ * at that level. */
+
+export type DependencyScope = 'package' | 'module' | 'function' | 'service';
 
 export interface DependencyInput {
   title: string;
+  /** Granularity to draw at; defaults to `module`. Honoured when the prompt names a level. */
+  scope?: DependencyScope;
   nodes: {
     id: string;
     label: string;
-    /** Defaults to `module`. */
+    /** Defaults from `scope` (service → `service`, else `module`). */
     kind?: 'module' | 'service' | 'external';
   }[];
   /** A depends on B: `from` requires/uses `to`. */
   dependencies: { from: string; to: string; label?: string }[];
 }
 
+/** Default node kind for a dependency scope (only `service` scope implies `service`). */
+export function kindForScope(
+  scope: DependencyScope | undefined,
+): 'module' | 'service' {
+  return scope === 'service' ? 'service' : 'module';
+}
+
 export function buildDependencyDiagram(input: DependencyInput): DiagramInput {
+  const fallbackKind = kindForScope(input.scope);
   return {
     title: input.title,
     nodes: input.nodes.map<DiagramInputNode>((n) => ({
       id: n.id,
       label: n.label,
-      kind: n.kind ?? 'module',
+      kind: n.kind ?? fallbackKind,
     })),
     edges: input.dependencies.map<DiagramInputEdge>((d) => ({
       source: d.from,
@@ -49,7 +66,7 @@ export interface FlowchartInput {
     id: string;
     label: string;
     /** Defaults to `step`. */
-    type?: 'start' | 'step' | 'decision' | 'end';
+    type?: 'start' | 'step' | 'decision' | 'io' | 'end';
   }[];
   /** Directed flow; `label` carries a decision branch ("yes"/"no") when relevant. */
   edges: { from: string; to: string; label?: string }[];
@@ -61,15 +78,21 @@ export function buildFlowchartDiagram(input: FlowchartInput): DiagramInput {
     nodes: input.nodes.map<DiagramInputNode>((n) => {
       const type = n.type ?? 'step';
       switch (type) {
+        // Terminator (rounded "pill") — start is an entry point, end is terminal.
         case 'start':
-          return { id: n.id, label: n.label, kind: 'entrypoint' };
+          return { id: n.id, label: n.label, kind: 'entrypoint', classes: ['fc-terminator'] };
+        case 'end':
+          return { id: n.id, label: n.label, classes: ['fc-terminator', 'fc-end'] };
+        // Decision — diamond.
         case 'decision':
           return { id: n.id, label: n.label, classes: ['decision'] };
-        case 'end':
-          return { id: n.id, label: n.label, classes: ['success'] };
+        // Input/output — parallelogram.
+        case 'io':
+          return { id: n.id, label: n.label, kind: 'service', classes: ['fc-io'] };
+        // Process step — sharp rectangle.
         case 'step':
         default:
-          return { id: n.id, label: n.label, kind: 'service' };
+          return { id: n.id, label: n.label, kind: 'service', classes: ['fc-process'] };
       }
     }),
     edges: input.edges.map<DiagramInputEdge>((e) => ({
@@ -111,6 +134,8 @@ export function buildStateMachineDiagram(input: StateMachineInput): DiagramInput
       source: t.from,
       target: t.to,
       label: t.event,
+      // UML state transitions use an open (stick) arrowhead.
+      classes: ['sm-transition'],
     })),
   };
 }
@@ -118,12 +143,15 @@ export function buildStateMachineDiagram(input: StateMachineInput): DiagramInput
 /* ─── Class diagram (KAN-23) ─────────────────────────────────────────────────
  * Classes and their relations. UML compartments aren't available in Cytoscape, so
  * attributes/methods are folded into the node label; the relation kind is carried
- * as an edge class so the canvas can draw distinct arrowheads (▷ inheritance,
- * ◇ aggregation, ◆ composition, → association). See docs/DIAGRAM_TOOLS.md. */
+ * as an edge class so the canvas can draw distinct arrowheads (▷ inheritance/
+ * realization, ◇ aggregation, ◆ composition, → association/dependency; dashed for
+ * realization & dependency). See docs/DIAGRAM_TOOLS.md. */
 
 export type ClassRelationType =
   | 'inheritance'
+  | 'realization'
   | 'association'
+  | 'dependency'
   | 'aggregation'
   | 'composition';
 
@@ -173,6 +201,8 @@ export function buildClassDiagram(input: ClassDiagramInput): DiagramInput {
       id: c.id,
       label: classLabel(c.label, c.attributes, c.methods),
       kind: 'module',
+      // UML class box — a sharp-cornered rectangle.
+      classes: ['uml-class'],
     })),
     edges: input.relations.map<DiagramInputEdge>((r) => ({
       source: r.from,
@@ -222,12 +252,15 @@ export function buildErDiagram(input: ErDiagramInput): DiagramInput {
       const label = attrs.length
         ? [e.label, '─────', ...attrs].join('\n')
         : e.label;
-      return { id: e.id, label, kind: 'datastore' };
+      // ER entity — a sharp-cornered "table" box.
+      return { id: e.id, label, kind: 'datastore', classes: ['er-entity'] };
     }),
     edges: input.relationships.map<DiagramInputEdge>((r) => ({
       source: r.from,
       target: r.to,
       label: erEdgeLabel(r.label, r.cardinality),
+      // ER relationship — a plain line; cardinality is carried in the label.
+      classes: ['er-rel'],
     })),
   };
 }

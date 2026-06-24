@@ -596,6 +596,14 @@ function registerDiagramTool(server: McpServer, deps: CanvasServerDeps): void {
 
 const DEPENDENCY_SCHEMA = {
   title: z.string().describe('Short title, e.g. "Service dependencies".'),
+  scope: z
+    .enum(['package', 'module', 'function', 'service'])
+    .optional()
+    .describe(
+      'Granularity to draw at when the prompt names a level (default "module"): ' +
+        'package (packages/workspaces), module (files/modules), function (a call ' +
+        'graph), service (runtime services). Sets the default node kind.',
+    ),
   nodes: z
     .array(
       z.object({
@@ -604,10 +612,10 @@ const DEPENDENCY_SCHEMA = {
         kind: z
           .enum(['module', 'service', 'external'])
           .optional()
-          .describe('Semantic kind for styling (defaults to "module").'),
+          .describe('Semantic kind for styling (defaults from `scope`).'),
       }),
     )
-    .describe('The modules / packages / services (about 4-12).'),
+    .describe('The packages / modules / functions / services (about 4-12).'),
   dependencies: z
     .array(
       z.object({
@@ -627,10 +635,10 @@ const FLOWCHART_SCHEMA = {
         id: z.string().describe('Stable unique id, e.g. "validate".'),
         label: z.string().describe('Short display label.'),
         type: z
-          .enum(['start', 'step', 'decision', 'end'])
+          .enum(['start', 'step', 'decision', 'io', 'end'])
           .optional()
           .describe(
-            'Node type (defaults to "step"): start = entry, decision = branch (diamond), end = terminal.',
+            'Node type (defaults to "step"): start/end = terminator (pill), step = process (rectangle), decision = branch (diamond), io = input/output (parallelogram).',
           ),
       }),
     )
@@ -707,9 +715,18 @@ const CLASS_SCHEMA = {
           .describe('Subclass (inheritance) or whole/owner (aggregation/composition).'),
         to: z.string().describe('Superclass (inheritance) or part/associate.'),
         type: z
-          .enum(['inheritance', 'association', 'aggregation', 'composition'])
+          .enum([
+            'inheritance',
+            'realization',
+            'association',
+            'dependency',
+            'aggregation',
+            'composition',
+          ])
           .optional()
-          .describe('Relation type (defaults to "association"); sets the arrowhead.'),
+          .describe(
+            'Relation type (defaults to "association"); sets the arrowhead — inheritance/realization use a hollow triangle (realization dashed), aggregation/composition a diamond, dependency a dashed open arrow.',
+          ),
         label: z.string().optional().describe('Optional relation label (e.g. role/multiplicity).'),
       }),
     )
@@ -799,10 +816,10 @@ function registerTypedDiagramTools(
         inputSchema: DEPENDENCY_SCHEMA,
         annotations: { readOnlyHint: true, openWorldHint: false },
       },
-      async ({ title, nodes, dependencies }) =>
+      async ({ title, nodes, dependencies, scope }) =>
         renderTypedDiagram(
           deps,
-          buildDependencyDiagram({ title, nodes, dependencies }),
+          buildDependencyDiagram({ title, nodes, dependencies, scope }),
           'dependency diagram',
           'Cannot create a dependency diagram with no nodes — provide at least one module/service.',
         ),

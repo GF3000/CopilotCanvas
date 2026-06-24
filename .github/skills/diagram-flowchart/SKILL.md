@@ -23,7 +23,8 @@ what process they want charted.
 2. Call the **`diagram_flowchart`** MCP tool (Canvas for Copilot) with:
    - `title` — a short title, e.g. "Request handling".
    - `nodes` — each `{ id, label, type? }`; `type` is `start` (entry), `step`
-     (default), `decision` (renders as a diamond), or `end` (terminal).
+     (default, process rectangle), `decision` (renders as a diamond), `io`
+     (input/output parallelogram), or `end` (terminator).
    - `edges` — each `{ from, to, label? }`; **label the edges out of a `decision`**
      with the branch ("yes"/"no").
 3. Keep it focused (~4–12 nodes) and top-down readable.

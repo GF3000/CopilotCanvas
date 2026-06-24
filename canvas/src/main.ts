@@ -320,7 +320,40 @@ function buildStyle(theme: Theme): cytoscape.StylesheetStyle[] {
       selector: 'edge.warning',
       style: ext({ 'line-fill': 'solid', 'line-color': '#f59e0b', 'target-arrow-color': '#f59e0b' }),
     },
-    // Flowchart decision (KAN-21) — a diamond so branch points read as decisions.
+
+    /* ── Per-type diagram notation (KAN-20..24) ──────────────────────────────
+     * Each diagram type uses its conventional shapes/arrowheads, but stays on the
+     * shared violet palette + fonts so the look is cohesive. Node-shape classes
+     * override the base `round-rectangle`; relation classes override the base edge
+     * arrowhead. */
+
+    // Flowchart (KAN-21) ----------------------------------------------------
+    // Terminator (start/end) — a rounded "pill".
+    {
+      selector: 'node.fc-terminator',
+      style: ext({ shape: 'round-rectangle', 'corner-radius': '999px' }),
+    },
+    // End terminator — emerald fill signalling completion (distinct from the
+    // `success` status class so it never pollutes the legend).
+    {
+      selector: 'node.fc-end',
+      style: ext({
+        'background-fill': 'solid',
+        'background-color': '#059669',
+        'border-color': '#064e3b',
+      }),
+    },
+    // Process step — a sharp-cornered rectangle.
+    {
+      selector: 'node.fc-process',
+      style: ext({ shape: 'rectangle', 'corner-radius': '2px' }),
+    },
+    // Input / output — a parallelogram.
+    {
+      selector: 'node.fc-io',
+      style: ext({ shape: 'rhomboid' }),
+    },
+    // Decision — a diamond so branch points read as decisions.
     {
       selector: 'node.decision',
       style: ext({
@@ -332,7 +365,9 @@ function buildStyle(theme: Theme): cytoscape.StylesheetStyle[] {
         padding: '20px',
       }),
     },
-    // State machine initial state (KAN-22) — a bright emerald ring marks the start.
+
+    // State machine (KAN-22) ------------------------------------------------
+    // Initial state — a bright emerald fill marks the start.
     {
       selector: 'node.initial',
       style: ext({
@@ -343,7 +378,7 @@ function buildStyle(theme: Theme): cytoscape.StylesheetStyle[] {
         color: '#04231a',
       }),
     },
-    // State machine final/accepting state (KAN-22) — a thick double border.
+    // Final / accepting state — a thick double border (bullseye-like).
     {
       selector: 'node.final',
       style: ext({
@@ -352,9 +387,20 @@ function buildStyle(theme: Theme): cytoscape.StylesheetStyle[] {
         'border-color': '#f6f4ff',
       }),
     },
-    // UML class-diagram relations (KAN-23) — distinct arrowheads so inheritance vs
-    // association vs aggregation vs composition are visually distinguishable.
-    // Inheritance: hollow triangle pointing at the superclass (`to`).
+    // Transition — UML uses an open (stick) arrowhead, not a filled triangle.
+    {
+      selector: 'edge.sm-transition',
+      style: ext({ 'target-arrow-shape': 'vee' }),
+    },
+
+    // Class diagram (KAN-23) ------------------------------------------------
+    // Class box — a sharp-cornered rectangle. UML relations all share one neutral
+    // violet line and differ only by arrowhead + line-style, the UML convention.
+    {
+      selector: 'node.uml-class',
+      style: ext({ shape: 'rectangle', 'corner-radius': '3px' }),
+    },
+    // Generalization (inheritance): solid line, hollow triangle at the superclass.
     {
       selector: 'edge.inheritance',
       style: ext({
@@ -366,14 +412,38 @@ function buildStyle(theme: Theme): cytoscape.StylesheetStyle[] {
         'arrow-scale': 1.4,
       }),
     },
-    // Association: a plain directional arrow (vee).
+    // Realization (implements): dashed line, hollow triangle at the interface.
+    {
+      selector: 'edge.realization',
+      style: ext({
+        'line-fill': 'solid',
+        'line-color': '#a78bfa',
+        'line-style': 'dashed',
+        'target-arrow-shape': 'triangle',
+        'target-arrow-fill': 'hollow',
+        'target-arrow-color': '#a78bfa',
+        'arrow-scale': 1.4,
+      }),
+    },
+    // Association: solid line, plain open arrow (vee).
     {
       selector: 'edge.association',
       style: ext({
         'line-fill': 'solid',
-        'line-color': '#cbbdf2',
+        'line-color': '#a78bfa',
         'target-arrow-shape': 'vee',
-        'target-arrow-color': '#cbbdf2',
+        'target-arrow-color': '#a78bfa',
+      }),
+    },
+    // Dependency («use»): dashed line, plain open arrow (vee).
+    {
+      selector: 'edge.dependency',
+      style: ext({
+        'line-fill': 'solid',
+        'line-color': '#a78bfa',
+        'line-style': 'dashed',
+        'target-arrow-shape': 'vee',
+        'target-arrow-color': '#a78bfa',
       }),
     },
     // Aggregation: hollow diamond at the whole/owner (`from` = source end).
@@ -381,10 +451,10 @@ function buildStyle(theme: Theme): cytoscape.StylesheetStyle[] {
       selector: 'edge.aggregation',
       style: ext({
         'line-fill': 'solid',
-        'line-color': '#22d3ee',
+        'line-color': '#a78bfa',
         'source-arrow-shape': 'diamond',
         'source-arrow-fill': 'hollow',
-        'source-arrow-color': '#22d3ee',
+        'source-arrow-color': '#a78bfa',
         'target-arrow-shape': 'none',
         'arrow-scale': 1.3,
       }),
@@ -394,12 +464,28 @@ function buildStyle(theme: Theme): cytoscape.StylesheetStyle[] {
       selector: 'edge.composition',
       style: ext({
         'line-fill': 'solid',
-        'line-color': '#f472b6',
+        'line-color': '#a78bfa',
         'source-arrow-shape': 'diamond',
         'source-arrow-fill': 'filled',
-        'source-arrow-color': '#f472b6',
+        'source-arrow-color': '#a78bfa',
         'target-arrow-shape': 'none',
         'arrow-scale': 1.3,
+      }),
+    },
+
+    // Entity / relationship (KAN-24) ----------------------------------------
+    // Entity — a sharp-cornered "table" box.
+    {
+      selector: 'node.er-entity',
+      style: ext({ shape: 'rectangle', 'corner-radius': '3px' }),
+    },
+    // Relationship — a plain line (no arrowhead); cardinality rides in the label.
+    {
+      selector: 'edge.er-rel',
+      style: ext({
+        'line-fill': 'solid',
+        'line-color': '#22d3ee',
+        'target-arrow-shape': 'none',
       }),
     },
   ];

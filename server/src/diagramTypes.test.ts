@@ -58,10 +58,42 @@ describe('buildDependencyDiagram (KAN-20)', () => {
     expect(edges).toHaveLength(2);
     expect(skippedEdges).toBe(0);
   });
+
+  it('honours scope: service scope defaults node kind to service, else module', () => {
+    const svc = render(
+      buildDependencyDiagram({
+        title: 'Services',
+        scope: 'service',
+        nodes: [{ id: 'a', label: 'A' }],
+        dependencies: [],
+      }),
+    );
+    expect(svc.node('a')?.data.kind).toBe('service');
+
+    const pkg = render(
+      buildDependencyDiagram({
+        title: 'Packages',
+        scope: 'package',
+        nodes: [{ id: 'a', label: 'A' }],
+        dependencies: [],
+      }),
+    );
+    expect(pkg.node('a')?.data.kind).toBe('module');
+    // per-node kind still wins over the scope default
+    const explicit = render(
+      buildDependencyDiagram({
+        title: 'Mixed',
+        scope: 'service',
+        nodes: [{ id: 'a', label: 'A', kind: 'external' }],
+        dependencies: [],
+      }),
+    );
+    expect(explicit.node('a')?.data.kind).toBe('external');
+  });
 });
 
 describe('buildFlowchartDiagram (KAN-21)', () => {
-  it('maps node types to kinds/classes and keeps decision branch labels', () => {
+  it('maps node types to shape classes and keeps decision branch labels', () => {
     const { node, edges } = render(
       buildFlowchartDiagram({
         title: 'Flow',
@@ -69,6 +101,7 @@ describe('buildFlowchartDiagram (KAN-21)', () => {
           { id: 's', label: 'Start', type: 'start' },
           { id: 'd', label: 'OK?', type: 'decision' },
           { id: 'ok', label: 'Done', type: 'end' },
+          { id: 'io', label: 'Read input', type: 'io' },
           { id: 'step', label: 'Work' },
         ],
         edges: [
@@ -78,17 +111,27 @@ describe('buildFlowchartDiagram (KAN-21)', () => {
         ],
       }),
     );
+    // start: entry-point colour + terminator (pill) shape
     expect(node('s')?.data.kind).toBe('entrypoint');
+    expect(node('s')?.classes).toContain('fc-terminator');
+    // decision: diamond
     expect(node('d')?.classes).toContain('decision');
-    expect(node('ok')?.classes).toContain('success');
-    expect(node('step')?.data.kind).toBe('service'); // default
+    // end: terminator pill, NOT the `success` status class (keeps the legend clean)
+    expect(node('ok')?.classes).toContain('fc-terminator');
+    expect(node('ok')?.classes).toContain('fc-end');
+    expect(node('ok')?.classes ?? '').not.toContain('success');
+    // io: parallelogram
+    expect(node('io')?.classes).toContain('fc-io');
+    // step (default): process rectangle
+    expect(node('step')?.data.kind).toBe('service');
+    expect(node('step')?.classes).toContain('fc-process');
     const yes = edges.find((e) => e.data.target === 'ok');
     expect(yes?.data.label).toBe('yes');
   });
 });
 
 describe('buildStateMachineDiagram (KAN-22)', () => {
-  it('marks initial/final states and labels transitions with events', () => {
+  it('marks initial/final states and labels transitions (open arrowhead) with events', () => {
     const { node, edges } = render(
       buildStateMachineDiagram({
         title: 'Lifecycle',
@@ -102,11 +145,12 @@ describe('buildStateMachineDiagram (KAN-22)', () => {
     expect(node('new')?.classes).toContain('initial');
     expect(node('done')?.classes).toContain('final');
     expect(edges[0].data.label).toBe('complete');
+    expect(edges[0].classes).toContain('sm-transition');
   });
 });
 
 describe('buildClassDiagram (KAN-23)', () => {
-  it('folds attributes/methods into the label and carries relation type as edge class', () => {
+  it('folds attributes/methods into the label, boxes classes, and carries relation type as edge class', () => {
     const { node, edges } = render(
       buildClassDiagram({
         title: 'Model',
@@ -119,6 +163,7 @@ describe('buildClassDiagram (KAN-23)', () => {
     );
     expect(node('animal')?.data.label).toContain('Animal');
     expect(node('animal')?.data.label).toContain('+ speak()');
+    expect(node('animal')?.classes).toContain('uml-class');
     expect(node('dog')?.data.label).toContain('+ breed: string');
     expect(edges[0].classes).toBe('inheritance');
   });
@@ -137,6 +182,25 @@ describe('buildClassDiagram (KAN-23)', () => {
     expect(edges[0].classes).toBe('association');
   });
 
+  it('supports realization and dependency relation types', () => {
+    const { edges } = render(
+      buildClassDiagram({
+        title: 'Model',
+        classes: [
+          { id: 'svc', label: 'Service' },
+          { id: 'iface', label: 'IService' },
+          { id: 'log', label: 'Logger' },
+        ],
+        relations: [
+          { from: 'svc', to: 'iface', type: 'realization' },
+          { from: 'svc', to: 'log', type: 'dependency' },
+        ],
+      }),
+    );
+    expect(edges.find((e) => e.data.target === 'iface')?.classes).toBe('realization');
+    expect(edges.find((e) => e.data.target === 'log')?.classes).toBe('dependency');
+  });
+
   it('classLabel omits empty compartments', () => {
     expect(classLabel('Foo')).toBe('Foo');
     expect(classLabel('Foo', ['+ x'])).toContain('+ x');
@@ -144,7 +208,7 @@ describe('buildClassDiagram (KAN-23)', () => {
 });
 
 describe('buildErDiagram (KAN-24)', () => {
-  it('uses datastore kind and labels relationships with cardinality', () => {
+  it('uses datastore kind, boxes entities, and labels relationships with cardinality', () => {
     const { node, edges } = render(
       buildErDiagram({
         title: 'Sales',
@@ -158,8 +222,10 @@ describe('buildErDiagram (KAN-24)', () => {
       }),
     );
     expect(node('cust')?.data.kind).toBe('datastore');
+    expect(node('cust')?.classes).toContain('er-entity');
     expect(node('cust')?.data.label).toContain('id (PK)');
     expect(edges[0].data.label).toBe('places (1:N)');
+    expect(edges[0].classes).toContain('er-rel');
   });
 
   it('erEdgeLabel combines, falls back, or omits', () => {

@@ -16,14 +16,30 @@ The user's request (what to diagram) follows the `/diagram-dependency` command, 
 `/diagram-dependency the server modules`. If it's empty, ask what they want mapped,
 or infer it from the current repo/selection.
 
+## Scope / level
+
+The request may specify the **scope** (granularity) at which to map dependencies. Honour
+it when present; otherwise pick the level that best fits the request (default: `module`).
+Pass it to the tool as `scope` — one of `package`, `module`, `function`, `service`:
+
+- `package` (a.k.a. workspace) — top-level packages or workspaces depending on each other.
+- `module` (a.k.a. file) — individual source files/modules and their import edges (default).
+- `function` (a.k.a. call) — functions/methods and their call relationships (a call graph).
+- `service` — runtime services/processes and the calls between them.
+
+Keep nodes at a single level — don't mix packages and functions in one diagram unless the
+prompt asks for it. Reflect the chosen scope in the `title` (e.g. "Server call graph").
+
 ## What to do
 
-1. Work out the modules / packages / services involved and their **"depends on"**
-   relationships (analyse the repo if the request refers to this codebase).
+1. Determine the requested **scope** (see above), then work out the items at that level
+   (packages / modules / functions / services) and their **"depends on"** relationships
+   (analyse the repo if the request refers to this codebase).
 2. Call the **`diagram_dependency`** MCP tool (Canvas for Copilot) with:
    - `title` — a short title, e.g. "Server module dependencies".
-   - `nodes` — each `{ id, label, kind? }`; `kind` is `module` (default), `service`,
-     or `external`.
+   - `scope` — the level above, when the prompt names one (sets the default node kind).
+   - `nodes` — each `{ id, label, kind? }`; `kind` is `module`, `service`, or
+     `external` (defaults from `scope`).
    - `dependencies` — each `{ from, to, label? }` meaning **`from` depends on `to`**.
 3. Keep it focused (~4–12 nodes). Cycles are fine — render them as-is.
 
