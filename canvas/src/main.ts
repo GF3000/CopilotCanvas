@@ -10,6 +10,7 @@ import {
   isPatchMessage,
   type CanvasMessage,
   type CyElement,
+  type CyStyle,
   type DiagramMessage,
   type PatchMessage,
 } from '@canvas/shared';
@@ -159,6 +160,65 @@ function buildStyle(theme: Theme): cytoscape.StylesheetStyle[] {
           'line-cap': 'round',
         }),
       },
+    },
+    // Curated style classes the CLI can set per element (KAN-26, option A).
+    {
+      selector: 'node.big',
+      style: { padding: '28px', 'font-size': 16 },
+    },
+    {
+      selector: 'node.small',
+      style: { padding: '9px', 'font-size': 10 },
+    },
+    {
+      selector: '.highlight',
+      style: ext({
+        'border-width': 4,
+        'border-color': '#fde047',
+        'line-color': '#fde047',
+        'target-arrow-color': '#fde047',
+        'line-fill': 'solid',
+      }),
+    },
+    {
+      selector: '.muted',
+      style: { opacity: 0.4 },
+    },
+    {
+      selector: 'node.danger',
+      style: ext({
+        'background-fill': 'solid',
+        'background-color': '#ef4444',
+        'border-color': '#b91c1c',
+      }),
+    },
+    {
+      selector: 'node.success',
+      style: ext({
+        'background-fill': 'solid',
+        'background-color': '#22c55e',
+        'border-color': '#15803d',
+      }),
+    },
+    {
+      selector: 'node.warning',
+      style: ext({
+        'background-fill': 'solid',
+        'background-color': '#f59e0b',
+        'border-color': '#b45309',
+      }),
+    },
+    {
+      selector: 'edge.danger',
+      style: ext({ 'line-fill': 'solid', 'line-color': '#ef4444', 'target-arrow-color': '#ef4444' }),
+    },
+    {
+      selector: 'edge.success',
+      style: ext({ 'line-fill': 'solid', 'line-color': '#22c55e', 'target-arrow-color': '#22c55e' }),
+    },
+    {
+      selector: 'edge.warning',
+      style: ext({ 'line-fill': 'solid', 'line-color': '#f59e0b', 'target-arrow-color': '#f59e0b' }),
     },
   ];
 }
@@ -313,15 +373,20 @@ function handlePatch(msg: PatchMessage): void {
     for (const id of msg.remove) {
       cy.getElementById(id).remove();
     }
-    // Merge data into existing elements in place (preserves position).
+    // Merge data into existing elements in place (preserves position), plus any
+    // classes / inline style (KAN-26).
     for (const element of msg.update) {
       const id = element.data.id;
       if (typeof id !== 'string') continue;
       const target = cy.getElementById(id);
-      if (target.nonempty()) target.data({ ...element.data });
+      if (target.empty()) continue;
+      target.data({ ...element.data });
+      if (element.classes) target.addClass(element.classes);
+      const style = mapStyle(element.style, target.isEdge());
+      if (style) target.style(style as cytoscape.Css.Node);
     }
     if (msg.add.length > 0) {
-      cy.add(msg.add as cytoscape.ElementDefinition[]);
+      cy.add(msg.add.map(toElementDef));
     }
   });
 
@@ -335,9 +400,49 @@ function handlePatch(msg: PatchMessage): void {
   }
 }
 
+// Map the whitelisted inline style subset (KAN-26, option B) to Cytoscape
+// per-element style. Only color / fontSize / size are honoured.
+function mapStyle(
+  style: CyStyle | undefined,
+  isEdge: boolean,
+): Record<string, unknown> | undefined {
+  if (!style) return undefined;
+  const s: Record<string, unknown> = {};
+  if (style.color) {
+    if (isEdge) {
+      s['line-fill'] = 'solid';
+      s['line-color'] = style.color;
+      s['target-arrow-color'] = style.color;
+    } else {
+      s['background-fill'] = 'solid';
+      s['background-color'] = style.color;
+      s['border-color'] = style.color;
+    }
+  }
+  if (typeof style.fontSize === 'number') s['font-size'] = style.fontSize;
+  if (!isEdge && typeof style.size === 'number') s['padding'] = style.size;
+  return Object.keys(s).length > 0 ? s : undefined;
+}
+
+function isEdgeElement(el: CyElement): boolean {
+  return el.data.source !== undefined || el.data.target !== undefined;
+}
+
+// Convert a protocol CyElement to a Cytoscape element definition, carrying
+// classes and the mapped inline style.
+function toElementDef(el: CyElement): cytoscape.ElementDefinition {
+  const def: cytoscape.ElementDefinition = {
+    data: el.data as cytoscape.ElementDefinition['data'],
+  };
+  if (el.classes) def.classes = el.classes;
+  const style = mapStyle(el.style, isEdgeElement(el));
+  if (style) def.style = style as cytoscape.Css.Node;
+  return def;
+}
+
 function render(elements: CyElement[]): void {
   cy.elements().remove();
-  cy.add(elements as cytoscape.ElementDefinition[]);
+  cy.add(elements.map(toElementDef));
   cy.layout(dagreLayout(true)).run();
   cy.fit(undefined, FIT_PADDING);
 }

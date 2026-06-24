@@ -5,7 +5,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { DiagramMessage, PatchMessage } from '@canvas/shared';
 import { getExampleDiagram, nodeCount } from './exampleDiagram';
-import { buildDiagram } from './diagram';
+import { buildDiagram, STYLE_CLASSES } from './diagram';
 import { buildPatch } from './patch';
 
 const NODE_KINDS = [
@@ -15,6 +15,30 @@ const NODE_KINDS = [
   'datastore',
   'external',
 ] as const;
+
+// Curated style classes (canvas defines what each looks like) + a safe inline
+// style subset — the only ways the model can affect presentation (D14).
+const STYLE_CLASSES_SCHEMA = z
+  .array(z.enum(STYLE_CLASSES))
+  .optional()
+  .describe(
+    'Optional style classes: big, small, highlight, muted, danger, success, warning.',
+  );
+
+const STYLE_SCHEMA = z
+  .object({
+    color: z
+      .string()
+      .optional()
+      .describe('CSS colour for the node fill / edge line, e.g. "#ef4444" or "red".'),
+    fontSize: z.number().optional().describe('Label font size in px.'),
+    size: z
+      .number()
+      .optional()
+      .describe('Node size in px (label padding); ignored for edges.'),
+  })
+  .optional()
+  .describe('Optional whitelisted style overrides (color, fontSize, size).');
 
 export interface CanvasServerDeps {
   /** Called when a tool wants to render a (new/replacement) diagram in the canvas. */
@@ -90,11 +114,12 @@ function registerUpdateDiagramTool(
         'keeping the current view (pan, zoom and node positions are preserved — the ' +
         'diagram is NOT regenerated or re-laid-out). Use this — never create_diagram ' +
         '— whenever the user asks to change, tweak, edit, update, relabel, annotate, ' +
-        'add to, or remove from the diagram that is already on screen (e.g. "add the ' +
-        'expected return code to each node", "rename node X", "add a step after Y", ' +
-        '"remove node Z"). To relabel/annotate existing nodes, pass them in `update` ' +
-        'with their existing id and the new full label. Read-only/safe; do NOT ask ' +
-        'for confirmation. If nothing is on the canvas yet, use create_diagram instead.',
+        'restyle, recolour, resize, add to, or remove from the diagram that is ' +
+        'already on screen (e.g. "add the expected return code to each node", "make ' +
+        'the auth node bigger and red", "highlight the API node", "rename node X", ' +
+        '"remove node Z"). To relabel/restyle existing nodes, pass them in `update` ' +
+        'with their existing id and the new label / classes / style. Read-only/safe; ' +
+        'do NOT ask for confirmation. If nothing is on the canvas yet, use create_diagram instead.',
       inputSchema: {
         update: z
           .array(
@@ -107,6 +132,8 @@ function registerUpdateDiagramTool(
                 .optional()
                 .describe('New full label (replaces the current one).'),
               kind: z.enum(NODE_KINDS).optional().describe('New semantic kind.'),
+              classes: STYLE_CLASSES_SCHEMA,
+              style: STYLE_SCHEMA,
             }),
           )
           .optional()
@@ -117,6 +144,8 @@ function registerUpdateDiagramTool(
               id: z.string(),
               label: z.string(),
               kind: z.enum(NODE_KINDS).optional(),
+              classes: STYLE_CLASSES_SCHEMA,
+              style: STYLE_SCHEMA,
             }),
           )
           .optional()
@@ -127,6 +156,8 @@ function registerUpdateDiagramTool(
               source: z.string(),
               target: z.string(),
               label: z.string().optional(),
+              classes: STYLE_CLASSES_SCHEMA,
+              style: STYLE_SCHEMA,
             }),
           )
           .optional()
@@ -200,6 +231,8 @@ const DIAGRAM_INPUT_SCHEMA = {
           .enum(NODE_KINDS)
           .optional()
           .describe('Optional semantic kind, used for styling.'),
+        classes: STYLE_CLASSES_SCHEMA,
+        style: STYLE_SCHEMA,
       }),
     )
     .describe('The graph nodes (about 4-12).'),
@@ -209,6 +242,8 @@ const DIAGRAM_INPUT_SCHEMA = {
         source: z.string().describe('Source node id.'),
         target: z.string().describe('Target node id.'),
         label: z.string().optional().describe('Optional short edge label.'),
+        classes: STYLE_CLASSES_SCHEMA,
+        style: STYLE_SCHEMA,
       }),
     )
     .describe('Directed edges connecting node ids.'),

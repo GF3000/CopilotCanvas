@@ -59,7 +59,8 @@ distinguished by whether `data` carries `source`/`target`.
 | `data.source` | string | Edge only: source node id |
 | `data.target` | string | Edge only: target node id |
 | `data.kind` | string | optional: `module` \| `service` \| `entrypoint` \| ... |
-| `classes` | string | optional: space-separated style classes (e.g. `faded`) |
+| `classes` | string | optional: space-separated style classes (see D14) |
+| `style` | `CyStyle` | optional: whitelisted `{ color?, fontSize?, size? }` (D14) |
 
 ```json
 [
@@ -234,6 +235,16 @@ the user can do X."*
 - **D13 — Helpers:** co-locate in `protocol.ts` a top-level `CanvasMessage` union,
   per-message **type guards** (e.g. `isDiagramMessage`), and an exhaustiveness
   helper (`assertNever`) used by a type-level test.
+- **D14 — CLI-controlled presentation (relaxes D3):** the model may influence
+  per-element presentation two ways, both applied by the canvas over the
+  kind/base styles. The canvas still owns the actual values — no raw Cytoscape
+  style is accepted.
+  - **Style classes** (`CyElement.classes`) — a curated vocabulary the canvas
+    defines: `big`, `small`, `highlight`, `muted`, `danger`, `success`, `warning`.
+  - **Inline style subset** (`CyElement.style: CyStyle`) — whitelisted
+    `{ color?, fontSize?, size? }` only (`color` → node fill / edge line;
+    `fontSize` → label px; `size` → node label-padding px, ignored for edges).
+  - Exposed via the `create_diagram` and `update_diagram` tools (per node/edge).
 
 ## Protocol versioning
 

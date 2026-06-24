@@ -17,8 +17,9 @@ export const PROTOCOL_VERSION = 1 as const;
  * contract decoupled from any Cytoscape version.
  * D5: nodes always carry `data.id`; edges carry `data.source`/`data.target` and
  * may omit an id.
- * D2/D3: no positions (x/y) and no style objects — the canvas auto-layouts and
- * owns the stylesheet. The server sends only semantic hints (`kind`/`classes`).
+ * D2/D3: no positions (x/y); the canvas auto-layouts and owns the base stylesheet.
+ * The server sends semantic hints (`kind`/`classes`) and may set a small whitelisted
+ * `style` subset (D3 relaxed by D14) — never raw Cytoscape style objects.
  */
 export interface CyElement {
   data: {
@@ -34,6 +35,21 @@ export interface CyElement {
   };
   /** Space-separated style classes resolved by the canvas stylesheet (D3). */
   classes?: string;
+  /** Whitelisted per-element style overrides applied over kind/class defaults (D14). */
+  style?: CyStyle;
+}
+
+/**
+ * Safe, whitelisted style subset the model may set per element (D14). Applied by
+ * the canvas over the kind/class defaults. NOT raw Cytoscape style — only these.
+ */
+export interface CyStyle {
+  /** CSS colour (node fill / edge line). */
+  color?: string;
+  /** Label font size in px. */
+  fontSize?: number;
+  /** Node size in px (label padding); ignored for edges. */
+  size?: number;
 }
 
 /** Semantic node category — drives canvas styling, not layout. */
