@@ -86,13 +86,13 @@ export interface CanvasServerDeps {
    * Open a node's linked code in the editor (defaults to the selection).
    * Returns whether it opened, and why not if it didn't.
    */
-  openNodeCode: (id?: string) => {
+  openNodeCode: (id?: string) => Promise<{
     opened: boolean;
     reason?: 'no-canvas' | 'no-node' | 'not-linked' | 'open-failed';
     nodeId?: string;
     path?: string;
     line?: number;
-  };
+  }>;
 }
 
 /** Build a fresh McpServer with the Canvas tools registered. */
@@ -302,45 +302,58 @@ export function buildCanvasMcpServer(deps: CanvasServerDeps): McpServer {
     },
   );
 
-  server.registerTool(
+  const OPEN_CODE_NAMES = [
     'open_node_code',
-    {
-      title: 'Open a node\u2019s linked code in the editor',
-      description:
-        'Open the code linked to a node in the VS Code editor and jump to the line ' +
-        '(defaults to the currently selected node). Call this when the user asks to ' +
-        'see / show / open / "jump to" the code for a node or the selection (e.g. ' +
-        '"show me the code for this", "open this node\u2019s code"). If the node ' +
-        'isn\u2019t linked to any code, say so — do not guess.',
-      inputSchema: {
-        nodeId: z
-          .string()
-          .optional()
-          .describe('Node id; omit to use the current selection.'),
+    'open_code',
+    'show_code',
+    'jump_to_code',
+    'goto_code',
+  ] as const;
+  for (const name of OPEN_CODE_NAMES) {
+    const primary = name === 'open_node_code';
+    server.registerTool(
+      name,
+      {
+        title: 'Open a node\u2019s linked code in the editor',
+        description:
+          (primary ? '' : '(alias of open_node_code) ') +
+          'Open the code linked to a node in the VS Code editor and jump straight to ' +
+          'the line (defaults to the currently selected node). ALWAYS use this — do ' +
+          'not just print the path — whenever the user asks to see / show / open / ' +
+          'view / "jump to" / "go to" / "take me to" the code, source, implementation, ' +
+          'or lines of code for a node or the selection (e.g. "show me the code for ' +
+          'this", "open this node\u2019s code", "jump to the source"). If the node ' +
+          'isn\u2019t linked to any code, say so plainly — do not guess a location.',
+        inputSchema: {
+          nodeId: z
+            .string()
+            .optional()
+            .describe('Node id; omit to use the current selection.'),
+        },
+        annotations: { readOnlyHint: true, openWorldHint: false },
       },
-      annotations: { readOnlyHint: true, openWorldHint: false },
-    },
-    ({ nodeId }) => {
-      const r = deps.openNodeCode(nodeId);
-      if (r.opened) {
-        const at = r.line ? `${r.path}:${r.line}` : r.path;
-        return {
-          content: [
-            { type: 'text', text: `Opened ${at} in the editor for node "${r.nodeId}".` },
-          ],
-        };
-      }
-      const reason =
-        r.reason === 'not-linked'
-          ? `Node "${r.nodeId}" isn\u2019t linked to any code yet. Link it first with link_node_to_code, or tell the user it has no code reference.`
-          : r.reason === 'no-node'
-            ? 'No node is selected. Ask the user to click the node whose code they want.'
-            : r.reason === 'no-canvas'
-              ? 'No diagram is open on the canvas.'
-              : 'Could not open the linked file (it may not exist at that path).';
-      return { content: [{ type: 'text', text: reason }] };
-    },
-  );
+      async ({ nodeId }) => {
+        const r = await deps.openNodeCode(nodeId);
+        if (r.opened) {
+          const at = r.line ? `${r.path}:${r.line}` : r.path;
+          return {
+            content: [
+              { type: 'text', text: `Opened ${at} in the editor for node "${r.nodeId}".` },
+            ],
+          };
+        }
+        const reason =
+          r.reason === 'not-linked'
+            ? `Node "${r.nodeId}" isn\u2019t linked to any code yet. Link it first with link_node_to_code, or tell the user it has no code reference.`
+            : r.reason === 'no-node'
+              ? 'No node is selected. Ask the user to click the node whose code they want.'
+              : r.reason === 'no-canvas'
+                ? 'No diagram is open on the canvas.'
+                : 'Could not open the linked file (it may not exist at that path).';
+        return { isError: true, content: [{ type: 'text', text: reason }] };
+      },
+    );
+  }
 
   return server;
 }

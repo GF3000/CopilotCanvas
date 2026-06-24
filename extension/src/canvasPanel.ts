@@ -183,13 +183,13 @@ export class CanvasPanel {
   }
 
   /** Open a node's linked code in the editor (defaults to the selection). */
-  static openNodeCode(id?: string): {
+  static async openNodeCode(id?: string): Promise<{
     opened: boolean;
     reason?: 'no-canvas' | 'no-node' | 'not-linked' | 'open-failed';
     nodeId?: string;
     path?: string;
     line?: number;
-  } {
+  }> {
     const panel = CanvasPanel.current;
     if (!panel) return { opened: false, reason: 'no-canvas' };
     const nodeId = id ?? panel.selection.find((s) => panel.nodes.has(s));
@@ -204,36 +204,31 @@ export class CanvasPanel {
         : vscode.Uri.file(ref.path);
     const line = ref.range?.startLine;
 
-    void (async () => {
-      try {
-        const doc = await vscode.workspace.openTextDocument(uri);
-        const editor = await vscode.window.showTextDocument(doc, {
-          viewColumn: vscode.ViewColumn.One,
-          preview: false,
-        });
-        if (ref.range) {
-          const start = new vscode.Position(
-            Math.max(0, ref.range.startLine - 1),
-            0,
-          );
-          const end = new vscode.Position(
-            Math.max(0, (ref.range.endLine ?? ref.range.startLine) - 1),
-            0,
-          );
-          editor.selection = new vscode.Selection(start, end);
-          editor.revealRange(
-            new vscode.Range(start, end),
-            vscode.TextEditorRevealType.InCenter,
-          );
-        }
-      } catch {
-        void vscode.window.showErrorMessage(
-          `Canvas for Copilot: couldn't open ${ref.path}`,
+    try {
+      const doc = await vscode.workspace.openTextDocument(uri);
+      const editor = await vscode.window.showTextDocument(doc, {
+        viewColumn: vscode.ViewColumn.One,
+        preview: false,
+      });
+      if (ref.range) {
+        const start = new vscode.Position(
+          Math.max(0, ref.range.startLine - 1),
+          0,
+        );
+        const end = new vscode.Position(
+          Math.max(0, (ref.range.endLine ?? ref.range.startLine) - 1),
+          0,
+        );
+        editor.selection = new vscode.Selection(start, end);
+        editor.revealRange(
+          new vscode.Range(start, end),
+          vscode.TextEditorRevealType.InCenter,
         );
       }
-    })();
-
-    return { opened: true, nodeId, path: ref.path, line };
+      return { opened: true, nodeId, path: ref.path, line };
+    } catch {
+      return { opened: false, reason: 'open-failed', nodeId, path: ref.path };
+    }
   }
 
   private labelOf(id: string): string | undefined {
