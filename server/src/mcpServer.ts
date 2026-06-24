@@ -143,6 +143,8 @@ export function buildCanvasMcpServer(deps: CanvasServerDeps): McpServer {
 
   registerUpdateDiagramTool(server, deps);
 
+  registerExpandNodeTool(server, deps);
+
   server.registerTool(
     'get_selection',
     {
@@ -468,6 +470,138 @@ function registerUpdateDiagramTool(
           {
             type: 'text',
             text: `Edited the diagram in place (view preserved): ${counts.updated} updated, ${counts.added} added, ${counts.removed} removed.`,
+          },
+        ],
+      };
+    },
+  );
+}
+
+function registerExpandNodeTool(
+  server: McpServer,
+  deps: CanvasServerDeps,
+): void {
+  server.registerTool(
+    'expand_node',
+    {
+      title: 'Expand a node into a richer sub-graph (in place)',
+      description:
+        'Expand / drill into / "show more detail for" a node on the Canvas for ' +
+        'Copilot canvas: add a sub-graph of child nodes around it and re-render in ' +
+        'place (the current pan/zoom is preserved — the diagram is not regenerated). ' +
+        'Use this whenever the user asks to expand, drill into, break down, unfold, ' +
+        'or "show more detail / internals / children" for a node or the selection. ' +
+        'IMPORTANT — clarify scope FIRST: unless the kind and depth are already ' +
+        'specified in the request, ASK the user what KIND of expansion they want — a ' +
+        'brief annotation/note, a few extra detail nodes, or a full richer sub-graph ' +
+        '— and HOW DEEP (how many levels). Only once you know the kind + depth, ' +
+        'generate the sub-graph and call this tool. Make sure you know the parent ' +
+        'node id first (call get_selection if the user said "this node"). Provide the ' +
+        'new child nodes in addNodes and the edges connecting the parent to them (and ' +
+        'among them) in addEdges. For an "annotation", add a single kind:"note" node ' +
+        'joined by an edge with the "annotation" class. Keep each level focused ' +
+        '(roughly 2-6 new nodes per level).',
+      inputSchema: {
+        parentId: z
+          .string()
+          .optional()
+          .describe('Id of the node to expand; omit to use the current selection.'),
+        mode: z
+          .enum(['annotation', 'detail', 'subgraph'])
+          .optional()
+          .describe(
+            'Kind of expansion: "annotation" (a small note), "detail" (a few child nodes), or "subgraph" (a full richer sub-graph).',
+          ),
+        depth: z
+          .number()
+          .optional()
+          .describe('How many levels deep to expand (e.g. 1-3).'),
+        addNodes: z
+          .array(
+            z.object({
+              id: z.string(),
+              label: z.string(),
+              kind: z.enum(NODE_KINDS).optional(),
+              classes: STYLE_CLASSES_SCHEMA,
+              style: STYLE_SCHEMA,
+            }),
+          )
+          .optional()
+          .describe('New child nodes to add around the parent.'),
+        addEdges: z
+          .array(
+            z.object({
+              source: z.string(),
+              target: z.string(),
+              label: z.string().optional(),
+              classes: STYLE_CLASSES_SCHEMA,
+              style: STYLE_SCHEMA,
+            }),
+          )
+          .optional()
+          .describe(
+            'Edges connecting the parent to the new nodes (and among them).',
+          ),
+      },
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    async ({ parentId, mode, depth, addNodes, addEdges }) => {
+      const ctx = deps.getNodeContext(parentId);
+      if (!ctx) {
+        return {
+          isError: true,
+          content: [
+            {
+              type: 'text',
+              text: parentId
+                ? `No node "${parentId}" is on the canvas to expand.`
+                : 'No node is selected to expand. Ask the user to click the node they want expanded, or name it.',
+            },
+          ],
+        };
+      }
+
+      // No sub-graph yet → guide the model to settle scope with the user first.
+      if (!addNodes?.length) {
+        return {
+          isError: true,
+          content: [
+            {
+              type: 'text',
+              text:
+                `Ready to expand "${ctx.label ?? ctx.id}" (id: ${ctx.id}). First decide WITH ` +
+                'THE USER the kind of expansion (annotation / detail / subgraph) and how many ' +
+                'levels deep, then call expand_node again with addNodes (the new child nodes) ' +
+                'and addEdges connecting them to this node.',
+            },
+          ],
+        };
+      }
+
+      const { patch, counts } = buildPatch({ addNodes, addEdges });
+      const applied = await deps.onPatchDiagram(patch);
+      if (!applied) {
+        return {
+          isError: true,
+          content: [
+            {
+              type: 'text',
+              text: 'No diagram is open on the canvas to expand — use create_diagram first.',
+            },
+          ],
+        };
+      }
+
+      const how = [mode, depth ? `depth ${depth}` : undefined]
+        .filter(Boolean)
+        .join(', ');
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Expanded "${ctx.label ?? ctx.id}"${
+              how ? ` (${how})` : ''
+            } in place: added ${counts.added} element(s).`,
           },
         ],
       };
