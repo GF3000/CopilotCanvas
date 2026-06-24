@@ -23,6 +23,32 @@ identically for every type.
 > in place if it's open. Edges that reference unknown node ids are dropped and
 > reported (they never blank the canvas).
 
+## Invoking with `/` (Copilot CLI slash-command skills)
+
+Each diagram type is **also** exposed as a Copilot CLI **skill** so you can invoke it
+explicitly with a `/` slash command (instead of relying on Copilot to pick the tool
+from a free-text request). The skills live in `.github/skills/` (repo-shared) and are
+marked `user-invocable: true`, so they appear under `/`:
+
+| Slash command | Renders | MCP tool it calls |
+|---------------|---------|-------------------|
+| `/diagram-dependency <what>` | dependency / architecture graph | `diagram_dependency` |
+| `/diagram-flowchart <what>` | flowchart | `diagram_flowchart` |
+| `/diagram-state-machine <what>` | state machine | `diagram_state_machine` |
+| `/diagram-class <what>` | UML class diagram | `diagram_class` |
+| `/diagram-er <what>` | entity/relationship diagram | `diagram_er` |
+
+Example: `/diagram-state-machine an order: new → paid → shipped → delivered`.
+
+Each skill is a directory with a `SKILL.md` (YAML frontmatter `name` + `description`
++ `user-invocable: true`, then a prompt body). The body tells Copilot how to build a
+well-formed graph for that type and to render it through the matching MCP tool. After
+adding or editing a skill, run `/skills reload` in the CLI (or `/skills list` to
+confirm it loaded). Skills are also discoverable from other locations Copilot scans —
+project `.github/skills/`, `.agents/skills/`, `.claude/skills/`; personal
+`~/.copilot/skills/`.
+
+
 ## Architecture
 
 ```
