@@ -658,6 +658,10 @@ cy.on('cxttap', 'node', (evt) => {
   node.select();
   emitSelection([node.id()]);
   if (!contextMenu) return;
+  // Only offer "Open in editor" when the node is actually linked to code.
+  const refs = node.data('codeRefs') as unknown[] | undefined;
+  const linked = node.hasClass('linked') || (Array.isArray(refs) && refs.length > 0);
+  if (ctxOpenCode) ctxOpenCode.hidden = !linked;
   const oe = evt.originalEvent as MouseEvent | undefined;
   const x = oe?.clientX ?? evt.renderedPosition.x;
   const y = oe?.clientY ?? evt.renderedPosition.y;
