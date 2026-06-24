@@ -96,6 +96,7 @@ export class CanvasPanel {
         nodeIds?: unknown;
         action?: unknown;
         nodeId?: unknown;
+        refIndex?: unknown;
       }) => {
         if (msg?.type === 'hello') {
           this.ready = true;
@@ -109,7 +110,9 @@ export class CanvasPanel {
           msg.action === 'open_code' &&
           typeof msg.nodeId === 'string'
         ) {
-          void this.handleOpenCode(msg.nodeId);
+          const refIndex =
+            typeof msg.refIndex === 'number' ? msg.refIndex : undefined;
+          void this.handleOpenCode(msg.nodeId, refIndex);
         }
       },
       null,
@@ -122,7 +125,10 @@ export class CanvasPanel {
    * try to resolve it via the workspace symbol provider (by the node's label),
    * link it, then open. If nothing is found, ask the user to have Copilot link it.
    */
-  private async handleOpenCode(nodeId: string): Promise<void> {
+  private async handleOpenCode(
+    nodeId: string,
+    refIndex?: number,
+  ): Promise<void> {
     const node = this.nodes.get(nodeId);
     if (!node) return;
 
@@ -135,7 +141,7 @@ export class CanvasPanel {
         return;
       }
     }
-    await CanvasPanel.openNodeCode(nodeId);
+    await CanvasPanel.openNodeCode(nodeId, refIndex);
   }
 
   /** Best-effort: find a workspace symbol matching the label and link the node. */
@@ -240,7 +246,10 @@ export class CanvasPanel {
   }
 
   /** Open a node's linked code in the editor (defaults to the selection). */
-  static async openNodeCode(id?: string): Promise<{
+  static async openNodeCode(
+    id?: string,
+    refIndex?: number,
+  ): Promise<{
     opened: boolean;
     reason?: 'no-canvas' | 'no-node' | 'not-linked' | 'open-failed';
     nodeId?: string;
@@ -251,7 +260,9 @@ export class CanvasPanel {
     if (!panel) return { opened: false, reason: 'no-canvas' };
     const nodeId = id ?? panel.selection.find((s) => panel.nodes.has(s));
     if (!nodeId) return { opened: false, reason: 'no-node' };
-    const ref = panel.nodes.get(nodeId)?.codeRefs?.[0];
+    const refs = panel.nodes.get(nodeId)?.codeRefs;
+    const ref =
+      (refIndex !== undefined ? refs?.[refIndex] : undefined) ?? refs?.[0];
     if (!ref) return { opened: false, reason: 'not-linked', nodeId };
 
     const root = vscode.workspace.workspaceFolders?.[0]?.uri;

@@ -9,6 +9,7 @@ import {
   isDiagramMessage,
   isPatchMessage,
   type CanvasMessage,
+  type CodeRef,
   type CyElement,
   type CyStyle,
   type DiagramMessage,
@@ -483,6 +484,7 @@ function openNodeMenu(node: cytoscape.NodeSingular, x: number, y: number): void 
   if (labelInput instanceof HTMLInputElement) {
     labelInput.value = String(node.data('label') ?? '');
   }
+  renderCodeRefs(node);
   nodeMenu.hidden = false;
   // Keep the menu inside the viewport.
   const { width, height } = nodeMenu.getBoundingClientRect();
@@ -534,11 +536,82 @@ if (swatchContainer) {
   swatchContainer.append(custom);
 }
 
-// Right-click a node to edit it; suppress the browser menu over the canvas.
-cy.container()?.addEventListener('contextmenu', (event) => event.preventDefault());
+/* Code references + node actions inside the unified right-click menu (KAN-31/32). */
+const nodeCodeWrap = document.getElementById('node-code');
+const nodeCodeRefs = document.getElementById('node-coderefs');
+const nodeCenterBtn = document.getElementById('node-center');
+
+function formatCodeRef(ref: CodeRef): string {
+  const file = ref.path.split(/[\\/]/).pop() || ref.path;
+  const line = ref.range ? `:${ref.range.startLine}` : '';
+  return ref.symbol ? `${ref.symbol} · ${file}${line}` : `${file}${line}`;
+}
+
+// Ask the extension to open a node's code at a specific ref (KAN-31/32).
+function openNodeCode(nodeId: string, refIndex: number): void {
+  vscode?.postMessage({
+    type: 'node_action',
+    action: 'open_code',
+    nodeId,
+    refIndex,
+  });
+  closeNodeMenu(true);
+}
+
+// Populate (and show/hide) the "Code references" section for the menu's node so
+// the user can see — and jump to — the code each node maps to.
+function renderCodeRefs(node: cytoscape.NodeSingular): void {
+  if (!nodeCodeWrap || !nodeCodeRefs) return;
+  const refs = (node.data('codeRefs') as CodeRef[] | undefined) ?? [];
+  nodeCodeRefs.replaceChildren();
+  if (refs.length === 0) {
+    nodeCodeWrap.hidden = true;
+    return;
+  }
+  const nodeId = node.id();
+  refs.forEach((ref, index) => {
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'coderef-row';
+    row.title = `Open ${ref.path}${ref.range ? `:${ref.range.startLine}` : ''}`;
+    row.textContent = formatCodeRef(ref);
+    row.addEventListener('click', () => openNodeCode(nodeId, index));
+    nodeCodeRefs.append(row);
+  });
+  nodeCodeWrap.hidden = false;
+}
+
+// "Center on node" action — re-frame the view on the menu's node.
+nodeCenterBtn?.addEventListener('click', () => {
+  const node = menuNode;
+  closeNodeMenu(true);
+  if (node)
+    cy.animate({ center: { eles: node }, duration: 200, easing: 'ease-out' });
+});
+
+// Escape closes the menu even when focus isn't in the label field.
+window.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && nodeMenu && !nodeMenu.hidden) {
+    closeNodeMenu(false);
+  }
+});
+
+// Right-click a node to edit it (label / colour / code refs) and select it so the
+// CLI knows the target. Suppress the browser menu over the canvas.
+cy.container()?.addEventListener('contextmenu', (event) =>
+  event.preventDefault(),
+);
 cy.on('cxttap', 'node', (event) => {
-  const mouse = event.originalEvent as MouseEvent;
-  openNodeMenu(event.target as cytoscape.NodeSingular, mouse.clientX, mouse.clientY);
+  const node = event.target as cytoscape.NodeSingular;
+  cy.elements().unselect();
+  node.select();
+  emitSelection([node.id()]);
+  const mouse = event.originalEvent as MouseEvent | undefined;
+  openNodeMenu(
+    node,
+    mouse?.clientX ?? event.renderedPosition.x,
+    mouse?.clientY ?? event.renderedPosition.y,
+  );
 });
 cy.on('cxttap', (event) => {
   if (event.target === cy) closeNodeMenu(false);
@@ -596,6 +669,9 @@ function handlePatch(msg: PatchMessage): void {
       const target = cy.getElementById(id);
       if (target.empty()) continue;
       target.data({ ...element.data });
+      if (element.codeRefs && element.codeRefs.length > 0) {
+        target.data('codeRefs', element.codeRefs);
+      }
       if (element.classes) target.addClass(element.classes);
       const style = mapStyle(element.style, target.isEdge());
       if (style) target.style(style as cytoscape.Css.Node);
@@ -647,8 +723,12 @@ function isEdgeElement(el: CyElement): boolean {
 // Convert a protocol CyElement to a Cytoscape element definition, carrying
 // classes and the mapped inline style.
 function toElementDef(el: CyElement): cytoscape.ElementDefinition {
+  // Carry codeRefs (a top-level CyElement field) onto the node data so the canvas
+  // can display them and detect linked nodes (KAN-31/32).
+  const data = { ...el.data } as Record<string, unknown>;
+  if (el.codeRefs && el.codeRefs.length > 0) data.codeRefs = el.codeRefs;
   const def: cytoscape.ElementDefinition = {
-    data: el.data as cytoscape.ElementDefinition['data'],
+    data: data as cytoscape.ElementDefinition['data'],
   };
   if (el.classes) def.classes = el.classes;
   const style = mapStyle(el.style, isEdgeElement(el));
@@ -790,63 +870,8 @@ cy.on('tap', (evt) => {
   }
 });
 
-// Right-click context menu on a node (KAN-32).
-const contextMenu = document.getElementById('context-menu');
-const ctxOpenCode = document.getElementById('ctx-open-code');
-const ctxCenter = document.getElementById('ctx-center');
-let contextNodeId: string | undefined;
-
-function hideContextMenu(): void {
-  if (contextMenu) contextMenu.hidden = true;
-  contextNodeId = undefined;
-}
-
-cy.on('cxttap', 'node', (evt) => {
-  const node = evt.target as cytoscape.NodeSingular;
-  contextNodeId = node.id();
-  cy.elements().unselect();
-  node.select();
-  emitSelection([node.id()]);
-  if (!contextMenu) return;
-  // Only offer "Open in editor" when the node is actually linked to code.
-  const refs = node.data('codeRefs') as unknown[] | undefined;
-  const linked = node.hasClass('linked') || (Array.isArray(refs) && refs.length > 0);
-  if (ctxOpenCode) ctxOpenCode.hidden = !linked;
-  const oe = evt.originalEvent as MouseEvent | undefined;
-  const x = oe?.clientX ?? evt.renderedPosition.x;
-  const y = oe?.clientY ?? evt.renderedPosition.y;
-  contextMenu.style.left = `${Math.min(x, window.innerWidth - 180)}px`;
-  contextMenu.style.top = `${Math.min(y, window.innerHeight - 100)}px`;
-  contextMenu.hidden = false;
-});
-
-ctxOpenCode?.addEventListener('click', () => {
-  if (contextNodeId) {
-    vscode?.postMessage({ type: 'node_action', action: 'open_code', nodeId: contextNodeId });
-  }
-  hideContextMenu();
-});
-
-ctxCenter?.addEventListener('click', () => {
-  if (contextNodeId) {
-    const node = cy.getElementById(contextNodeId);
-    if (node.nonempty()) {
-      cy.animate({ center: { eles: node }, duration: 200, easing: 'ease-out' });
-    }
-  }
-  hideContextMenu();
-});
-
-// Dismiss the menu on any outside interaction.
-window.addEventListener('pointerdown', (e) => {
-  if (contextMenu && !contextMenu.hidden && !contextMenu.contains(e.target as Node)) {
-    hideContextMenu();
-  }
-});
-window.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') hideContextMenu();
-});
-cy.on('pan zoom tapstart', hideContextMenu);
+// Node selection on right-click and the menu actions are handled by the unified
+// node context menu above (label / colour / code references / center).
 
 window.addEventListener('message', (event: MessageEvent<CanvasMessage>) => {
   const msg = event.data;
