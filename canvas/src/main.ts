@@ -90,7 +90,7 @@ type Theme = 'dark' | 'light';
 // Per-theme bits of the Cytoscape stylesheet. Node fills (and their darker-shade
 // borders) read well on either background, so only the edge label changes.
 const CY_THEME: Record<Theme, { edgeColor: string; edgeBackground: string }> = {
-  dark: { edgeColor: '#cbbdf2', edgeBackground: '#161325' },
+  dark: { edgeColor: '#c8d2e2', edgeBackground: 'rgba(20, 27, 39, 0.9)' },
   light: { edgeColor: '#4b4564', edgeBackground: 'rgba(255, 255, 255, 0.92)' },
 };
 
