@@ -1064,7 +1064,8 @@ function render(elements: CyElement[]): void {
 // so call it AFTER layout.
 function separateParallelEdges(): void {
   const BOW = 26; // perpendicular distance between parallel arcs
-  const STAGGER = 46; // px between labels measured along the shared line
+  const STAGGER = 24; // offset labels along the line (different points)
+  const PERP = 66; // push labels to the side, clear of the arrow line
   const handled = new Set<string>();
   cy.edges().forEach((edge) => {
     const group = edge.parallelEdges();
@@ -1091,20 +1092,25 @@ function separateParallelEdges(): void {
     const pLo = cy.getElementById(a < b ? a : b).position();
     const pHi = cy.getElementById(a < b ? b : a).position();
     const len = Math.hypot(pHi.x - pLo.x, pHi.y - pLo.y) || 1;
-    const ux = (pHi.x - pLo.x) / len;
+    const ux = (pHi.x - pLo.x) / len; // along-line unit
     const uy = (pHi.y - pLo.y) / len;
+    const px = -uy; // perpendicular unit
+    const py = ux;
 
     const n = group.length;
     group.forEach((e, i) => {
       const dir = e.source().id() < e.target().id() ? 1 : -1;
       const spread = i - (n - 1) / 2;
       const along = spread * STAGGER;
+      const perp = spread * PERP;
       e.style({
         'curve-style': 'bezier',
         'control-point-distances': spread * BOW * 2 * dir,
         'control-point-weights': 0.5,
-        'text-margin-x': ux * along,
-        'text-margin-y': uy * along,
+        // Stagger along the line AND push to the side so the label sits beside its
+        // arrow (not on it) and clear of the sibling label.
+        'text-margin-x': ux * along + px * perp,
+        'text-margin-y': uy * along + py * perp,
       });
     });
   });
