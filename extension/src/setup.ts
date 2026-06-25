@@ -8,6 +8,7 @@ import * as os from 'node:os';
 import { DEFAULT_CANVAS_MCP_PORT } from '@canvas/server';
 
 const DISMISS_KEY = 'canvasForCopilot.setupDismissed';
+const SKILLS_VERSION_KEY = 'canvasForCopilot.skillsVersion';
 const MARKER_START = '<!-- canvas-for-copilot:start -->';
 const MARKER_END = '<!-- canvas-for-copilot:end -->';
 
@@ -58,6 +59,28 @@ function mcpConfigPath(): string {
 
 function instructionsPath(): string {
   return path.join(copilotDir(), 'copilot-instructions.md');
+}
+
+function skillsDir(): string {
+  return path.join(copilotDir(), 'skills');
+}
+
+/**
+ * Locate the bundled skills shipped with the extension. A packaged .vsix bundles
+ * them at `<extension>/dist/skills`; the F5 monorepo dev host falls back to the
+ * repo's `<extension>/../.github/skills`.
+ */
+function bundledSkillsDir(extensionUri: vscode.Uri): string | undefined {
+  const bundled = path.join(extensionUri.fsPath, 'dist', 'skills');
+  if (fs.existsSync(bundled)) return bundled;
+  const dev = path.join(extensionUri.fsPath, '..', '.github', 'skills');
+  if (fs.existsSync(dev)) return dev;
+  return undefined;
+}
+
+/** The `/diagram` dispatcher skill is our marker that the skills are installed. */
+function areSkillsInstalled(): boolean {
+  return fs.existsSync(path.join(skillsDir(), 'diagram', 'SKILL.md'));
 }
 
 function isMcpConfigured(): boolean {
@@ -115,18 +138,61 @@ function ensureInstruction(): void {
 }
 
 /**
+ * Install the bundled `/diagram*` skills into `~/.copilot/skills/` so they are
+ * available as slash commands in EVERY project. (The CLI only auto-discovers a
+ * repo's own `.github/skills/` when you're working inside that repo; this is the
+ * personal location it scans for all projects.) Overwrites our managed copies so
+ * they stay current across extension upgrades.
+ */
+function ensureSkills(extensionUri: vscode.Uri): void {
+  const src = bundledSkillsDir(extensionUri);
+  if (!src) {
+    throw new Error(
+      'bundled skills not found — expected <extension>/dist/skills (packaged) or ../.github/skills (dev host).',
+    );
+  }
+  const destRoot = skillsDir();
+  fs.mkdirSync(destRoot, { recursive: true });
+  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const skillFile = path.join(src, entry.name, 'SKILL.md');
+    if (!fs.existsSync(skillFile)) continue;
+    const destDir = path.join(destRoot, entry.name);
+    fs.mkdirSync(destDir, { recursive: true });
+    fs.copyFileSync(skillFile, path.join(destDir, 'SKILL.md'));
+  }
+}
+
+/**
  * Offer (once) to set up the Copilot CLI integration. No-op if already configured
- * or previously dismissed.
+ * or previously dismissed. If the core integration was set up by an earlier version
+ * but the `/diagram` skills are missing/stale, top them up silently (no re-prompt) —
+ * it's the same integration the user already consented to.
  */
 export async function ensureCopilotIntegration(
   context: vscode.ExtensionContext,
 ): Promise<void> {
-  if (isMcpConfigured() && isInstructionConfigured()) return;
+  const version = String(context.extension.packageJSON.version ?? '0');
+  const coreReady = isMcpConfigured() && isInstructionConfigured();
+  const skillsReady =
+    areSkillsInstalled() &&
+    context.globalState.get<string>(SKILLS_VERSION_KEY) === version;
+
+  if (coreReady && skillsReady) return;
+
+  // Core integration already in place (consented to before): keep it complete and
+  // the skills current without re-prompting.
+  if (coreReady) {
+    await installSkills(context, version);
+    return;
+  }
+
   if (context.globalState.get<boolean>(DISMISS_KEY)) return;
 
   const choice = await vscode.window.showInformationMessage(
-    'Canvas for Copilot: register the MCP server with Copilot CLI and add the ' +
-      '"always draw with the canvas" instruction?',
+    'Canvas for Copilot: register the MCP server with Copilot CLI, add the ' +
+      '"always draw with the canvas" instruction, and install the /diagram skills ' +
+      '(so they work in any project)?',
     'Set up',
     'Not now',
     "Don't ask again",
@@ -141,14 +207,32 @@ export async function ensureCopilotIntegration(
   try {
     ensureMcpConfig();
     ensureInstruction();
+    ensureSkills(context.extensionUri);
+    await context.globalState.update(SKILLS_VERSION_KEY, version);
     await context.globalState.update(DISMISS_KEY, true);
     void vscode.window.showInformationMessage(
-      'Canvas for Copilot: Copilot CLI integration ready. Restart your Copilot CLI ' +
-        'session to pick up the new server and instruction.',
+      'Canvas for Copilot: Copilot CLI integration ready (MCP server, instruction, ' +
+        'and /diagram skills installed). Restart your Copilot CLI session, then run ' +
+        '/skills reload to pick up the new commands.',
     );
   } catch (err) {
     void vscode.window.showErrorMessage(
       `Canvas for Copilot setup failed: ${String(err)}`,
+    );
+  }
+}
+
+/** Install/refresh the bundled skills, recording the version. Non-fatal on failure. */
+async function installSkills(
+  context: vscode.ExtensionContext,
+  version: string,
+): Promise<void> {
+  try {
+    ensureSkills(context.extensionUri);
+    await context.globalState.update(SKILLS_VERSION_KEY, version);
+  } catch (err) {
+    void vscode.window.showWarningMessage(
+      `Canvas for Copilot: couldn't install the /diagram skills — ${String(err)}`,
     );
   }
 }
