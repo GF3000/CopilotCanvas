@@ -12,13 +12,29 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
+import { loadFont as loadDisplayFont } from "@remotion/google-fonts/Inter";
+import { loadFont as loadMonoFont } from "@remotion/google-fonts/JetBrainsMono";
+import { loadFont as loadTitleFont } from "@remotion/google-fonts/Sora";
 
 /* ------------------------------------------------------------------ */
 /* Design tokens                                                       */
 /* ------------------------------------------------------------------ */
-const FONT =
-  '"Segoe UI", "Inter", system-ui, -apple-system, "Arial Black", sans-serif';
-const MONO = '"Cascadia Code", "Consolas", "SF Mono", monospace';
+// Real web fonts (loaded via @remotion/google-fonts) so they render identically
+// in the Studio preview and the final headless render — no reliance on
+// system-installed fonts.
+const { fontFamily: FONT } = loadDisplayFont("normal", {
+  weights: ["400", "500", "600", "700", "800", "900"],
+  subsets: ["latin"],
+});
+const { fontFamily: MONO } = loadMonoFont("normal", {
+  weights: ["400", "600", "700"],
+  subsets: ["latin"],
+});
+// Distinct display font for the big animated headlines (Kinetic).
+const { fontFamily: TITLE_FONT } = loadTitleFont("normal", {
+  weights: ["600", "700", "800"],
+  subsets: ["latin"],
+});
 
 const C = {
   bg0: "#0b1020",
@@ -101,7 +117,7 @@ const Kinetic: React.FC<{
   delay?: number;
   outline?: string;
   weight?: number;
-}> = ({ text, size, color, delay = 0, outline, weight = 900 }) => {
+}> = ({ text, size, color, delay = 0, outline, weight = 800 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   return (
@@ -117,7 +133,7 @@ const Kinetic: React.FC<{
             key={i}
             style={{
               display: "inline-block",
-              fontFamily: FONT,
+              fontFamily: TITLE_FONT,
               fontWeight: weight,
               fontSize: size,
               lineHeight: 1.05,
@@ -591,8 +607,8 @@ const SceneHookCold: React.FC = () => {
               style={{
                 display: "inline-block",
                 rotate: `${tick}deg`,
-                fontFamily: FONT,
-                fontWeight: 900,
+                fontFamily: TITLE_FONT,
+                fontWeight: 800,
                 fontSize: 92,
                 color: C.yellow,
                 WebkitTextStroke: `4px ${C.ink}`,
@@ -1401,12 +1417,13 @@ const SceneFuture: React.FC = () => (
 );
 
 // Team avatars. Add photos to public/avatars/ and set `img` to render them.
+// `pos` is the CSS object-position so a portrait photo frames the face, not the torso.
 const TEAM = [
-  { name: "Ashley Torres Perez", initials: "AT", color: C.pink, img: "" },
-  { name: "Guillermo Franco Gimeno", initials: "GF", color: C.cyan, img: "" },
-  { name: "Hadwik Payidiparthy", initials: "HP", color: C.yellow, img: "" },
-  { name: "Nataliia Kulieshova", initials: "NK", color: C.purple, img: "" },
-  { name: "Oleksii Babii", initials: "OB", color: C.green, img: "" },
+  { name: "Ashley Torres Perez", initials: "AT", color: C.pink, img: "avatars/ashley.png", pos: "center 14%" },
+  { name: "Guillermo Franco Gimeno", initials: "GF", color: C.cyan, img: "avatars/guillermo.png", pos: "center" },
+  { name: "Hadwik Payidiparthy", initials: "HP", color: C.yellow, img: "", pos: "center" },
+  { name: "Nataliia Kulieshova", initials: "NK", color: C.purple, img: "", pos: "center" },
+  { name: "Oleksii Babii", initials: "OB", color: C.green, img: "", pos: "center" },
 ];
 
 const Avatar: React.FC<{
@@ -1451,7 +1468,12 @@ const Avatar: React.FC<{
         {member.img ? (
           <Img
             src={staticFile(member.img)}
-            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              objectPosition: member.pos,
+            }}
           />
         ) : (
           <span
