@@ -174,14 +174,14 @@ Format per scene: **VISUAL** · **ON-SCREEN TEXT** · **VOICEOVER** · **NOTES**
 ---
 
 ### Scene 11 — Future work · `1:20–1:30`
-- **VISUAL:** Three forward-looking "roadmap" cards slide in, each with an icon.
+- **VISUAL:** Three forward-looking "roadmap" cards slide in (spring pop), each with a **floating icon** and a coloured glow.
 - **ON-SCREEN TEXT:**
   - Heading: `What's next 🔮`
-  - `💾 Persistence — save & version your diagrams`
-  - `🧩 Beyond graphs — sequence, ER & more diagram types`
-  - `☁️ Cloud — shared canvases & team collaboration`
-- **VOICEOVER:** *"And we're just getting started. Next up: saving and versioning diagrams, more diagram types beyond graphs, and a cloud version for sharing canvases across a team."*
-- **NOTES:** Maps to the brief's current "out of scope" list — honest framing as roadmap.
+  - `👥 Collaborate in real time with others`
+  - `📊 Work with tables & more complex figures`
+  - `💾 Save your diagrams in your account`
+- **VOICEOVER:** *"And we're just getting started. Next up: collaborate on a canvas in real time, work with tables and richer figures, and save your diagrams to your account."*
+- **NOTES:** Maps to the roadmap — honest framing as what's coming next.
 
 ---
 
@@ -212,7 +212,7 @@ Format per scene: **VISUAL** · **ON-SCREEN TEXT** · **VOICEOVER** · **NOTES**
 5. Feature two — **interact**. Click any node and Copilot knows exactly what you mean. Ask it to explain that piece, or expand it, and the diagram grows new detail — no refresh. *(Select, explain, expand.)*
 6. Feature three — and this is the magic. Select a node and say "add a search endpoint." Copilot asks a clarifying question, writes the real code in your repo, and grows the diagram to match. *(Real code, real diagram.)*
 7. Getting started is easy: install the VS Code extension, add the Canvas MCP server to your Copilot config, and ask for a diagram — all running locally.
-8. And we're just getting started — persistence, more diagram types, and a cloud version are next.
+8. And we're just getting started — real-time collaboration with others, tables and richer figures, and saving your diagrams to your account are next.
 9. Built by five software-engineering interns, across Redmond, Dublin, and India. **Canvas for Copilot** — see your code, don't just read it.
 
 ---
@@ -225,7 +225,7 @@ From `docs/PROJECT_BRIEF.md` + `docs/REQUIREMENTS.md`:
 - A **thin VS Code extension** opens the canvas as a **webview tab** and bridges it to the CLI session over the **MCP Apps** `postMessage` channel.
 - Diagrams are interactive **Cytoscape** graphs (pan, zoom, node selection).
 - The novelty is the **bidirectional loop**, delivered in 3 tiers: **Visualize → Interact → Modify**.
-- **Future work** (currently out of scope, honest as roadmap): persistence/versioning, non-graph formats (sequence/ER), cloud hosting + multi-user collaboration.
+- **Future work** (roadmap / what's next): **real-time collaboration** with others, **tables & more complex figures**, and **saving diagrams to your account**.
 - ❗ Don't over-claim: today it's a **local, single-session, VS Code-first** dev tool.
 
 ---
