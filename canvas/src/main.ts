@@ -20,6 +20,7 @@ import {
 import { validateGraphModel } from './graphModel';
 import { closedNeighbourhood, countNodes, nodeLabel } from './scope';
 import { createHistory } from './history';
+import { captureDiagram, restoreDiagram, type DiagramSnapshot } from './snapshot';
 
 cytoscape.use(dagre);
 cytoscape.use(svg);
@@ -1370,10 +1371,15 @@ function handleDiagram(msg: DiagramMessage): void {
     showError(result.errors);
     return;
   }
+  // KAN-34: a new full diagram REPLACES the current one. If something is already on
+  // the canvas, push it as an undoable step first, so Undo returns to that previous
+  // diagram (its full state). The very first diagram (empty canvas) starts history
+  // fresh; on reload-recovery the canvas is empty too, so the replayed base diagram
+  // doesn't create a bogus step.
+  if (currentDiagramId !== undefined && cy.elements().length > 0) {
+    pushUndoSnapshot();
+  }
   currentDiagramId = msg.diagramId;
-  // A new full diagram from the host is a fresh base version — clear undo history
-  // (there's nothing before the first version to undo to). KAN-34.
-  resetUndoHistory();
   // A new diagram from the host is a fresh top-level scope.
   scopeStack.length = 0;
   currentScopeElements = msg.elements;
@@ -1395,10 +1401,7 @@ function handleDiagram(msg: DiagramMessage): void {
  * (with node positions), the view (pan/zoom), the manual colour overrides and the
  * title, so an undo restores the previous state IN PLACE without re-running layout.
  * Exposed as the "Undo" item in the More menu and Ctrl/Cmd+Z. */
-interface UndoSnapshot {
-  elements: cytoscape.ElementDefinition[];
-  zoom: number;
-  pan: { x: number; y: number };
+interface UndoSnapshot extends DiagramSnapshot {
   title: string;
   colorOverrides: [string, NodeColor][];
 }
@@ -1407,10 +1410,10 @@ const undoHistory = createHistory<UndoSnapshot>(100);
 const undoBtn = document.getElementById('undo-btn');
 
 function captureSnapshot(): UndoSnapshot {
+  // The full graph + viewport (see snapshot.ts) plus the chrome state the canvas
+  // owns: the title and the manual colour overrides.
   return {
-    elements: cy.elements().jsons() as unknown as cytoscape.ElementDefinition[],
-    zoom: cy.zoom(),
-    pan: { ...cy.pan() },
+    ...captureDiagram(cy),
     title: currentTitle,
     colorOverrides: [...colorOverrides.entries()],
   };
@@ -1428,12 +1431,6 @@ function pushUndoSnapshot(): void {
   updateUndoButton();
 }
 
-/** Forget all undo steps — called when a brand-new base diagram is rendered. */
-function resetUndoHistory(): void {
-  undoHistory.reset();
-  updateUndoButton();
-}
-
 /** Map the live graph back to protocol elements (for drill-down bookkeeping). */
 function cyToElements(): CyElement[] {
   return cy.elements().map((e) => {
@@ -1446,18 +1443,14 @@ function cyToElements(): CyElement[] {
 
 function restoreSnapshot(snapshot: UndoSnapshot): void {
   closeNodeMenu(false);
-  cy.batch(() => {
-    cy.elements().remove();
-    cy.add(snapshot.elements);
-    colorOverrides.clear();
-    for (const [id, color] of snapshot.colorOverrides) {
-      colorOverrides.set(id, color);
-      const node = cy.getElementById(id);
-      if (node.nonempty()) styleNodeColor(node, color);
-    }
-  });
-  cy.zoom(snapshot.zoom);
-  cy.pan(snapshot.pan);
+  restoreDiagram(cy, snapshot);
+  // Re-assert the manual colour overrides on top of the restored graph.
+  colorOverrides.clear();
+  for (const [id, color] of snapshot.colorOverrides) {
+    colorOverrides.set(id, color);
+    const node = cy.getElementById(id);
+    if (node.nonempty()) styleNodeColor(node, color);
+  }
   setTitle(snapshot.title);
   separateParallelEdges();
   // An undo restores a top-level content version; clear any drill-down scope.
