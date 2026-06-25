@@ -205,11 +205,13 @@ function buildStyle(theme: Theme): cytoscape.StylesheetStyle[] {
         'target-arrow-color': '#d946ef',
         'arrow-scale': 1.05,
         'font-family': FONT_FAMILY,
-        'font-size': 9,
+        'font-size': 11,
         color: palette.edgeColor,
+        'text-wrap': 'wrap',
+        'text-max-width': '160px',
         'text-background-color': palette.edgeBackground,
         'text-background-opacity': 0.9,
-        'text-background-padding': '3px',
+        'text-background-padding': '5px',
         'text-background-shape': 'roundrectangle',
         // Gradient edges (violet → fuchsia) to match the node palette.
         ...ext({
@@ -979,6 +981,13 @@ function handlePatch(msg: PatchMessage): void {
     }
   });
 
+  // Re-separate parallel/bidirectional edges if any edges were added/removed.
+  const edgeChanged =
+    msg.add.some(
+      (el) => el.data.source !== undefined || el.data.target !== undefined,
+    ) || msg.remove.length > 0;
+  if (edgeChanged) separateParallelEdges();
+
   // Only re-layout when nodes were added (avoids overlap). `fit: false` keeps the
   // current zoom/pan. Pure relabels never reach here, so they don't move.
   const addedNode = msg.add.some(
@@ -1039,8 +1048,44 @@ function render(elements: CyElement[]): void {
   colorOverrides.clear();
   cy.elements().remove();
   cy.add(elements.map(toElementDef));
+  separateParallelEdges();
   cy.layout(dagreLayout(true)).run();
   cy.fit(undefined, FIT_PADDING);
+}
+
+// Bow apart edges that connect the same pair of nodes — including bidirectional
+// pairs (A→B and B→A) — so their lines and mid-point labels don't stack on top of
+// each other (KAN-41). Cytoscape's `bezier` only auto-separates same-direction
+// parallels, so we set explicit control points. The geometric side is normalised
+// by edge direction (`dir`) so opposite-direction edges land on opposite sides.
+function separateParallelEdges(): void {
+  const STEP = 26;
+  const handled = new Set<string>();
+  cy.edges().forEach((edge) => {
+    const group = edge.parallelEdges();
+    if (group.length < 2) {
+      // Lone edge: clear any stale offset from a previous patch.
+      edge.style('control-point-distances', 0);
+      return;
+    }
+    const key = group
+      .map((e) => e.id())
+      .sort()
+      .join('|');
+    if (handled.has(key)) return;
+    handled.add(key);
+
+    const n = group.length;
+    group.forEach((e, i) => {
+      const dir = e.source().id() < e.target().id() ? 1 : -1;
+      const geom = (i - (n - 1) / 2) * STEP * 2;
+      e.style({
+        'curve-style': 'bezier',
+        'control-point-distances': geom * dir,
+        'control-point-weights': 0.5,
+      });
+    });
+  });
 }
 
 // Semantic colour legend (KAN-30) — colours encode meaning, and this panel says
