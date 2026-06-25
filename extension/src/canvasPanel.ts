@@ -64,6 +64,17 @@ export class CanvasPanel {
   private readonly edges = new Map<string, EdgeInfo>();
 
   /**
+   * Resolve the built canvas bundle. In a packaged .vsix the canvas is bundled at
+   * `<extension>/dist/canvas`; in the F5 monorepo dev host it lives at
+   * `<extension>/../canvas/dist`. Prefer the bundled copy when present.
+   */
+  private static canvasDist(extensionUri: vscode.Uri): vscode.Uri {
+    const bundled = vscode.Uri.joinPath(extensionUri, 'dist', 'canvas');
+    if (fs.existsSync(bundled.fsPath)) return bundled;
+    return vscode.Uri.joinPath(extensionUri, '..', 'canvas', 'dist');
+  }
+
+  /**
    * Enable reload recovery: remember the extension context and register a webview
    * serializer so VS Code restores the canvas tab after a window reload, replaying
    * the persisted diagram. Call once from `activate`.
@@ -73,12 +84,7 @@ export class CanvasPanel {
     context.subscriptions.push(
       vscode.window.registerWebviewPanelSerializer(CanvasPanel.viewType, {
         deserializeWebviewPanel(panel: vscode.WebviewPanel): Thenable<void> {
-          const distUri = vscode.Uri.joinPath(
-            context.extensionUri,
-            '..',
-            'canvas',
-            'dist',
-          );
+          const distUri = CanvasPanel.canvasDist(context.extensionUri);
           const revived = new CanvasPanel(panel, distUri);
           CanvasPanel.current = revived;
           const saved = context.workspaceState.get<PersistedState>(
@@ -96,8 +102,7 @@ export class CanvasPanel {
 
   /** Open (or reveal) the canvas tab and render the given diagram. */
   static show(extensionUri: vscode.Uri, diagram: DiagramMessage): void {
-    // In the monorepo the built canvas lives at ../canvas/dist relative to /extension.
-    const canvasDistUri = vscode.Uri.joinPath(extensionUri, '..', 'canvas', 'dist');
+    const canvasDistUri = CanvasPanel.canvasDist(extensionUri);
 
     if (CanvasPanel.current) {
       CanvasPanel.current.panel.reveal(vscode.ViewColumn.Beside);

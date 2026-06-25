@@ -1,5 +1,6 @@
 # Keep the packaged .vsix lean — ship only the bundle + manifest.
 src/**
+scripts/**
 tsconfig.json
 **/*.ts
 **/*.map
