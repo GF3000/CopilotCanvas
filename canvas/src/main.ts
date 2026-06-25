@@ -210,7 +210,7 @@ function buildStyle(theme: Theme): cytoscape.StylesheetStyle[] {
         'text-wrap': 'wrap',
         'text-max-width': '160px',
         'text-background-color': palette.edgeBackground,
-        'text-background-opacity': 0.9,
+        'text-background-opacity': 1,
         'text-background-padding': '5px',
         'text-background-shape': 'roundrectangle',
         // Gradient edges (violet → fuchsia) to match the node palette.
@@ -1055,22 +1055,21 @@ function render(elements: CyElement[]): void {
 }
 
 // Bow apart edges that connect the same pair of nodes — including bidirectional
-// pairs (A→B and B→A) — and stagger their labels to different points along the
-// shared line, so neither the lines nor the mid-point labels overlap (KAN-41).
-// Cytoscape's `bezier` only auto-separates same-direction parallels, so we set
-// explicit control points; the bow side is normalised by edge direction (`dir`)
-// and the label offset is along a canonical line direction so the labels land at
-// distinct positions regardless of each edge's orientation. Needs node positions,
-// so call it AFTER layout.
+// pairs (A→B and B→A) — and place each label just OUTSIDE its own arc's apex (on
+// the side the arc bows) so neither the lines nor the mid-point labels overlap,
+// and a label never sits under the other edge (KAN-41). Cytoscape's `bezier` only
+// auto-separates same-direction parallels, so we set explicit control points.
+// Two passes: bow first, then read each curve's real midpoint to offset its label
+// outward. Needs node positions, so call it AFTER layout.
 function separateParallelEdges(): void {
-  const BOW = 26; // perpendicular distance between parallel arcs
-  const STAGGER = 24; // offset labels along the line (different points)
-  const PERP = 66; // push labels to the side, clear of the arrow line
+  const BOW = 22; // half the perpendicular distance between parallel arcs
+  const OUT = 26; // push the label this far beyond the arc apex, same side
   const handled = new Set<string>();
+
+  // Pass 1: bow the arcs apart.
   cy.edges().forEach((edge) => {
     const group = edge.parallelEdges();
     if (group.length < 2) {
-      // Lone edge: clear any stale offsets from a previous patch.
       edge.style({
         'control-point-distances': 0,
         'text-margin-x': 0,
@@ -1084,35 +1083,41 @@ function separateParallelEdges(): void {
       .join('|');
     if (handled.has(key)) return;
     handled.add(key);
-
-    // Canonical direction (lo-id → hi-id) so labels can be staggered to distinct
-    // points along the line independent of each edge's own direction.
-    const a = group[0].source().id();
-    const b = group[0].target().id();
-    const pLo = cy.getElementById(a < b ? a : b).position();
-    const pHi = cy.getElementById(a < b ? b : a).position();
-    const len = Math.hypot(pHi.x - pLo.x, pHi.y - pLo.y) || 1;
-    const ux = (pHi.x - pLo.x) / len; // along-line unit
-    const uy = (pHi.y - pLo.y) / len;
-    const px = -uy; // perpendicular unit
-    const py = ux;
-
     const n = group.length;
     group.forEach((e, i) => {
       const dir = e.source().id() < e.target().id() ? 1 : -1;
       const spread = i - (n - 1) / 2;
-      const along = spread * STAGGER;
-      const perp = spread * PERP;
       e.style({
         'curve-style': 'bezier',
         'control-point-distances': spread * BOW * 2 * dir,
         'control-point-weights': 0.5,
-        // Stagger along the line AND push to the side so the label sits beside its
-        // arrow (not on it) and clear of the sibling label.
-        'text-margin-x': ux * along + px * perp,
-        'text-margin-y': uy * along + py * perp,
       });
     });
+  });
+
+  // Pass 2: offset each parallel edge's label outward from the line, in the
+  // direction its (now-bowed) curve actually bends — keeping it clear of both
+  // arrows and the sibling label. Read midpoint() after pass 1 set the curves.
+  cy.edges().forEach((edge) => {
+    if (edge.parallelEdges().length < 2) return;
+    const sp = edge.source().position();
+    const tp = edge.target().position();
+    const mid = edge.midpoint();
+    let bx = mid.x - (sp.x + tp.x) / 2;
+    let by = mid.y - (sp.y + tp.y) / 2;
+    const len = Math.hypot(bx, by);
+    if (len < 0.5) {
+      // Nearly straight (shouldn't happen for a bowed parallel) — nudge sideways.
+      const dx = tp.x - sp.x;
+      const dy = tp.y - sp.y;
+      const dl = Math.hypot(dx, dy) || 1;
+      bx = -dy / dl;
+      by = dx / dl;
+    } else {
+      bx /= len;
+      by /= len;
+    }
+    edge.style({ 'text-margin-x': bx * OUT, 'text-margin-y': by * OUT });
   });
 }
 
