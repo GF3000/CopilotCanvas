@@ -257,6 +257,12 @@
         background: var(--hover-bg);
       }
 
+      .more-item:disabled {
+        opacity: 0.4;
+        cursor: default;
+        background: transparent;
+      }
+
       .more-item:hover svg {
         stroke: var(--icon-hover);
       }
@@ -982,11 +988,26 @@
         </button>
         <div id="more-menu" hidden role="menu" aria-label="More controls">
           <button
+            id="undo-btn"
+            class="more-item"
+            type="button"
+            role="menuitem"
+            title="Undo last change (Ctrl/Cmd+Z)"
+            aria-label="Undo last change"
+            disabled
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M9 14L4 9l5-5" />
+              <path d="M4 9h11a5 5 0 0 1 0 10H8" />
+            </svg>
+            <span>Undo</span>
+          </button>
+          <button
             id="search-toggle"
             class="more-item"
             type="button"
             role="menuitem"
-            title="Search nodes & links (Ctrl/Cmd+F)"
+            title="Search nodes &amp; links (Ctrl/Cmd+F)"
             aria-label="Search nodes and links"
           >
             <svg viewBox="0 0 24 24" aria-hidden="true">

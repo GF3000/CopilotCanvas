@@ -19,6 +19,7 @@ import {
 } from '@canvas/shared';
 import { validateGraphModel } from './graphModel';
 import { closedNeighbourhood, countNodes, nodeLabel } from './scope';
+import { createHistory } from './history';
 
 cytoscape.use(dagre);
 cytoscape.use(svg);
@@ -689,6 +690,7 @@ function styleNodeColor(
 
 function applyNodeColor(color: NodeColor): void {
   if (!menuNode) return;
+  pushUndoSnapshot(); // make the recolour undoable (KAN-34)
   colorOverrides.set(menuNode.id(), color);
   styleNodeColor(menuNode, color);
 }
@@ -719,6 +721,8 @@ function closeNodeMenu(commit: boolean): void {
   if (commit && menuNode && labelInput instanceof HTMLInputElement) {
     const text = labelInput.value.trim();
     const oldLabel = menuNodeOldLabel.trim();
+    // KAN-34: capture the pre-rename state so the rename is undoable.
+    if (text && text !== oldLabel) pushUndoSnapshot();
     if (text) menuNode.data('label', text);
     // KAN-14: a real rename drives a matching code change via the extension.
     // Compare trimmed-vs-trimmed so whitespace alone never counts as a rename.
@@ -1003,6 +1007,8 @@ function clearError(): void {
 // exactly — no layout runs. Structural ADDS re-run the dagre layout (without
 // re-fitting, so zoom/pan are kept) so new nodes are placed without overlap (KAN-25).
 function handlePatch(msg: PatchMessage): void {
+  // KAN-34: record the pre-patch state so this change can be undone.
+  pushUndoSnapshot();
   cy.batch(() => {
     // Remove first so an add can reuse an id.
     for (const id of msg.remove) {
@@ -1365,6 +1371,9 @@ function handleDiagram(msg: DiagramMessage): void {
     return;
   }
   currentDiagramId = msg.diagramId;
+  // A new full diagram from the host is a fresh base version — clear undo history
+  // (there's nothing before the first version to undo to). KAN-34.
+  resetUndoHistory();
   // A new diagram from the host is a fresh top-level scope.
   scopeStack.length = 0;
   currentScopeElements = msg.elements;
@@ -1379,8 +1388,116 @@ function handleDiagram(msg: DiagramMessage): void {
   updateScopeBar();
 }
 
-// Selection (KAN-7): tapping a node selects it and tells the extension which node
-// is selected, so the CLI can act on "this"/"the selected node". Tapping the
+/* ─── Undo history (KAN-34) ──────────────────────────────────────────────────
+ * Step back through diagram changes — each patch (expand / edit / annotate / link
+ * styling) and each manual recolour/rename pushes exactly one undoable step — to
+ * the first version, where Undo is disabled. A snapshot captures the rendered graph
+ * (with node positions), the view (pan/zoom), the manual colour overrides and the
+ * title, so an undo restores the previous state IN PLACE without re-running layout.
+ * Exposed as the "Undo" item in the More menu and Ctrl/Cmd+Z. */
+interface UndoSnapshot {
+  elements: cytoscape.ElementDefinition[];
+  zoom: number;
+  pan: { x: number; y: number };
+  title: string;
+  colorOverrides: [string, NodeColor][];
+}
+
+const undoHistory = createHistory<UndoSnapshot>(100);
+const undoBtn = document.getElementById('undo-btn');
+
+function captureSnapshot(): UndoSnapshot {
+  return {
+    elements: cy.elements().jsons() as unknown as cytoscape.ElementDefinition[],
+    zoom: cy.zoom(),
+    pan: { ...cy.pan() },
+    title: currentTitle,
+    colorOverrides: [...colorOverrides.entries()],
+  };
+}
+
+function updateUndoButton(): void {
+  if (undoBtn instanceof HTMLButtonElement) {
+    undoBtn.disabled = !undoHistory.canUndo();
+  }
+}
+
+/** Record the current diagram state as an undoable step (call BEFORE a change). */
+function pushUndoSnapshot(): void {
+  undoHistory.push(captureSnapshot());
+  updateUndoButton();
+}
+
+/** Forget all undo steps — called when a brand-new base diagram is rendered. */
+function resetUndoHistory(): void {
+  undoHistory.reset();
+  updateUndoButton();
+}
+
+/** Map the live graph back to protocol elements (for drill-down bookkeeping). */
+function cyToElements(): CyElement[] {
+  return cy.elements().map((e) => {
+    const el: CyElement = { data: { ...e.data() } };
+    const classes = e.classes().join(' ');
+    if (classes) el.classes = classes;
+    return el;
+  });
+}
+
+function restoreSnapshot(snapshot: UndoSnapshot): void {
+  closeNodeMenu(false);
+  cy.batch(() => {
+    cy.elements().remove();
+    cy.add(snapshot.elements);
+    colorOverrides.clear();
+    for (const [id, color] of snapshot.colorOverrides) {
+      colorOverrides.set(id, color);
+      const node = cy.getElementById(id);
+      if (node.nonempty()) styleNodeColor(node, color);
+    }
+  });
+  cy.zoom(snapshot.zoom);
+  cy.pan(snapshot.pan);
+  setTitle(snapshot.title);
+  separateParallelEdges();
+  // An undo restores a top-level content version; clear any drill-down scope.
+  scopeStack.length = 0;
+  currentScopeElements = cyToElements();
+  updateScopeBar();
+  updateLegend();
+}
+
+function performUndo(): void {
+  const snapshot = undoHistory.undo();
+  if (!snapshot) return;
+  restoreSnapshot(snapshot);
+  updateUndoButton();
+}
+
+undoBtn?.addEventListener('click', () => performUndo());
+
+// Ctrl/Cmd+Z — but don't hijack undo while the user is typing in a field.
+window.addEventListener('keydown', (event) => {
+  const isUndo =
+    (event.ctrlKey || event.metaKey) &&
+    !event.shiftKey &&
+    !event.altKey &&
+    event.key.toLowerCase() === 'z';
+  if (!isUndo) return;
+  const target = event.target as HTMLElement | null;
+  if (
+    target &&
+    (target.tagName === 'INPUT' ||
+      target.tagName === 'TEXTAREA' ||
+      target.tagName === 'SELECT' ||
+      target.isContentEditable)
+  ) {
+    return;
+  }
+  event.preventDefault();
+  performUndo();
+});
+
 // background clears the selection.
 function emitSelection(nodeIds: string[]): void {
   vscode?.postMessage({
