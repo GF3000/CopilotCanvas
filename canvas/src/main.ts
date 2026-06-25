@@ -1274,6 +1274,19 @@ function updateLegend(): void {
   ];
   legendRows.replaceChildren(...entries.map(legendRow));
   legendEl.hidden = legendCollapsed || entries.length === 0;
+  syncLegendButton();
+}
+
+// Reflect the legend's open/closed state on the toggle button so it's obvious at
+// a glance (active tint + check when shown, "Show"/"Hide" tooltip).
+function syncLegendButton(): void {
+  if (!legendToggle) return;
+  const open = !!legendEl && !legendEl.hidden;
+  legendToggle.setAttribute('aria-pressed', String(open));
+  legendToggle.setAttribute('aria-checked', String(open));
+  const action = open ? 'Hide colour legend' : 'Show colour legend';
+  legendToggle.setAttribute('title', action);
+  legendToggle.setAttribute('aria-label', action);
 }
 
 legendToggle?.addEventListener('click', () => {

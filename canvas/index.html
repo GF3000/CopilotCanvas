@@ -272,6 +272,30 @@
         outline-offset: -2px;
       }
 
+      /* Toggle menu items (e.g. Legend): show a trailing check + active tint
+         when "on" so the open/closed state is visible at a glance. */
+      .more-item-check {
+        opacity: 0;
+        transform: scale(0.7);
+        transition:
+          opacity 0.14s ease,
+          transform 0.14s ease;
+      }
+
+      .more-item-toggle[aria-pressed='true'] {
+        background: var(--hover-bg);
+      }
+
+      .more-item-toggle[aria-pressed='true'] svg {
+        stroke: var(--icon-hover);
+      }
+
+      .more-item-toggle[aria-pressed='true'] .more-item-check {
+        opacity: 1;
+        transform: scale(1);
+        stroke: var(--focus-ring);
+      }
+
       /* Theme toggle: show the icon of the theme you'll switch TO. */
       .icon-sun,
       .icon-moon {
@@ -1207,11 +1231,13 @@
           </button>
           <button
             id="legend-toggle-btn"
-            class="more-item"
+            class="more-item more-item-toggle"
             type="button"
-            role="menuitem"
-            title="Toggle colour legend"
-            aria-label="Toggle colour legend"
+            role="menuitemcheckbox"
+            aria-pressed="false"
+            aria-checked="false"
+            title="Show colour legend"
+            aria-label="Show colour legend"
           >
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <circle cx="6" cy="7" r="2.2" />
@@ -1222,6 +1248,9 @@
               <line x1="11" y1="17" x2="20" y2="17" />
             </svg>
             <span>Legend</span>
+            <svg class="more-item-check" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 12.5l4.5 4.5L19 7" />
+            </svg>
           </button>
           <button
             id="export-btn"
