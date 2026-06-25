@@ -37,7 +37,10 @@ explain it. To expand/drill into a node, first ask the user what KIND of expansi
 (a brief annotation, more detail, or a full sub-graph) and HOW DEEP, then call
 \`expand_node\` to add the new nodes in place. To jump to a node's source, link it with \`link_node_to_code\` (or pass
 \`codeRefs\` when creating it) and open it with \`open_node_code\` when the user asks
-to see the code for a node; if it isn't linked, say so. To add an explanatory note,
+to see the code for a node; if it isn't linked, say so. When a diagram describes
+code in the current workspace/repo, set \`codeRefs\` on EVERY node that maps to real
+code (inspect the repo to find the file/line/symbol) so each code-backed node is
+clickable to its source — leave only purely conceptual nodes unlinked. To add an explanatory note,
 add a node with kind "note" (sticky note) plus an optional dashed \`annotation\` edge
 to the element it explains. Use colour to mean something: set a node's role with
 \`kind\` consistently (entrypoint/service/module/datastore/external) and outcomes with

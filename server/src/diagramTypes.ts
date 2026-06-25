@@ -5,7 +5,12 @@
 // same render/validation path (edges to unknown nodes are dropped there) while
 // giving each type a tuned shape and the right semantic kinds/classes/labels.
 import type { NodeKind } from '@canvas/shared';
-import type { DiagramInput, DiagramInputNode, DiagramInputEdge } from './diagram';
+import type {
+  CodeRefInput,
+  DiagramInput,
+  DiagramInputNode,
+  DiagramInputEdge,
+} from './diagram';
 
 /* ─── Dependency (KAN-20) ───────────────────────────────────────────────────
  * Modules / packages / services and their "depends on" relationships. Cycles are
@@ -30,6 +35,8 @@ export interface DependencyInput {
      * `datastore` (databases/caches/queues), `entrypoint`, `external`, `note`.
      */
     kind?: NodeKind;
+    /** Code location(s) this node maps to, so the user can jump to the code. */
+    codeRefs?: CodeRefInput[];
   }[];
   /** A depends on B: `from` requires/uses `to`. */
   dependencies: { from: string; to: string; label?: string }[];
@@ -50,6 +57,7 @@ export function buildDependencyDiagram(input: DependencyInput): DiagramInput {
       id: n.id,
       label: n.label,
       kind: n.kind ?? fallbackKind,
+      codeRefs: n.codeRefs,
     })),
     edges: input.dependencies.map<DiagramInputEdge>((d) => ({
       source: d.from,
@@ -71,6 +79,8 @@ export interface FlowchartInput {
     label: string;
     /** Defaults to `step`. */
     type?: 'start' | 'step' | 'decision' | 'io' | 'end';
+    /** Code location(s) this node maps to, so the user can jump to the code. */
+    codeRefs?: CodeRefInput[];
   }[];
   /** Directed flow; `label` carries a decision branch ("yes"/"no") when relevant. */
   edges: { from: string; to: string; label?: string }[];
@@ -81,22 +91,23 @@ export function buildFlowchartDiagram(input: FlowchartInput): DiagramInput {
     title: input.title,
     nodes: input.nodes.map<DiagramInputNode>((n) => {
       const type = n.type ?? 'step';
+      const base = { id: n.id, label: n.label, codeRefs: n.codeRefs };
       switch (type) {
         // Terminator (rounded "pill") — start is an entry point, end is terminal.
         case 'start':
-          return { id: n.id, label: n.label, kind: 'entrypoint', classes: ['fc-terminator'] };
+          return { ...base, kind: 'entrypoint', classes: ['fc-terminator'] };
         case 'end':
-          return { id: n.id, label: n.label, classes: ['fc-terminator', 'fc-end'] };
+          return { ...base, classes: ['fc-terminator', 'fc-end'] };
         // Decision — diamond.
         case 'decision':
-          return { id: n.id, label: n.label, classes: ['decision'] };
+          return { ...base, classes: ['decision'] };
         // Input/output — parallelogram.
         case 'io':
-          return { id: n.id, label: n.label, kind: 'service', classes: ['fc-io'] };
+          return { ...base, kind: 'service', classes: ['fc-io'] };
         // Process step — sharp rectangle.
         case 'step':
         default:
-          return { id: n.id, label: n.label, kind: 'service', classes: ['fc-process'] };
+          return { ...base, kind: 'service', classes: ['fc-process'] };
       }
     }),
     edges: input.edges.map<DiagramInputEdge>((e) => ({
@@ -120,6 +131,8 @@ export interface StateMachineInput {
     initial?: boolean;
     /** An accepting / terminal state — drawn distinctly. */
     final?: boolean;
+    /** Code location(s) this state maps to, so the user can jump to the code. */
+    codeRefs?: CodeRefInput[];
   }[];
   /** `event` labels the transition (the trigger/condition). */
   transitions: { from: string; to: string; event?: string }[];
@@ -132,7 +145,7 @@ export function buildStateMachineDiagram(input: StateMachineInput): DiagramInput
       const classes: string[] = [];
       if (s.initial) classes.push('initial');
       if (s.final) classes.push('final');
-      return { id: s.id, label: s.label, classes };
+      return { id: s.id, label: s.label, classes, codeRefs: s.codeRefs };
     }),
     edges: input.transitions.map<DiagramInputEdge>((t) => ({
       source: t.from,
@@ -169,6 +182,8 @@ export interface ClassDiagramInput {
     attributes?: string[];
     /** Optional method lines, e.g. "+ save(): void". */
     methods?: string[];
+    /** Code location(s) this class maps to, so the user can jump to the code. */
+    codeRefs?: CodeRefInput[];
   }[];
   relations: {
     /**
@@ -207,6 +222,7 @@ export function buildClassDiagram(input: ClassDiagramInput): DiagramInput {
       kind: 'module',
       // UML class box — a sharp-cornered rectangle.
       classes: ['uml-class'],
+      codeRefs: c.codeRefs,
     })),
     edges: input.relations.map<DiagramInputEdge>((r) => ({
       source: r.from,
@@ -229,6 +245,8 @@ export interface ErDiagramInput {
     label: string;
     /** Optional key/attribute lines surfaced under the entity name. */
     attributes?: string[];
+    /** Code location(s) this entity maps to, so the user can jump to the code. */
+    codeRefs?: CodeRefInput[];
   }[];
   relationships: {
     from: string;
@@ -257,7 +275,7 @@ export function buildErDiagram(input: ErDiagramInput): DiagramInput {
         ? [e.label, '─────', ...attrs].join('\n')
         : e.label;
       // ER entity — a sharp-cornered "table" box.
-      return { id: e.id, label, kind: 'datastore', classes: ['er-entity'] };
+      return { id: e.id, label, kind: 'datastore', classes: ['er-entity'], codeRefs: e.codeRefs };
     }),
     edges: input.relationships.map<DiagramInputEdge>((r) => ({
       source: r.from,
