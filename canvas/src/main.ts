@@ -924,6 +924,14 @@ window.addEventListener('keydown', (event) => {
     closeExpandDialog();
   }
 });
+// A click outside the Expand-node dialog dismisses it (matches the node menu,
+// export menu and "More" popover behaviour).
+document.addEventListener('pointerdown', (event) => {
+  if (!expandDialog || expandDialog.hidden) return;
+  const target = event.target;
+  if (target instanceof Node && expandDialog.contains(target)) return;
+  closeExpandDialog();
+});
 
 // Escape closes the menu even when focus isn't in the label field.
 window.addEventListener('keydown', (event) => {
