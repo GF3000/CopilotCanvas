@@ -1085,6 +1085,178 @@ const SceneClip: React.FC<{
 );
 
 /* ================================================================== */
+/* ARCHITECTURE SCENE — how it works (MCP)                            */
+/* ================================================================== */
+const ArchBox: React.FC<{
+  icon: string;
+  title: string;
+  sub: string;
+  color: string;
+  delay: number;
+}> = ({ icon, title, sub, color, delay }) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const pop = spring({ frame: frame - delay, fps, config: { damping: 13 } });
+  return (
+    <div
+      style={{
+        scale: String(pop),
+        opacity: pop,
+        width: 340,
+        background: "rgba(255,255,255,0.04)",
+        border: `2px solid ${color}88`,
+        borderRadius: 20,
+        padding: "26px 22px",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 8,
+        boxShadow: `0 16px 50px rgba(0,0,0,0.4), 0 0 40px ${color}22`,
+      }}
+    >
+      <div style={{ fontSize: 60 }}>{icon}</div>
+      <div style={{ fontFamily: FONT, fontWeight: 800, fontSize: 32, color }}>
+        {title}
+      </div>
+      <div
+        style={{
+          fontFamily: FONT,
+          fontWeight: 600,
+          fontSize: 21,
+          color: C.white,
+          textAlign: "center",
+        }}
+      >
+        {sub}
+      </div>
+    </div>
+  );
+};
+
+const ArchArrow: React.FC<{ label: string; color: string; delay: number }> = ({
+  label,
+  color,
+  delay,
+}) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const grow = spring({ frame: frame - delay, fps, config: { damping: 16 } });
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        width: 130,
+        opacity: grow,
+      }}
+    >
+      <div
+        style={{
+          fontFamily: MONO,
+          fontSize: 16,
+          color,
+          marginBottom: 6,
+          whiteSpace: "nowrap",
+        }}
+      >
+        {label}
+      </div>
+      <div
+        style={{
+          width: "100%",
+          height: 3,
+          background: color,
+          transformOrigin: "left",
+          transform: `scaleX(${grow})`,
+          position: "relative",
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            right: -2,
+            top: -7,
+            color,
+            fontSize: 26,
+            lineHeight: "1px",
+          }}
+        >
+          ▶
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const SceneArchitecture: React.FC = () => (
+  <Scene durationInFrames={240}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 46,
+      }}
+    >
+      <Reveal>
+        <Pill bg={C.cyan} color={C.ink}>
+          🔌 under the hood
+        </Pill>
+      </Reveal>
+      <Reveal delay={8}>
+        <span
+          style={{ fontFamily: FONT, fontWeight: 900, fontSize: 58, color: C.white }}
+        >
+          Powered by an <span style={{ color: C.cyan }}>MCP</span> server
+        </span>
+      </Reveal>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <ArchBox
+          icon="🧠"
+          title="Copilot CLI"
+          sub="the brain · VS Code terminal"
+          color={C.pink}
+          delay={14}
+        />
+        <ArchArrow label="MCP tools" color={C.cyan} delay={26} />
+        <ArchBox
+          icon="🔌"
+          title="Canvas MCP server"
+          sub="runs inside the extension"
+          color={C.cyan}
+          delay={20}
+        />
+        <ArchArrow label="diagram" color={C.yellow} delay={32} />
+        <ArchBox
+          icon="🪟"
+          title="Canvas tab"
+          sub="Cytoscape webview"
+          color={C.purple}
+          delay={26}
+        />
+      </div>
+
+      <Reveal delay={44}>
+        <span
+          style={{
+            fontFamily: FONT,
+            fontWeight: 700,
+            fontSize: 27,
+            color: "#aeb6e0",
+            textAlign: "center",
+          }}
+        >
+          ↩ a bidirectional loop — your clicks &amp; selections feed context right
+          back to Copilot
+        </span>
+      </Reveal>
+    </div>
+  </Scene>
+);
+
+/* ================================================================== */
 /* ROOT COMPOSITION                                                    */
 /* ================================================================== */
 export const CanvasForCopilot: React.FC = () => {
@@ -1605,11 +1777,16 @@ export const CanvasForCopilotFull: React.FC = () => {
         <SceneSolution />
       </Sequence>
 
+      {/* How it works — architecture / MCP */}
+      <Sequence from={690} durationInFrames={240}>
+        <SceneArchitecture />
+      </Sequence>
+
       {/* Feature 1 — animated, then real clip */}
-      <Sequence from={690} durationInFrames={300}>
+      <Sequence from={930} durationInFrames={300}>
         <SceneFeature1 />
       </Sequence>
-      <Sequence from={990} durationInFrames={180}>
+      <Sequence from={1230} durationInFrames={180}>
         <SceneClip
           src={CLIP_SOURCES.visualize}
           tab="Visualize"
@@ -1620,10 +1797,10 @@ export const CanvasForCopilotFull: React.FC = () => {
       </Sequence>
 
       {/* Feature 2 — animated, then real clip */}
-      <Sequence from={1170} durationInFrames={300}>
+      <Sequence from={1410} durationInFrames={300}>
         <SceneFeature2 />
       </Sequence>
-      <Sequence from={1470} durationInFrames={180}>
+      <Sequence from={1710} durationInFrames={180}>
         <SceneClip
           src={CLIP_SOURCES.interact}
           tab="Interact"
@@ -1634,10 +1811,10 @@ export const CanvasForCopilotFull: React.FC = () => {
       </Sequence>
 
       {/* Feature 3 — animated, then real clip */}
-      <Sequence from={1650} durationInFrames={300}>
+      <Sequence from={1890} durationInFrames={300}>
         <SceneFeature3 />
       </Sequence>
-      <Sequence from={1950} durationInFrames={180}>
+      <Sequence from={2190} durationInFrames={180}>
         <SceneClip
           src={CLIP_SOURCES.modify}
           tab="Modify"
@@ -1648,13 +1825,13 @@ export const CanvasForCopilotFull: React.FC = () => {
       </Sequence>
 
       {/* How to download → future work → team outro */}
-      <Sequence from={2130} durationInFrames={360}>
+      <Sequence from={2370} durationInFrames={360}>
         <SceneDownload />
       </Sequence>
-      <Sequence from={2490} durationInFrames={300}>
+      <Sequence from={2730} durationInFrames={300}>
         <SceneFuture />
       </Sequence>
-      <Sequence from={2790} durationInFrames={300}>
+      <Sequence from={3030} durationInFrames={300}>
         <SceneTeamOutro />
       </Sequence>
     </AbsoluteFill>
