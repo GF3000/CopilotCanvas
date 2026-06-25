@@ -4,6 +4,7 @@
 // An invalid graph model surfaces a readable error instead of a blank canvas.
 import cytoscape from 'cytoscape';
 import dagre from 'cytoscape-dagre';
+import svg from 'cytoscape-svg';
 import {
   PROTOCOL_VERSION,
   isDiagramMessage,
@@ -13,12 +14,14 @@ import {
   type CyElement,
   type CyStyle,
   type DiagramMessage,
+  type ImageFormat,
   type PatchMessage,
 } from '@canvas/shared';
 import { validateGraphModel } from './graphModel';
 import { closedNeighbourhood, countNodes, nodeLabel } from './scope';
 
 cytoscape.use(dagre);
+cytoscape.use(svg);
 
 // Hierarchical layout that respects node sizes and avoids overlap — a good fit
 // for the directed flow / dependency / state diagrams we render. dagre is a
@@ -1230,6 +1233,186 @@ cy.on('tap', (evt) => {
 
 // Node selection on right-click and the menu actions are handled by the unified
 // node context menu above (label / colour / code references / center).
+
+/* ─── Export / download the diagram as an image (PNG / JPG / SVG) ─── */
+const exportBtn = document.getElementById('export-btn');
+const exportMenu = document.getElementById('export-menu');
+const exportFormatSel = document.getElementById('export-format');
+const exportScaleField = document.getElementById('export-scale-field');
+const exportScaleSel = document.getElementById('export-scale');
+const exportAreaSel = document.getElementById('export-area');
+const exportTransparent = document.getElementById('export-transparent');
+const exportBgField = document.getElementById('export-bg-field');
+const exportBgInput = document.getElementById('export-bg');
+const exportDownloadBtn = document.getElementById('export-download');
+const exportCancelBtn = document.getElementById('export-cancel');
+
+// Solid theme background, used when the user doesn't want a transparent export.
+const THEME_BG: Record<Theme, string> = { dark: '#0b0a12', light: '#f4f3fb' };
+
+function isExportOpen(): boolean {
+  return !!exportMenu && !exportMenu.hidden;
+}
+
+// Show only the options that apply to the chosen format: SVG is vector so it
+// ignores the raster scale; JPG has no alpha channel so transparency is disabled;
+// the custom bg colour only matters when not exporting transparently.
+function syncExportFields(): void {
+  const format =
+    exportFormatSel instanceof HTMLSelectElement ? exportFormatSel.value : 'png';
+  if (exportScaleField) exportScaleField.hidden = format === 'svg';
+  if (exportTransparent instanceof HTMLInputElement) {
+    const isJpg = format === 'jpg';
+    exportTransparent.disabled = isJpg;
+    if (isJpg) exportTransparent.checked = false;
+  }
+  const transparent =
+    exportTransparent instanceof HTMLInputElement && exportTransparent.checked;
+  if (exportBgField) exportBgField.hidden = transparent;
+}
+
+function openExportMenu(): void {
+  if (!exportMenu) return;
+  if (exportBgInput instanceof HTMLInputElement)
+    exportBgInput.value = THEME_BG[currentTheme];
+  syncExportFields();
+  exportMenu.hidden = false;
+  exportBtn?.setAttribute('aria-expanded', 'true');
+}
+
+function closeExportMenu(): void {
+  if (exportMenu) exportMenu.hidden = true;
+  exportBtn?.setAttribute('aria-expanded', 'false');
+}
+
+// Filesystem-friendly file name derived from the current diagram title.
+function exportFileName(format: ImageFormat): string {
+  const base = (currentTitle || 'diagram')
+    .trim()
+    .replace(/[^\w.-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80);
+  return `${base || 'diagram'}.${format}`;
+}
+
+// Plain-browser (dev) download via an anchor — the webview path posts the image
+// to the extension instead, which shows a Save dialog and writes the file.
+function browserDownload(
+  data: string,
+  encoding: 'base64' | 'utf8',
+  mime: string,
+  fileName: string,
+): void {
+  let href: string;
+  let revoke: string | undefined;
+  if (encoding === 'utf8') {
+    href = URL.createObjectURL(new Blob([data], { type: mime }));
+    revoke = href;
+  } else {
+    href = `data:${mime};base64,${data}`;
+  }
+  const anchor = document.createElement('a');
+  anchor.href = href;
+  anchor.download = fileName;
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  if (revoke) setTimeout(() => URL.revokeObjectURL(revoke), 1000);
+}
+
+// Render the current diagram to the chosen format and hand it off for saving.
+function runExport(): void {
+  if (cy.elements().empty()) {
+    closeExportMenu();
+    return;
+  }
+  const format = (
+    exportFormatSel instanceof HTMLSelectElement ? exportFormatSel.value : 'png'
+  ) as ImageFormat;
+  const scale =
+    exportScaleSel instanceof HTMLSelectElement
+      ? Number(exportScaleSel.value) || 1
+      : 1;
+  const full =
+    !(exportAreaSel instanceof HTMLSelectElement) ||
+    exportAreaSel.value === 'full';
+  const transparent =
+    format !== 'jpg' &&
+    exportTransparent instanceof HTMLInputElement &&
+    exportTransparent.checked;
+  const bg =
+    exportBgInput instanceof HTMLInputElement
+      ? exportBgInput.value
+      : THEME_BG[currentTheme];
+
+  let data: string;
+  let encoding: 'base64' | 'utf8';
+  let mime: string;
+  try {
+    if (format === 'svg') {
+      // SVG is vector: omit bg for a transparent (no background rect) export.
+      // cytoscape-svg adds cy.svg() at runtime; @types/cytoscape doesn't type it.
+      const cySvg = cy as unknown as {
+        svg(opts: { scale: number; full: boolean; bg?: string }): string;
+      };
+      data = cySvg.svg({ scale, full, bg: transparent ? undefined : bg });
+      encoding = 'utf8';
+      mime = 'image/svg+xml';
+    } else {
+      const opts = {
+        output: 'base64' as const,
+        scale,
+        full,
+        bg: transparent ? 'transparent' : bg,
+      };
+      data = format === 'png' ? cy.png(opts) : cy.jpg(opts);
+      encoding = 'base64';
+      mime = format === 'png' ? 'image/png' : 'image/jpeg';
+    }
+  } catch (err) {
+    showError([`Could not export the diagram: ${String(err)}`]);
+    closeExportMenu();
+    return;
+  }
+
+  const fileName = exportFileName(format);
+  closeExportMenu();
+
+  if (vscode) {
+    vscode.postMessage({
+      type: 'save_image',
+      sessionId: 'webview',
+      format,
+      data,
+      encoding,
+      fileName,
+    });
+  } else {
+    browserDownload(data, encoding, mime, fileName);
+  }
+}
+
+exportBtn?.addEventListener('click', () =>
+  isExportOpen() ? closeExportMenu() : openExportMenu(),
+);
+exportFormatSel?.addEventListener('change', syncExportFields);
+exportTransparent?.addEventListener('change', syncExportFields);
+exportDownloadBtn?.addEventListener('click', runExport);
+exportCancelBtn?.addEventListener('click', closeExportMenu);
+window.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && isExportOpen()) closeExportMenu();
+});
+// A click outside the popover (and not on its toggle) closes it.
+document.addEventListener('pointerdown', (event) => {
+  if (!isExportOpen()) return;
+  const target = event.target;
+  if (
+    target instanceof Node &&
+    (exportMenu?.contains(target) || exportBtn?.contains(target))
+  )
+    return;
+  closeExportMenu();
+});
 
 window.addEventListener('message', (event: MessageEvent<CanvasMessage>) => {
   const msg = event.data;

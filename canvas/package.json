@@ -7,6 +7,7 @@
     "@canvas/shared": "*",
     "cytoscape": "^3.30.0",
     "cytoscape-dagre": "^4.0.0",
+    "cytoscape-svg": "^0.4.0",
     "dagre": "^0.8.5"
   },
   "devDependencies": {

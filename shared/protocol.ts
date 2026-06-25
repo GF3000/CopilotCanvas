@@ -204,6 +204,27 @@ export interface DiagramEditedMessage extends BaseMessage {
   elements: CyElement[];
 }
 
+/** Image export format the canvas can produce. */
+export type ImageFormat = 'png' | 'jpg' | 'svg';
+
+/**
+ * The user asked to save the current diagram as an image (KAN export). The webview
+ * can't write files itself, so it posts the already-encoded image to the extension,
+ * which shows a Save dialog and writes it to disk. PNG/JPG are base64-encoded raster
+ * data; SVG is plain-text (utf8) vector markup.
+ */
+export interface SaveImageMessage extends BaseMessage {
+  type: 'save_image';
+  /** Output format the canvas rendered. */
+  format: ImageFormat;
+  /** Encoded image payload: base64 raster bytes (png/jpg) or SVG markup (svg). */
+  data: string;
+  /** How `data` is encoded, so the extension decodes it correctly before writing. */
+  encoding: 'base64' | 'utf8';
+  /** Suggested file name (no path), e.g. "auth-flow.png". */
+  fileName: string;
+}
+
 /** Acknowledge a prior message (echoes its msgId, D9). */
 export interface AckMessage extends BaseMessage {
   type: 'ack';
@@ -229,6 +250,7 @@ export type CanvasToServerMessage =
   | NodeSelectedMessage
   | InteractionMessage
   | DiagramEditedMessage
+  | SaveImageMessage
   | AckMessage
   | ErrorMessage;
 
@@ -253,6 +275,8 @@ export const isInteractionMessage = (m: CanvasMessage): m is InteractionMessage 
   m.type === 'interaction';
 export const isDiagramEditedMessage = (m: CanvasMessage): m is DiagramEditedMessage =>
   m.type === 'diagram_edited';
+export const isSaveImageMessage = (m: CanvasMessage): m is SaveImageMessage =>
+  m.type === 'save_image';
 export const isAckMessage = (m: CanvasMessage): m is AckMessage =>
   m.type === 'ack';
 export const isErrorMessage = (m: CanvasMessage): m is ErrorMessage =>

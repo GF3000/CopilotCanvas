@@ -152,6 +152,10 @@ export class CanvasPanel {
         depth?: unknown;
         focus?: unknown;
         changed?: unknown;
+        format?: unknown;
+        data?: unknown;
+        encoding?: unknown;
+        fileName?: unknown;
       }) => {
         CanvasPanel.log?.appendLine(
           `[canvas→ext] ${CanvasPanel.summarize(msg)}`,
@@ -165,6 +169,17 @@ export class CanvasPanel {
           this.selection = Array.isArray(msg.nodeIds)
             ? msg.nodeIds.filter((id): id is string => typeof id === 'string')
             : [];
+        } else if (
+          msg?.type === 'save_image' &&
+          typeof msg.data === 'string' &&
+          typeof msg.format === 'string'
+        ) {
+          void this.handleSaveImage(
+            msg.format,
+            msg.data,
+            msg.encoding === 'utf8' ? 'utf8' : 'base64',
+            typeof msg.fileName === 'string' ? msg.fileName : undefined,
+          );
         } else if (
           msg?.type === 'node_action' &&
           msg.action === 'open_code' &&
@@ -373,6 +388,47 @@ export class CanvasPanel {
     terminal.show();
     terminal.sendText(prompt, false);
     setTimeout(() => terminal.sendText('\r', false), 150);
+  }
+
+  /**
+   * Save an exported diagram image to disk. The webview can't write files, so it
+   * posts the already-encoded image here; we show a Save dialog and write it. PNG/JPG
+   * arrive as base64 raster bytes; SVG arrives as utf8 vector markup.
+   */
+  private async handleSaveImage(
+    format: string,
+    data: string,
+    encoding: 'base64' | 'utf8',
+    fileName?: string,
+  ): Promise<void> {
+    const ext = format === 'jpg' ? 'jpg' : format === 'svg' ? 'svg' : 'png';
+    const suggestedName = fileName ?? `diagram.${ext}`;
+    const filters: Record<string, string[]> =
+      ext === 'svg'
+        ? { 'SVG image': ['svg'] }
+        : ext === 'jpg'
+          ? { 'JPEG image': ['jpg', 'jpeg'] }
+          : { 'PNG image': ['png'] };
+
+    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri;
+    const defaultUri = workspaceRoot
+      ? vscode.Uri.joinPath(workspaceRoot, suggestedName)
+      : vscode.Uri.file(suggestedName);
+
+    const target = await vscode.window.showSaveDialog({ defaultUri, filters });
+    if (!target) return;
+
+    try {
+      const bytes = Buffer.from(data, encoding);
+      await vscode.workspace.fs.writeFile(target, bytes);
+      void vscode.window.showInformationMessage(
+        `Canvas for Copilot: saved ${vscode.workspace.asRelativePath(target)}`,
+      );
+    } catch (err) {
+      void vscode.window.showErrorMessage(
+        `Canvas for Copilot: couldn't save the image — ${String(err)}`,
+      );
+    }
   }
 
   /** The current canvas selection (empty if nothing selected / no canvas open). */
