@@ -1431,6 +1431,40 @@ document.addEventListener('pointerdown', (event) => {
   closeExportMenu();
 });
 
+/* ─── "More" controls popover: collapses theme / legend / export ─── */
+const moreBtn = document.getElementById('more-btn');
+const moreMenu = document.getElementById('more-menu');
+
+function closeMoreMenu(): void {
+  if (moreMenu) moreMenu.hidden = true;
+  moreBtn?.setAttribute('aria-expanded', 'false');
+}
+
+moreBtn?.addEventListener('click', () => {
+  if (!moreMenu) return;
+  const show = moreMenu.hidden;
+  moreMenu.hidden = !show;
+  moreBtn.setAttribute('aria-expanded', String(show));
+});
+// Running an item's own action then collapses the popover.
+moreMenu?.addEventListener('click', (event) => {
+  if ((event.target as HTMLElement | null)?.closest('.more-item'))
+    closeMoreMenu();
+});
+window.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && moreMenu && !moreMenu.hidden) closeMoreMenu();
+});
+document.addEventListener('pointerdown', (event) => {
+  if (!moreMenu || moreMenu.hidden) return;
+  const target = event.target;
+  if (
+    target instanceof Node &&
+    (moreMenu.contains(target) || moreBtn?.contains(target))
+  )
+    return;
+  closeMoreMenu();
+});
+
 window.addEventListener('message', (event: MessageEvent<CanvasMessage>) => {
   const msg = event.data;
   if (isDiagramMessage(msg)) handleDiagram(msg);
