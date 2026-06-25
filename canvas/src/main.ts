@@ -981,13 +981,6 @@ function handlePatch(msg: PatchMessage): void {
     }
   });
 
-  // Re-separate parallel/bidirectional edges if any edges were added/removed.
-  const edgeChanged =
-    msg.add.some(
-      (el) => el.data.source !== undefined || el.data.target !== undefined,
-    ) || msg.remove.length > 0;
-  if (edgeChanged) separateParallelEdges();
-
   // Only re-layout when nodes were added (avoids overlap). `fit: false` keeps the
   // current zoom/pan. Pure relabels never reach here, so they don't move.
   const addedNode = msg.add.some(
@@ -996,6 +989,14 @@ function handlePatch(msg: PatchMessage): void {
   if (addedNode) {
     cy.layout(dagreLayout(false)).run();
   }
+
+  // Re-separate parallel/bidirectional edges (and re-stagger labels) when edges
+  // changed — after any layout so node positions are current.
+  const edgeChanged =
+    msg.add.some(
+      (el) => el.data.source !== undefined || el.data.target !== undefined,
+    ) || msg.remove.length > 0;
+  if (edgeChanged || addedNode) separateParallelEdges();
   updateLegend();
 }
 
@@ -1048,24 +1049,32 @@ function render(elements: CyElement[]): void {
   colorOverrides.clear();
   cy.elements().remove();
   cy.add(elements.map(toElementDef));
-  separateParallelEdges();
   cy.layout(dagreLayout(true)).run();
+  separateParallelEdges();
   cy.fit(undefined, FIT_PADDING);
 }
 
 // Bow apart edges that connect the same pair of nodes — including bidirectional
-// pairs (A→B and B→A) — so their lines and mid-point labels don't stack on top of
-// each other (KAN-41). Cytoscape's `bezier` only auto-separates same-direction
-// parallels, so we set explicit control points. The geometric side is normalised
-// by edge direction (`dir`) so opposite-direction edges land on opposite sides.
+// pairs (A→B and B→A) — and stagger their labels to different points along the
+// shared line, so neither the lines nor the mid-point labels overlap (KAN-41).
+// Cytoscape's `bezier` only auto-separates same-direction parallels, so we set
+// explicit control points; the bow side is normalised by edge direction (`dir`)
+// and the label offset is along a canonical line direction so the labels land at
+// distinct positions regardless of each edge's orientation. Needs node positions,
+// so call it AFTER layout.
 function separateParallelEdges(): void {
-  const STEP = 26;
+  const BOW = 26; // perpendicular distance between parallel arcs
+  const STAGGER = 46; // px between labels measured along the shared line
   const handled = new Set<string>();
   cy.edges().forEach((edge) => {
     const group = edge.parallelEdges();
     if (group.length < 2) {
-      // Lone edge: clear any stale offset from a previous patch.
-      edge.style('control-point-distances', 0);
+      // Lone edge: clear any stale offsets from a previous patch.
+      edge.style({
+        'control-point-distances': 0,
+        'text-margin-x': 0,
+        'text-margin-y': 0,
+      });
       return;
     }
     const key = group
@@ -1075,14 +1084,27 @@ function separateParallelEdges(): void {
     if (handled.has(key)) return;
     handled.add(key);
 
+    // Canonical direction (lo-id → hi-id) so labels can be staggered to distinct
+    // points along the line independent of each edge's own direction.
+    const a = group[0].source().id();
+    const b = group[0].target().id();
+    const pLo = cy.getElementById(a < b ? a : b).position();
+    const pHi = cy.getElementById(a < b ? b : a).position();
+    const len = Math.hypot(pHi.x - pLo.x, pHi.y - pLo.y) || 1;
+    const ux = (pHi.x - pLo.x) / len;
+    const uy = (pHi.y - pLo.y) / len;
+
     const n = group.length;
     group.forEach((e, i) => {
       const dir = e.source().id() < e.target().id() ? 1 : -1;
-      const geom = (i - (n - 1) / 2) * STEP * 2;
+      const spread = i - (n - 1) / 2;
+      const along = spread * STAGGER;
       e.style({
         'curve-style': 'bezier',
-        'control-point-distances': geom * dir,
+        'control-point-distances': spread * BOW * 2 * dir,
         'control-point-weights': 0.5,
+        'text-margin-x': ux * along,
+        'text-margin-y': uy * along,
       });
     });
   });
