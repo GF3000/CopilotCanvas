@@ -1310,6 +1310,8 @@ const RoadmapCard: React.FC<{
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const pop = spring({ frame: frame - delay, fps, config: { damping: 13 } });
+  // Gentle continuous bob on the icon so each card feels alive once it lands.
+  const float = Math.sin((frame - delay) / 12) * 6 * pop;
   return (
     <div
       style={{
@@ -1326,7 +1328,15 @@ const RoadmapCard: React.FC<{
         boxShadow: `0 20px 60px rgba(0,0,0,0.4), 0 0 40px ${color}22`,
       }}
     >
-      <div style={{ fontSize: 70 }}>{icon}</div>
+      <div
+        style={{
+          fontSize: 70,
+          transform: `translateY(${float}px)`,
+          filter: `drop-shadow(0 8px 18px ${color}55)`,
+        }}
+      >
+        {icon}
+      </div>
       <div
         style={{ fontFamily: FONT, fontWeight: 900, fontSize: 38, color }}
       >
@@ -1365,23 +1375,23 @@ const SceneFuture: React.FC = () => (
       </Reveal>
       <div style={{ display: "flex", gap: 40 }}>
         <RoadmapCard
-          icon="💾"
-          title="Persistence"
-          sub="save & version your diagrams"
+          icon="👥"
+          title="Collaborate live"
+          sub="real-time canvases with your team"
           color={C.cyan}
           delay={18}
         />
         <RoadmapCard
-          icon="🧩"
-          title="Beyond graphs"
-          sub="sequence, ER & more diagram types"
+          icon="📊"
+          title="Richer figures"
+          sub="tables & more complex diagrams"
           color={C.yellow}
           delay={32}
         />
         <RoadmapCard
-          icon="☁️"
-          title="Cloud"
-          sub="shared canvases & team collaboration"
+          icon="💾"
+          title="Save to your account"
+          sub="your diagrams, saved & synced"
           color={C.purple}
           delay={46}
         />
