@@ -499,7 +499,8 @@ export class CanvasPanel {
     const node = panel?.nodes.get(id);
     if (!panel || !node) return false;
     node.codeRefs = [...(node.codeRefs ?? []), ref];
-    // Mark the node 'linked' on the canvas so the user sees it has code.
+    // Mark the node 'linked' on the canvas AND deliver the code refs so the canvas
+    // node carries them (renderCodeRefs / "go to code" in the menu reads node data).
     panel.sendPatch({
       type: 'patch',
       sessionId: 'cli',
@@ -507,7 +508,7 @@ export class CanvasPanel {
       version: 0,
       add: [],
       remove: [],
-      update: [{ data: { id }, classes: 'linked' }],
+      update: [{ data: { id }, classes: 'linked', codeRefs: node.codeRefs }],
     });
     return true;
   }
