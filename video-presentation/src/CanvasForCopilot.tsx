@@ -12,13 +12,29 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
+import { loadFont as loadDisplayFont } from "@remotion/google-fonts/Inter";
+import { loadFont as loadMonoFont } from "@remotion/google-fonts/JetBrainsMono";
+import { loadFont as loadTitleFont } from "@remotion/google-fonts/Sora";
 
 /* ------------------------------------------------------------------ */
 /* Design tokens                                                       */
 /* ------------------------------------------------------------------ */
-const FONT =
-  '"Segoe UI", "Inter", system-ui, -apple-system, "Arial Black", sans-serif';
-const MONO = '"Cascadia Code", "Consolas", "SF Mono", monospace';
+// Real web fonts (loaded via @remotion/google-fonts) so they render identically
+// in the Studio preview and the final headless render — no reliance on
+// system-installed fonts.
+const { fontFamily: FONT } = loadDisplayFont("normal", {
+  weights: ["400", "500", "600", "700", "800", "900"],
+  subsets: ["latin"],
+});
+const { fontFamily: MONO } = loadMonoFont("normal", {
+  weights: ["400", "600", "700"],
+  subsets: ["latin"],
+});
+// Distinct display font for the big animated headlines (Kinetic).
+const { fontFamily: TITLE_FONT } = loadTitleFont("normal", {
+  weights: ["600", "700", "800"],
+  subsets: ["latin"],
+});
 
 const C = {
   bg0: "#0b1020",
@@ -101,7 +117,7 @@ const Kinetic: React.FC<{
   delay?: number;
   outline?: string;
   weight?: number;
-}> = ({ text, size, color, delay = 0, outline, weight = 900 }) => {
+}> = ({ text, size, color, delay = 0, outline, weight = 800 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   return (
@@ -117,7 +133,7 @@ const Kinetic: React.FC<{
             key={i}
             style={{
               display: "inline-block",
-              fontFamily: FONT,
+              fontFamily: TITLE_FONT,
               fontWeight: weight,
               fontSize: size,
               lineHeight: 1.05,
@@ -591,8 +607,8 @@ const SceneHookCold: React.FC = () => {
               style={{
                 display: "inline-block",
                 rotate: `${tick}deg`,
-                fontFamily: FONT,
-                fontWeight: 900,
+                fontFamily: TITLE_FONT,
+                fontWeight: 800,
                 fontSize: 92,
                 color: C.yellow,
                 WebkitTextStroke: `4px ${C.ink}`,
@@ -1101,6 +1117,178 @@ const SceneClip: React.FC<{
 );
 
 /* ================================================================== */
+/* ARCHITECTURE SCENE — how it works (MCP)                            */
+/* ================================================================== */
+const ArchBox: React.FC<{
+  icon: string;
+  title: string;
+  sub: string;
+  color: string;
+  delay: number;
+}> = ({ icon, title, sub, color, delay }) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const pop = spring({ frame: frame - delay, fps, config: { damping: 13 } });
+  return (
+    <div
+      style={{
+        scale: String(pop),
+        opacity: pop,
+        width: 340,
+        background: "rgba(255,255,255,0.04)",
+        border: `2px solid ${color}88`,
+        borderRadius: 20,
+        padding: "26px 22px",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 8,
+        boxShadow: `0 16px 50px rgba(0,0,0,0.4), 0 0 40px ${color}22`,
+      }}
+    >
+      <div style={{ fontSize: 60 }}>{icon}</div>
+      <div style={{ fontFamily: FONT, fontWeight: 800, fontSize: 32, color }}>
+        {title}
+      </div>
+      <div
+        style={{
+          fontFamily: FONT,
+          fontWeight: 600,
+          fontSize: 21,
+          color: C.white,
+          textAlign: "center",
+        }}
+      >
+        {sub}
+      </div>
+    </div>
+  );
+};
+
+const ArchArrow: React.FC<{ label: string; color: string; delay: number }> = ({
+  label,
+  color,
+  delay,
+}) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const grow = spring({ frame: frame - delay, fps, config: { damping: 16 } });
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        width: 130,
+        opacity: grow,
+      }}
+    >
+      <div
+        style={{
+          fontFamily: MONO,
+          fontSize: 16,
+          color,
+          marginBottom: 6,
+          whiteSpace: "nowrap",
+        }}
+      >
+        {label}
+      </div>
+      <div
+        style={{
+          width: "100%",
+          height: 3,
+          background: color,
+          transformOrigin: "left",
+          transform: `scaleX(${grow})`,
+          position: "relative",
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            right: -2,
+            top: -7,
+            color,
+            fontSize: 26,
+            lineHeight: "1px",
+          }}
+        >
+          ▶
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const SceneArchitecture: React.FC = () => (
+  <Scene durationInFrames={240}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 46,
+      }}
+    >
+      <Reveal>
+        <Pill bg={C.cyan} color={C.ink}>
+          🔌 under the hood
+        </Pill>
+      </Reveal>
+      <Reveal delay={8}>
+        <span
+          style={{ fontFamily: FONT, fontWeight: 900, fontSize: 58, color: C.white }}
+        >
+          Powered by an <span style={{ color: C.cyan }}>MCP</span> server
+        </span>
+      </Reveal>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <ArchBox
+          icon="🧠"
+          title="Copilot CLI"
+          sub="the brain · VS Code terminal"
+          color={C.pink}
+          delay={14}
+        />
+        <ArchArrow label="MCP tools" color={C.cyan} delay={26} />
+        <ArchBox
+          icon="🔌"
+          title="Canvas MCP server"
+          sub="runs inside the extension"
+          color={C.cyan}
+          delay={20}
+        />
+        <ArchArrow label="diagram" color={C.yellow} delay={32} />
+        <ArchBox
+          icon="🪟"
+          title="Canvas tab"
+          sub="Cytoscape webview"
+          color={C.purple}
+          delay={26}
+        />
+      </div>
+
+      <Reveal delay={44}>
+        <span
+          style={{
+            fontFamily: FONT,
+            fontWeight: 700,
+            fontSize: 27,
+            color: "#aeb6e0",
+            textAlign: "center",
+          }}
+        >
+          ↩ a bidirectional loop — your clicks &amp; selections feed context right
+          back to Copilot
+        </span>
+      </Reveal>
+    </div>
+  </Scene>
+);
+
+/* ================================================================== */
 /* ROOT COMPOSITION                                                    */
 /* ================================================================== */
 export const CanvasForCopilot: React.FC = () => {
@@ -1440,12 +1628,13 @@ const SceneFuture: React.FC = () => (
 );
 
 // Team avatars. Add photos to public/avatars/ and set `img` to render them.
+// `pos` is the CSS object-position so a portrait photo frames the face, not the torso.
 const TEAM = [
-  { name: "Ashley Torres Perez", initials: "AT", color: C.pink, img: "" },
-  { name: "Guillermo Franco Gimeno", initials: "GF", color: C.cyan, img: "" },
-  { name: "Hadwik Payidiparthy", initials: "HP", color: C.yellow, img: "" },
-  { name: "Nataliia Kulieshova", initials: "NK", color: C.purple, img: "" },
-  { name: "Oleksii Babii", initials: "OB", color: C.green, img: "" },
+  { name: "Ashley Torres Perez", initials: "AT", color: C.pink, img: "avatars/ashley.png", pos: "center 14%" },
+  { name: "Guillermo Franco Gimeno", initials: "GF", color: C.cyan, img: "avatars/guillermo.png", pos: "center" },
+  { name: "Hadwik Payidiparthy", initials: "HP", color: C.yellow, img: "", pos: "center" },
+  { name: "Nataliia Kulieshova", initials: "NK", color: C.purple, img: "", pos: "center" },
+  { name: "Oleksii Babii", initials: "OB", color: C.green, img: "", pos: "center" },
 ];
 
 const Avatar: React.FC<{
@@ -1467,20 +1656,20 @@ const Avatar: React.FC<{
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: 12,
-        width: 200,
+        gap: 14,
+        width: 320,
       }}
     >
       <div
         style={{
-          width: 150,
-          height: 150,
+          width: 250,
+          height: 250,
           borderRadius: "50%",
           background: member.img
             ? undefined
             : `linear-gradient(135deg, ${member.color}, ${member.color}99)`,
-          border: `5px solid ${member.color}`,
-          boxShadow: `0 0 36px ${member.color}66`,
+          border: `8px solid ${member.color}`,
+          boxShadow: `0 0 56px ${member.color}66`,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -1490,14 +1679,19 @@ const Avatar: React.FC<{
         {member.img ? (
           <Img
             src={staticFile(member.img)}
-            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              objectPosition: member.pos,
+            }}
           />
         ) : (
           <span
             style={{
               fontFamily: FONT,
               fontWeight: 900,
-              fontSize: 56,
+              fontSize: 96,
               color: C.ink,
             }}
           >
@@ -1509,7 +1703,7 @@ const Avatar: React.FC<{
         style={{
           fontFamily: FONT,
           fontWeight: 700,
-          fontSize: 22,
+          fontSize: 26,
           color: C.white,
           textAlign: "center",
           lineHeight: 1.15,
@@ -1546,13 +1740,27 @@ const SceneTeamOutro: React.FC = () => (
           built by 5 SWE interns · 2 Redmond · 2 Dublin · 1 India
         </span>
       </Reveal>
-      <div style={{ height: 28 }} />
-      <div style={{ display: "flex", gap: 20, justifyContent: "center" }}>
-        {TEAM.map((m, i) => (
-          <Avatar key={m.name} member={m} delay={55 + i * 8} />
-        ))}
+      <div style={{ height: 22 }} />
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 26,
+          alignItems: "center",
+        }}
+      >
+        <div style={{ display: "flex", gap: 40, justifyContent: "center" }}>
+          {TEAM.slice(0, 3).map((m, i) => (
+            <Avatar key={m.name} member={m} delay={55 + i * 8} />
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: 40, justifyContent: "center" }}>
+          {TEAM.slice(3).map((m, i) => (
+            <Avatar key={m.name} member={m} delay={79 + i * 8} />
+          ))}
+        </div>
       </div>
-      <div style={{ height: 34 }} />
+      <div style={{ height: 26 }} />
       <Reveal delay={110}>
         <Pill bg={C.purple} color={C.white}>
           Canvas for Copilot 💜
@@ -1614,6 +1822,11 @@ export const CanvasForCopilotFull: React.FC = () => {
       </Sequence>
       <Sequence from={450} durationInFrames={240}>
         <SceneSolution />
+      </Sequence>
+
+      {/* How it works — architecture / MCP */}
+      <Sequence from={690} durationInFrames={240}>
+        <SceneArchitecture />
       </Sequence>
 
       {/* Feature 1 — Visualize + explain: animated, then real clip */}

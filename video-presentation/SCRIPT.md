@@ -234,13 +234,14 @@ Format per scene: **VISUAL** · **ON-SCREEN TEXT** · **VOICEOVER** · **NOTES**
 1. Day one as an intern. Here's a massive codebase you've never seen — and a few weeks to understand it and ship something real.
 2. Copilot CLI can explain it — but everything comes back as text. And reading paragraph after paragraph is a painfully slow way to see how a whole system actually fits together.
 3. So we built **Canvas for Copilot**. It turns those text explanations into a live, interactive diagram — right inside a VS Code tab. Suddenly, you can *see* the system.
-4. Feature one — **visualize and explain**. Ask Copilot to diagram a flow, and the canvas opens right in VS Code. Pan, zoom, then click any node and ask Copilot to explain it — an instant breakdown, no scrolling. *(Here it is for real.)*
-5. Feature two — **expand and undo**. Expand any node and the diagram grows new detail in place; one undo steps you right back, so you can explore fearlessly. *(Expand, undo, repeat.)*
-6. Feature three — **search and code references**. Search to find any node instantly, and because nodes and links map to real code, one click jumps straight to the exact file and line. *(Diagram, meet codebase.)*
-7. Feature four — **diagram types**. Not just node graphs — flowcharts, dependency graphs, state machines, UML and ER — ask for the type you want, or let Copilot pick. *(The right diagram, every time.)*
-8. Getting started is easy: install the VS Code extension, add the Canvas MCP server to your Copilot config, and ask for a diagram — all running locally.
-9. And we're just getting started — real-time collaboration with others, tables and richer figures, and saving your diagrams to your account are next.
-10. Built by five software-engineering interns, across Redmond, Dublin, and India. **Canvas for Copilot** — see your code, don't just read it.
+4. Under the hood it's just **MCP**. Copilot CLI calls our Canvas MCP server — running inside the VS Code extension — which renders the diagram in a webview tab. And it's a two-way loop: what you click and select flows right back to Copilot.
+5. Feature one — **visualize and explain**. Ask Copilot to diagram a flow, and the canvas opens right in VS Code. Pan, zoom, then click any node and ask Copilot to explain it — an instant breakdown, no scrolling. *(Here it is for real.)*
+6. Feature two — **expand and undo**. Expand any node and the diagram grows new detail in place; one undo steps you right back, so you can explore fearlessly. *(Expand, undo, repeat.)*
+7. Feature three — **search and code references**. Search to find any node instantly, and because nodes and links map to real code, one click jumps straight to the exact file and line. *(Diagram, meet codebase.)*
+8. Feature four — **diagram types**. Not just node graphs — flowcharts, dependency graphs, state machines, UML and ER — ask for the type you want, or let Copilot pick. *(The right diagram, every time.)*
+9. Getting started is easy: install the VS Code extension, add the Canvas MCP server to your Copilot config, and ask for a diagram — all running locally.
+10. And we're just getting started — real-time collaboration with others, tables and richer figures, and saving your diagrams to your account are next.
+11. Built by five software-engineering interns, across Redmond, Dublin, and India. **Canvas for Copilot** — see your code, don't just read it.
 
 ---
 
@@ -294,7 +295,7 @@ because you can.
 | Module | Where | +Time | Why add it |
 |--------|-------|-------|------------|
 | **A. Real onboarding story** | after Scene 2 | +20 s | An intern voice: "my first repo had 800 files…" — makes the pain concrete & human |
-| **B. How it works (architecture)** | after Scene 3 | +25 s | Show the loop: Copilot CLI ⇄ MCP server ⇄ VS Code webview (Cytoscape). Judges reward technical depth |
+| **B. How it works (architecture)** | after Scene 3 | +25 s | ✅ **Added as Scene 4.** Shows the loop: Copilot CLI ⇄ MCP server ⇄ VS Code webview (Cytoscape). Judges reward technical depth |
 | **C. The bidirectional loop, explained** | after Feature 3 | +20 s | The real novelty — animate canvas→CLI and CLI→canvas arrows; the "second surface" idea |
 | **D. Longer end-to-end demo** | replace one clip | +20–40 s | One uncut "wow" flow: ask → diagram → click → expand → modify → code changes, in a single take |
 | **E. Before / after split-screen** | after Scene 2 | +15 s | Wall of text on the left, live diagram on the right — instant contrast |
