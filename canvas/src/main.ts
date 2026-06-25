@@ -672,19 +672,20 @@ function openNodeMenu(node: cytoscape.NodeSingular, x: number, y: number): void 
   const { width, height } = nodeMenu.getBoundingClientRect();
   nodeMenu.style.left = `${Math.max(8, Math.min(x, window.innerWidth - width - 8))}px`;
   nodeMenu.style.top = `${Math.max(8, Math.min(y, window.innerHeight - height - 8))}px`;
-  if (labelInput instanceof HTMLInputElement) {
-    labelInput.focus();
-    labelInput.select();
-  }
+  // Don't auto-focus/select the label field: the menu's primary actions are
+  // Explain/Expand, and auto-focusing made the rename field look "active" and
+  // invited accidental edits (which then fired a spurious rename on close).
 }
 
 function closeNodeMenu(commit: boolean): void {
   if (commit && menuNode && labelInput instanceof HTMLInputElement) {
     const text = labelInput.value.trim();
+    const oldLabel = menuNodeOldLabel.trim();
     if (text) menuNode.data('label', text);
     // KAN-14: a real rename drives a matching code change via the extension.
-    if (text && text !== menuNodeOldLabel) {
-      emitDiagramEdited(menuNode.id(), menuNodeOldLabel, text);
+    // Compare trimmed-vs-trimmed so whitespace alone never counts as a rename.
+    if (text && text !== oldLabel) {
+      emitDiagramEdited(menuNode.id(), oldLabel, text);
     }
   }
   if (nodeMenu) nodeMenu.hidden = true;
@@ -774,7 +775,7 @@ function openNodeCode(nodeId: string, refIndex: number): void {
     nodeId,
     refIndex,
   });
-  closeNodeMenu(true);
+  closeNodeMenu(false);
 }
 
 // Populate (and show/hide) the "Code references" section for the menu's node so
@@ -803,7 +804,7 @@ function renderCodeRefs(node: cytoscape.NodeSingular): void {
 // "Center on node" action — re-frame the view on the menu's node.
 nodeCenterBtn?.addEventListener('click', () => {
   const node = menuNode;
-  closeNodeMenu(true);
+  closeNodeMenu(false);
   if (node)
     cy.animate({ center: { eles: node }, duration: 200, easing: 'ease-out' });
 });
@@ -812,7 +813,7 @@ nodeCenterBtn?.addEventListener('click', () => {
 // the full explanation is produced in the CLI (it calls describe_node).
 nodeExplainBtn?.addEventListener('click', () => {
   const nodeId = menuNode?.id();
-  closeNodeMenu(true);
+  closeNodeMenu(false);
   if (nodeId) vscode?.postMessage({ type: 'node_action', action: 'explain', nodeId });
 });
 
@@ -865,7 +866,7 @@ function submitExpand(): void {
 // "Expand node" action — open the dialog to gather the expansion preferences.
 nodeExpandBtn?.addEventListener('click', () => {
   const nodeId = menuNode?.id();
-  closeNodeMenu(true);
+  closeNodeMenu(false);
   if (nodeId) openExpandDialog(nodeId);
 });
 
