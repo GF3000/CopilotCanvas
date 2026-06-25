@@ -378,12 +378,17 @@ export class CanvasPanel {
   }
 
   /**
-   * Inject a prompt into the active integrated terminal (where Copilot CLI runs)
-   * and submit it. The CLI input treats a trailing newline as a soft line-break, so
-   * type the text then send an explicit carriage return shortly after to run it.
+   * Inject a prompt into the Copilot CLI terminal and submit it. The CLI input
+   * treats a trailing newline as a soft line-break, so type the text then send an
+   * explicit carriage return shortly after to run it. We prefer a terminal that
+   * looks like a Copilot session and sanitize the prompt so an embedded label
+   * can't execute as a shell command if it lands in a non-Copilot terminal.
    */
   private sendToTerminal(prompt: string): void {
-    const terminal = vscode.window.activeTerminal ?? vscode.window.terminals[0];
+    const terminal =
+      vscode.window.terminals.find((t) => /copilot/i.test(t.name)) ??
+      vscode.window.activeTerminal ??
+      vscode.window.terminals[0];
     if (!terminal) {
       void vscode.window.showWarningMessage(
         'Canvas for Copilot: open a Copilot CLI terminal first, then try the action again to see the result there.',
@@ -391,8 +396,17 @@ export class CanvasPanel {
       return;
     }
     terminal.show();
-    terminal.sendText(prompt, false);
+    terminal.sendText(CanvasPanel.sanitizePrompt(prompt), false);
     setTimeout(() => terminal.sendText('\r', false), 150);
+  }
+
+  /**
+   * Neutralise characters that could turn an embedded (model/user-controlled)
+   * node label into a shell command if the prompt is typed into a non-Copilot
+   * terminal: flatten newlines and strip backticks / `$` (command substitution).
+   */
+  private static sanitizePrompt(text: string): string {
+    return text.replace(/[\r\n]+/g, ' ').replace(/[`$]/g, '');
   }
 
   /**

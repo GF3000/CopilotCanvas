@@ -933,10 +933,13 @@ window.addEventListener('keydown', (event) => {
 });
 
 // Right-click a node to edit it (label / colour / code refs) and select it so the
-// CLI knows the target. Suppress the browser menu over the canvas.
-cy.container()?.addEventListener('contextmenu', (event) =>
-  event.preventDefault(),
-);
+// CLI knows the target. Suppress the browser's copy/cut/paste menu across the whole
+// webview, but keep it on editable fields so right-click paste still works there.
+document.addEventListener('contextmenu', (event) => {
+  const target = event.target as HTMLElement | null;
+  if (target?.closest('input, textarea, [contenteditable="true"]')) return;
+  event.preventDefault();
+});
 cy.on('cxttap', 'node', (event) => {
   const node = event.target as cytoscape.NodeSingular;
   cy.elements().unselect();
@@ -996,6 +999,7 @@ function handlePatch(msg: PatchMessage): void {
     // Remove first so an add can reuse an id.
     for (const id of msg.remove) {
       cy.getElementById(id).remove();
+      manualEdgeControls.delete(id); // drop any manual reshape for a removed edge
     }
     // Merge data into existing elements in place (preserves position), plus any
     // classes / inline style (KAN-26).
@@ -1034,6 +1038,9 @@ function handlePatch(msg: PatchMessage): void {
     ) || msg.remove.length > 0;
   if (edgeChanged || addedNode) separateParallelEdges();
   updateLegend();
+  // Keep an open search in sync with the mutated graph (matches may have been
+  // added/removed) instead of holding stale element references.
+  refreshSearchIfOpen();
 }
 
 // Map the whitelisted inline style subset (KAN-26, option B) to Cytoscape
@@ -1451,13 +1458,20 @@ cy.on('tapdrag', (evt) => {
   applyEdgeControlFromPoint(draggingEdge, evt.position);
 });
 
-cy.on('tapend', () => {
+// End the drag and restore canvas interaction. Also called from fallbacks below
+// so panning isn't left disabled if the gesture is interrupted (pointer released
+// off-canvas, window blur, etc.).
+function endEdgeDrag(): void {
   if (!draggingEdge) return;
   draggingEdge = undefined;
   cy.userPanningEnabled(true);
   cy.boxSelectionEnabled(true);
   if (cyContainer) cyContainer.style.cursor = '';
-});
+}
+
+cy.on('tapend', endEdgeDrag);
+window.addEventListener('pointerup', endEdgeDrag);
+window.addEventListener('blur', endEdgeDrag);
 
 // Node selection on right-click and the menu actions are handled by the unified
 // node context menu above (label / colour / code references / center).
@@ -1767,6 +1781,19 @@ function closeSearch(): void {
   if (searchInput instanceof HTMLInputElement) searchInput.value = '';
   if (searchCount) searchCount.textContent = '';
   if (searchBar) searchBar.hidden = true;
+}
+
+// Re-run the active query after the graph mutates so search highlighting stays in
+// sync (avoids stale references to removed elements).
+function refreshSearchIfOpen(): void {
+  if (
+    searchBar &&
+    !searchBar.hidden &&
+    searchInput instanceof HTMLInputElement &&
+    searchInput.value.trim()
+  ) {
+    runSearch(searchInput.value);
+  }
 }
 
 searchToggle?.addEventListener('click', openSearch);
