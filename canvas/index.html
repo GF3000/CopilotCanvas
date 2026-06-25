@@ -257,6 +257,12 @@
         background: var(--hover-bg);
       }
 
+      .more-item:disabled {
+        opacity: 0.4;
+        cursor: default;
+        background: transparent;
+      }
+
       .more-item:hover svg {
         stroke: var(--icon-hover);
       }
@@ -264,6 +270,30 @@
       .more-item:focus-visible {
         outline: 2px solid var(--focus-ring);
         outline-offset: -2px;
+      }
+
+      /* Toggle menu items (e.g. Legend): show a trailing check + active tint
+         when "on" so the open/closed state is visible at a glance. */
+      .more-item-check {
+        opacity: 0;
+        transform: scale(0.7);
+        transition:
+          opacity 0.14s ease,
+          transform 0.14s ease;
+      }
+
+      .more-item-toggle[aria-pressed='true'] {
+        background: var(--hover-bg);
+      }
+
+      .more-item-toggle[aria-pressed='true'] svg {
+        stroke: var(--icon-hover);
+      }
+
+      .more-item-toggle[aria-pressed='true'] .more-item-check {
+        opacity: 1;
+        transform: scale(1);
+        stroke: var(--focus-ring);
       }
 
       /* Theme toggle: show the icon of the theme you'll switch TO. */
@@ -342,6 +372,140 @@
         stroke-width: 2.2;
         stroke-linecap: round;
         stroke-linejoin: round;
+      }
+
+      /* Hamburger button by the title that opens the diagram history (KAN-34). */
+      #history-btn {
+        flex: none;
+        width: 30px;
+        height: 30px;
+        display: grid;
+        place-items: center;
+        padding: 0;
+        margin: 0;
+        border: none;
+        border-radius: 8px;
+        background: transparent;
+        color: var(--icon);
+        cursor: pointer;
+        transition:
+          background 0.15s ease,
+          color 0.15s ease;
+      }
+
+      #history-btn:hover:not(:disabled) {
+        background: var(--hover-bg);
+        color: var(--icon-hover);
+      }
+
+      #history-btn:disabled {
+        opacity: 0.4;
+        cursor: default;
+      }
+
+      #history-btn:focus-visible {
+        outline: 2px solid var(--focus-ring);
+        outline-offset: -2px;
+      }
+
+      #history-btn svg {
+        width: 18px;
+        height: 18px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      /* History dropdown — the list of diagram versions. */
+      #history-menu {
+        position: absolute;
+        top: 60px;
+        left: 16px;
+        z-index: 40;
+        width: 280px;
+        max-height: 50vh;
+        overflow-y: auto;
+        padding: 8px;
+        border-radius: 14px;
+        background: var(--surface-solid);
+        border: 1px solid var(--surface-border);
+        box-shadow: 0 14px 40px var(--surface-shadow);
+        color: var(--text);
+      }
+
+      #history-menu[hidden] {
+        display: none;
+      }
+
+      .history-head {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--text-muted);
+        padding: 4px 8px 8px;
+      }
+
+      .history-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        padding: 8px 10px;
+        border: none;
+        border-radius: 8px;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        font-size: 13px;
+        text-align: left;
+        cursor: pointer;
+        transition: background 0.14s ease;
+      }
+
+      .history-item:hover {
+        background: var(--hover-bg);
+      }
+
+      .history-item.is-current {
+        background: var(--hover-bg-strong);
+      }
+
+      .history-num {
+        flex: none;
+        min-width: 28px;
+        font-variant-numeric: tabular-nums;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-muted);
+      }
+
+      .history-label {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .history-current-tag {
+        flex: none;
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: var(--focus-ring);
+      }
+
+      .history-empty {
+        padding: 8px 10px 10px;
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+
+      .history-empty[hidden] {
+        display: none;
       }
 
       #diagram-title {
@@ -912,6 +1076,21 @@
           <path d="M12 19l-7-7 7-7" />
         </svg>
       </button>
+      <button
+        id="history-btn"
+        type="button"
+        title="Diagram history — jump to an earlier version"
+        aria-label="Diagram history"
+        aria-haspopup="menu"
+        aria-expanded="false"
+        disabled
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <line x1="4" y1="7" x2="20" y2="7" />
+          <line x1="4" y1="12" x2="20" y2="12" />
+          <line x1="4" y1="17" x2="20" y2="17" />
+        </svg>
+      </button>
       <h1
         id="diagram-title"
         class="is-placeholder"
@@ -922,6 +1101,12 @@
       >
         Untitled diagram
       </h1>
+    </div>
+
+    <div id="history-menu" hidden role="menu" aria-label="Diagram history">
+      <div class="history-head">History</div>
+      <div id="history-list"></div>
+      <div id="history-empty" class="history-empty">No history yet.</div>
     </div>
 
     <div id="controls" role="group" aria-label="Zoom and view controls">
@@ -982,11 +1167,41 @@
         </button>
         <div id="more-menu" hidden role="menu" aria-label="More controls">
           <button
+            id="undo-btn"
+            class="more-item"
+            type="button"
+            role="menuitem"
+            title="Undo last change (Ctrl/Cmd+Z)"
+            aria-label="Undo last change"
+            disabled
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M9 14L4 9l5-5" />
+              <path d="M4 9h11a5 5 0 0 1 0 10H8" />
+            </svg>
+            <span>Undo</span>
+          </button>
+          <button
+            id="redo-btn"
+            class="more-item"
+            type="button"
+            role="menuitem"
+            title="Redo last undone change (Ctrl+Y or Ctrl/Cmd+Shift+Z)"
+            aria-label="Redo last undone change"
+            disabled
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M15 14l5-5-5-5" />
+              <path d="M20 9H9a5 5 0 0 0 0 10h8" />
+            </svg>
+            <span>Redo</span>
+          </button>
+          <button
             id="search-toggle"
             class="more-item"
             type="button"
             role="menuitem"
-            title="Search nodes & links (Ctrl/Cmd+F)"
+            title="Search nodes &amp; links (Ctrl/Cmd+F)"
             aria-label="Search nodes and links"
           >
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -1016,11 +1231,13 @@
           </button>
           <button
             id="legend-toggle-btn"
-            class="more-item"
+            class="more-item more-item-toggle"
             type="button"
-            role="menuitem"
-            title="Toggle colour legend"
-            aria-label="Toggle colour legend"
+            role="menuitemcheckbox"
+            aria-pressed="false"
+            aria-checked="false"
+            title="Show colour legend"
+            aria-label="Show colour legend"
           >
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <circle cx="6" cy="7" r="2.2" />
@@ -1031,6 +1248,9 @@
               <line x1="11" y1="17" x2="20" y2="17" />
             </svg>
             <span>Legend</span>
+            <svg class="more-item-check" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 12.5l4.5 4.5L19 7" />
+            </svg>
           </button>
           <button
             id="export-btn"

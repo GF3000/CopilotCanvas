@@ -1,0 +1,2 @@
+# Drop team avatar photos here: avatar-1.png ... avatar-5.png (square, ~400x400).
+# Then set the `img` field in the TEAM array in src/CanvasForCopilot.tsx.

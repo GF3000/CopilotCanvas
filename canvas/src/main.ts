@@ -19,6 +19,7 @@ import {
 } from '@canvas/shared';
 import { validateGraphModel } from './graphModel';
 import { closedNeighbourhood, countNodes, nodeLabel } from './scope';
+import { createHistory } from './history';
 
 cytoscape.use(dagre);
 cytoscape.use(svg);
@@ -699,6 +700,7 @@ function applyNodeColor(color: NodeColor): void {
   if (!menuNode) return;
   colorOverrides.set(menuNode.id(), color);
   styleNodeColor(menuNode, color);
+  recordVersion(); // record the recoloured diagram as a version (KAN-34)
 }
 
 function openNodeMenu(node: cytoscape.NodeSingular, x: number, y: number): void {
@@ -975,6 +977,14 @@ window.addEventListener('keydown', (event) => {
     closeExpandDialog();
   }
 });
+// A click outside the Expand-node dialog dismisses it (matches the node menu,
+// export menu and "More" popover behaviour).
+document.addEventListener('pointerdown', (event) => {
+  if (!expandDialog || expandDialog.hidden) return;
+  const target = event.target;
+  if (target instanceof Node && expandDialog.contains(target)) return;
+  closeExpandDialog();
+});
 
 // Escape closes the menu even when focus isn't in the label field.
 window.addEventListener('keydown', (event) => {
@@ -1106,6 +1116,8 @@ function handlePatch(msg: PatchMessage): void {
   // Keep an open search in sync with the mutated graph (matches may have been
   // added/removed) instead of holding stale element references.
   refreshSearchIfOpen();
+  // KAN-34: the patched diagram is a new version in the history.
+  recordVersion();
 }
 
 // Map the whitelisted inline style subset (KAN-26, option B) to Cytoscape
@@ -1326,6 +1338,19 @@ function updateLegend(): void {
   ];
   legendRows.replaceChildren(...entries.map(legendRow));
   legendEl.hidden = legendCollapsed || entries.length === 0;
+  syncLegendButton();
+}
+
+// Reflect the legend's open/closed state on the toggle button so it's obvious at
+// a glance (active tint + check when shown, "Show"/"Hide" tooltip).
+function syncLegendButton(): void {
+  if (!legendToggle) return;
+  const open = !!legendEl && !legendEl.hidden;
+  legendToggle.setAttribute('aria-pressed', String(open));
+  legendToggle.setAttribute('aria-checked', String(open));
+  const action = open ? 'Hide colour legend' : 'Show colour legend';
+  legendToggle.setAttribute('title', action);
+  legendToggle.setAttribute('aria-label', action);
 }
 
 legendToggle?.addEventListener('click', () => {
@@ -1430,14 +1455,225 @@ function handleDiagram(msg: DiagramMessage): void {
     render(result.elements);
     clearError();
     updateLegend();
+    // KAN-34: record this diagram as a new version in the history timeline, so the
+    // user can step/jump back to earlier diagrams and work off them. (Reload-recovery
+    // replays the base diagram + patches, which rebuilds the timeline.)
+    recordVersion();
   } catch (err) {
     showError([`Cytoscape could not render this model: ${String(err)}`]);
   }
   updateScopeBar();
 }
 
-// Selection (KAN-7): tapping a node selects it and tells the extension which node
-// is selected, so the CLI can act on "this"/"the selected node". Tapping the
+/* ─── Undo / redo history (KAN-34) ───────────────────────────────────────────
+ * Step back/forward through diagram changes — each patch (expand / edit / annotate
+ * / link styling) and each manual recolour/rename pushes exactly one undoable step
+ * — to the first version, where Undo is disabled. A snapshot stores the FULL graph
+ * as protocol elements (plus the title and manual colour overrides); a restore
+ * re-renders it through the same `render()` path the app uses for every diagram, so
+ * the whole previous/next diagram is reliably reproduced. Exposed as the "Undo" /
+ * "Redo" items in the More menu and Ctrl/Cmd+Z / Ctrl+Y (Ctrl/Cmd+Shift+Z). */
+interface UndoSnapshot {
+  elements: CyElement[];
+  title: string;
+  colorOverrides: [string, NodeColor][];
+  zoom: number;
+  pan: { x: number; y: number };
+}
+
+const undoHistory = createHistory<UndoSnapshot>(100);
+const undoBtn = document.getElementById('undo-btn');
+const redoBtn = document.getElementById('redo-btn');
+
+/** Map the live graph back to protocol elements (full current diagram). */
+function cyToElements(): CyElement[] {
+  return cy.elements().map((e) => {
+    const el: CyElement = { data: { ...e.data() } };
+    const classes = e.classes().join(' ');
+    if (classes) el.classes = classes;
+    return el;
+  });
+}
+
+function captureSnapshot(): UndoSnapshot {
+  return {
+    elements: cyToElements(),
+    title: currentTitle,
+    colorOverrides: [...colorOverrides.entries()],
+    zoom: cy.zoom(),
+    pan: { ...cy.pan() },
+  };
+}
+
+function updateUndoRedoButtons(): void {
+  if (undoBtn instanceof HTMLButtonElement) {
+    undoBtn.disabled = !undoHistory.canUndo();
+  }
+  if (redoBtn instanceof HTMLButtonElement) {
+    redoBtn.disabled = !undoHistory.canRedo();
+  }
+}
+
+/** Record the current (post-change) diagram as the latest version (KAN-34). */
+function recordVersion(): void {
+  undoHistory.record(captureSnapshot());
+  afterHistoryChange();
+}
+
+/** Refresh the Undo/Redo buttons and the history list after any history movement. */
+function afterHistoryChange(): void {
+  updateUndoRedoButtons();
+  renderHistoryList();
+}
+
+function restoreSnapshot(snapshot: UndoSnapshot): void {
+  // An undo/redo restores a full top-level diagram; clear any drill-down scope.
+  scopeStack.length = 0;
+  currentScopeElements = snapshot.elements;
+  setTitle(snapshot.title);
+  // render() clears the canvas, re-adds the elements, lays them out and fits — the
+  // same proven path used for every incoming diagram, so the whole diagram shows.
+  render(snapshot.elements);
+  // render() clears colour overrides; re-assert the snapshot's manual recolours.
+  for (const [id, color] of snapshot.colorOverrides) {
+    colorOverrides.set(id, color);
+    const node = cy.getElementById(id);
+    if (node.nonempty()) styleNodeColor(node, color);
+  }
+  updateScopeBar();
+  updateLegend();
+  // Restore the saved view. The dagre layout is deterministic, so re-rendering the
+  // same graph reproduces the same node positions — meaning the captured zoom/pan
+  // lines up with what the user was looking at. (Overrides render()'s fit.)
+  cy.zoom(snapshot.zoom);
+  cy.pan(snapshot.pan);
+}
+
+/** Navigate to a version: remember the current view first, then restore the target. */
+function navigateTo(snapshot: UndoSnapshot | undefined): void {
+  if (!snapshot) return;
+  restoreSnapshot(snapshot);
+  afterHistoryChange();
+}
+
+function performUndo(): void {
+  if (!undoHistory.canUndo()) return;
+  undoHistory.replaceCurrent(captureSnapshot()); // remember the current view
+  navigateTo(undoHistory.undo());
+}
+
+function performRedo(): void {
+  if (!undoHistory.canRedo()) return;
+  undoHistory.replaceCurrent(captureSnapshot());
+  navigateTo(undoHistory.redo());
+}
+
+/** Jump straight to a version from the history list. */
+function performGoto(index: number): void {
+  undoHistory.replaceCurrent(captureSnapshot());
+  navigateTo(undoHistory.goto(index));
+}
+
+undoBtn?.addEventListener('click', () => performUndo());
+redoBtn?.addEventListener('click', () => performRedo());
+
+/* ─── History menu (KAN-34): the ☰ button by the title lists every version so the
+ * user can jump back to an earlier diagram and keep working from it. ─────────── */
+const historyBtn = document.getElementById('history-btn');
+const historyMenu = document.getElementById('history-menu');
+const historyList = document.getElementById('history-list');
+const historyEmpty = document.getElementById('history-empty');
+
+function closeHistoryMenu(): void {
+  if (historyMenu) historyMenu.hidden = true;
+  historyBtn?.setAttribute('aria-expanded', 'false');
+}
+
+// Rebuild the version list (newest first); the current version is marked.
+function renderHistoryList(): void {
+  if (!historyList) return;
+  const entries = undoHistory.entries();
+  const current = undoHistory.index();
+  if (historyBtn instanceof HTMLButtonElement) historyBtn.disabled = entries.length === 0;
+  if (historyEmpty) historyEmpty.hidden = entries.length > 0;
+
+  const rows: HTMLElement[] = [];
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const snap = entries[i];
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'history-item' + (i === current ? ' is-current' : '');
+    item.setAttribute('role', 'menuitem');
+
+    const num = document.createElement('span');
+    num.className = 'history-num';
+    num.textContent = `v${i + 1}`;
+    const label = document.createElement('span');
+    label.className = 'history-label';
+    label.textContent = snap.title?.trim() || 'Untitled diagram';
+    item.append(num, label);
+    if (i === current) {
+      const tag = document.createElement('span');
+      tag.className = 'history-current-tag';
+      tag.textContent = 'current';
+      item.append(tag);
+    }
+
+    item.addEventListener('click', () => {
+      closeHistoryMenu();
+      performGoto(i);
+    });
+    rows.push(item);
+  }
+  historyList.replaceChildren(...rows);
+}
+
+historyBtn?.addEventListener('click', () => {
+  if (!historyMenu) return;
+  const show = historyMenu.hidden;
+  if (show) renderHistoryList();
+  historyMenu.hidden = !show;
+  historyBtn.setAttribute('aria-expanded', String(show));
+});
+
+window.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && historyMenu && !historyMenu.hidden) closeHistoryMenu();
+});
+document.addEventListener('pointerdown', (event) => {
+  if (!historyMenu || historyMenu.hidden) return;
+  const target = event.target;
+  if (
+    target instanceof Node &&
+    (historyMenu.contains(target) || historyBtn?.contains(target))
+  ) {
+    return;
+  }
+  closeHistoryMenu();
+});
+
+// Undo/redo keyboard shortcuts — but don't hijack them while typing in a field.
+window.addEventListener('keydown', (event) => {
+  if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
+  const key = event.key.toLowerCase();
+  // Ctrl/Cmd+Z = undo; Ctrl/Cmd+Shift+Z or Ctrl+Y = redo.
+  const isUndo = key === 'z' && !event.shiftKey;
+  const isRedo = (key === 'z' && event.shiftKey) || key === 'y';
+  if (!isUndo && !isRedo) return;
+  const target = event.target as HTMLElement | null;
+  if (
+    target &&
+    (target.tagName === 'INPUT' ||
+      target.tagName === 'TEXTAREA' ||
+      target.tagName === 'SELECT' ||
+      target.isContentEditable)
+  ) {
+    return;
+  }
+  event.preventDefault();
+  if (isUndo) performUndo();
+  else performRedo();
+});
+
 // background clears the selection.
 function emitSelection(nodeIds: string[]): void {
   vscode?.postMessage({
