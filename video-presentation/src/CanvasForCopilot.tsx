@@ -1445,20 +1445,20 @@ const Avatar: React.FC<{
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: 12,
-        width: 200,
+        gap: 14,
+        width: 300,
       }}
     >
       <div
         style={{
-          width: 150,
-          height: 150,
+          width: 230,
+          height: 230,
           borderRadius: "50%",
           background: member.img
             ? undefined
             : `linear-gradient(135deg, ${member.color}, ${member.color}99)`,
-          border: `5px solid ${member.color}`,
-          boxShadow: `0 0 36px ${member.color}66`,
+          border: `7px solid ${member.color}`,
+          boxShadow: `0 0 50px ${member.color}66`,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -1480,7 +1480,7 @@ const Avatar: React.FC<{
             style={{
               fontFamily: FONT,
               fontWeight: 900,
-              fontSize: 56,
+              fontSize: 84,
               color: C.ink,
             }}
           >
@@ -1492,7 +1492,7 @@ const Avatar: React.FC<{
         style={{
           fontFamily: FONT,
           fontWeight: 700,
-          fontSize: 22,
+          fontSize: 26,
           color: C.white,
           textAlign: "center",
           lineHeight: 1.15,
@@ -1529,13 +1529,27 @@ const SceneTeamOutro: React.FC = () => (
           built by 5 SWE interns · 2 Redmond · 2 Dublin · 1 India
         </span>
       </Reveal>
-      <div style={{ height: 28 }} />
-      <div style={{ display: "flex", gap: 20, justifyContent: "center" }}>
-        {TEAM.map((m, i) => (
-          <Avatar key={m.name} member={m} delay={55 + i * 8} />
-        ))}
+      <div style={{ height: 22 }} />
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 26,
+          alignItems: "center",
+        }}
+      >
+        <div style={{ display: "flex", gap: 40, justifyContent: "center" }}>
+          {TEAM.slice(0, 3).map((m, i) => (
+            <Avatar key={m.name} member={m} delay={55 + i * 8} />
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: 40, justifyContent: "center" }}>
+          {TEAM.slice(3).map((m, i) => (
+            <Avatar key={m.name} member={m} delay={79 + i * 8} />
+          ))}
+        </div>
       </div>
-      <div style={{ height: 34 }} />
+      <div style={{ height: 26 }} />
       <Reveal delay={110}>
         <Pill bg={C.purple} color={C.white}>
           Canvas for Copilot 💜
