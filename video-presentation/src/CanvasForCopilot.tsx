@@ -693,90 +693,119 @@ const SceneSolution: React.FC = () => {
   );
 };
 
-// FEATURE 1 — Visualize
+// FEATURE 1 — Visualize + explain
 const SceneFeature1: React.FC = () => (
   <Scene durationInFrames={300}>
     <FeatureLayout
       n="1"
-      title="Visualize"
+      title="Visualize + explain"
       color={C.cyan}
       bullets={[
         "💬 Ask: “diagram the auth flow”",
-        "🪟 The canvas pops open as a VS Code tab",
+        "🪟 Canvas opens as a VS Code tab",
         "🔍 Pan & zoom the live graph",
-        "⚡ Edit from the CLI → it updates instantly",
+        "🧐 Click a node → “explain this” → instant breakdown",
       ]}
-      graph={<MiniGraph w={760} h={520} appearDelay={30} />}
+      graph={
+        <div style={{ position: "relative", width: 760, height: 520 }}>
+          <MiniGraph w={760} h={520} appearDelay={30} highlight="auth" />
+          <Cursor
+            fromX={620}
+            fromY={40}
+            toX={150}
+            toY={370}
+            start={60}
+            travel={26}
+          />
+        </div>
+      }
     />
   </Scene>
 );
 
-// FEATURE 2 — Interact
+// FEATURE 2 — Expand + undo
 const SceneFeature2: React.FC = () => {
-  return (
-    <Scene durationInFrames={300}>
-      <FeatureLayout
-        n="2"
-        title="Interact"
-        color={C.purple}
-        bullets={[
-          "🖱️ Click any node — Copilot knows what you mean",
-          "🧐 “Explain this node” → instant breakdown",
-          "➕ “Expand this node” → it grows new detail",
-          "🔁 Round-trips both ways, no refresh",
-        ]}
-        graph={
-          <div style={{ position: "relative", width: 760, height: 520 }}>
-            <MiniGraph w={760} h={520} appearDelay={20} highlight="auth" />
-            <Cursor
-              fromX={620}
-              fromY={40}
-              toX={150}
-              toY={370}
-              start={40}
-              travel={26}
-            />
-          </div>
-        }
-      />
-    </Scene>
-  );
-};
-
-// FEATURE 3 — Modify code + diagram
-const SceneFeature3: React.FC = () => {
-  const extra: GNode = {
-    id: "search",
-    x: 0.5,
-    y: 0.95,
-    label: "Search API ✨",
-    color: C.green,
+  const grown: GNode = {
+    id: "expand",
+    x: 0.14,
+    y: 0.92,
+    label: "+ detail 🌱",
+    color: C.purple,
   };
   return (
     <Scene durationInFrames={300}>
       <FeatureLayout
-        n="3"
-        title="Modify code + diagram"
-        color={C.green}
+        n="2"
+        title="Expand + undo"
+        color={C.purple}
         bullets={[
-          "🎯 Select a node, say “add a Search endpoint”",
-          "🤖 Copilot asks smart clarifying questions",
-          "📝 It writes the real code in your repo",
-          "🌱 …and grows the diagram to match",
+          "➕ “Expand this node” → grows new detail in place",
+          "🌳 Drill deeper into any part of the system",
+          "↩️ Undo to step back — instantly",
+          "🔁 Explore freely, never lose your place",
         ]}
         graph={
           <MiniGraph
             w={760}
-            h={560}
-            appearDelay={15}
-            extraNode={extra}
-            extraDelay={120}
+            h={520}
+            appearDelay={20}
+            highlight="auth"
+            extraNode={grown}
+            extraDelay={110}
           />
         }
       />
     </Scene>
   );
 };
+
+// FEATURE 3 — Search + code reference
+const SceneFeature3: React.FC = () => (
+  <Scene durationInFrames={300}>
+    <FeatureLayout
+      n="3"
+      title="Search + code reference"
+      color={C.green}
+      bullets={[
+        "🔎 Search the diagram — jump to any node fast",
+        "🔗 Nodes & links carry real code references",
+        "📂 Click a reference → open the exact file & line",
+        "🧵 Diagram and codebase stay connected",
+      ]}
+      graph={
+        <div style={{ position: "relative", width: 760, height: 520 }}>
+          <MiniGraph w={760} h={520} appearDelay={20} highlight="orders" />
+          <Cursor
+            fromX={600}
+            fromY={60}
+            toX={400}
+            toY={300}
+            start={70}
+            travel={26}
+          />
+        </div>
+      }
+    />
+  </Scene>
+);
+
+// FEATURE 4 — Diagram types
+const SceneFeature4: React.FC = () => (
+  <Scene durationInFrames={300}>
+    <FeatureLayout
+      n="4"
+      title="Diagram types"
+      color={C.yellow}
+      bullets={[
+        "🧩 Not just node graphs",
+        "🌊 Flowcharts · 🧱 dependency · 🔄 state machines",
+        "🏛️ UML class · 🗂️ entity-relationship",
+        "🪄 Ask for a type, or let Copilot auto-detect",
+      ]}
+      graph={<MiniGraph w={760} h={520} appearDelay={20} />}
+    />
+  </Scene>
+);
 
 const FeatureLayout: React.FC<{
   n: string;
@@ -883,9 +912,10 @@ const SceneOutro: React.FC = () => (
  * file, set the matching value (e.g. "clips/clip-visualize.mp4") and re-render.
  */
 const CLIP_SOURCES = {
-  visualize: "", // e.g. "clips/clip-visualize.mp4"
-  interact: "", // e.g. "clips/clip-interact.mp4"
-  modify: "", // e.g. "clips/clip-modify.mp4"
+  visualize: "clips/feature-1-diagram-explain-scene-5-demo.mp4",
+  expand: "clips/feature-2-diagram-explain-scene-7-demo.mp4",
+  search: "clips/feature-3-diagram-explain-scene-9-demo.mp4",
+  types: "clips/feature-4-diagram-explain-scene-11-demo.mp4",
 };
 
 // A VS Code-style window framing either a real recording or a placeholder
@@ -896,12 +926,12 @@ const ScreenClip: React.FC<{
   accent: string;
 }> = ({ src, tab, caption, accent }) => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
+  const { fps, durationInFrames } = useVideoConfig();
 
   // Window springs in
   const enter = spring({ frame, fps, config: { damping: 14 } });
-  // Subtle Ken Burns zoom on the media
-  const zoom = interpolate(frame, [0, 180], [1.0, 1.08], {
+  // Subtle Ken Burns zoom across the whole clip
+  const zoom = interpolate(frame, [0, durationInFrames], [1.0, 1.08], {
     extrapolateRight: "clamp",
   });
 
@@ -963,6 +993,7 @@ const ScreenClip: React.FC<{
           <AbsoluteFill style={{ scale: String(zoom) }}>
             <OffthreadVideo
               src={staticFile(src)}
+              muted
               style={{ width: "100%", height: "100%", objectFit: "cover" }}
             />
           </AbsoluteFill>
@@ -1057,8 +1088,9 @@ const SceneClip: React.FC<{
   heading: string;
   caption: string;
   accent: string;
-}> = ({ src, tab, heading, caption, accent }) => (
-  <Scene durationInFrames={180}>
+  durationInFrames: number;
+}> = ({ src, tab, heading, caption, accent, durationInFrames }) => (
+  <Scene durationInFrames={durationInFrames}>
     <div
       style={{
         display: "flex",
@@ -1269,15 +1301,19 @@ export const CanvasForCopilot: React.FC = () => {
         volume={(f) =>
           interpolate(
             f,
-            [0, 18, durationInFrames - 30, durationInFrames],
-            [0, 0.55, 0.55, 0],
+            [0, 18, 30, 660, 690, durationInFrames - 30, durationInFrames],
+            [0, 0.5, 0.18, 0.18, 0.55, 0.55, 0],
             { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
           )
         }
       />
+      {/* Voiceover narration for scenes 1–3 (hook → problem → solution). */}
+      <Sequence durationInFrames={660}>
+        <Audio src={staticFile("audio/scene-1-scene-2-scene-3.m4a")} />
+      </Sequence>
       <Backdrop />
 
-      <Sequence from={0} durationInFrames={150}>
+      <Sequence durationInFrames={150}>
         <SceneHook />
       </Sequence>
       <Sequence from={150} durationInFrames={270}>
@@ -1295,7 +1331,10 @@ export const CanvasForCopilot: React.FC = () => {
       <Sequence from={1260} durationInFrames={300}>
         <SceneFeature3 />
       </Sequence>
-      <Sequence from={1560} durationInFrames={240}>
+      <Sequence from={1560} durationInFrames={300}>
+        <SceneFeature4 />
+      </Sequence>
+      <Sequence from={1860} durationInFrames={240}>
         <SceneOutro />
       </Sequence>
     </AbsoluteFill>
@@ -1758,16 +1797,24 @@ export const CanvasForCopilotFull: React.FC = () => {
         volume={(f) =>
           interpolate(
             f,
-            [0, 18, durationInFrames - 30, durationInFrames],
-            [0, 0.55, 0.55, 0],
+            [0, 18, 30, 690, 720, 3580, 3600, 4520, durationInFrames],
+            [0, 0.5, 0.18, 0.18, 0.55, 0.55, 0.18, 0.18, 0],
             { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
           )
         }
       />
+      {/* Voiceover narration for scenes 1–3 (hook → problem → solution). */}
+      <Sequence durationInFrames={690}>
+        <Audio src={staticFile("audio/scene-1-scene-2-scene-3.m4a")} />
+      </Sequence>
+      {/* Voiceover narration for scenes 12–14 (download → future → outro). */}
+      <Sequence from={3591} durationInFrames={960}>
+        <Audio src={staticFile("audio/scene-12-scene-13-scene-14.m4a")} />
+      </Sequence>
       <Backdrop />
 
       {/* Cold-open hook → problem → title reveal */}
-      <Sequence from={0} durationInFrames={180}>
+      <Sequence durationInFrames={180}>
         <SceneHookCold />
       </Sequence>
       <Sequence from={180} durationInFrames={270}>
@@ -1782,56 +1829,74 @@ export const CanvasForCopilotFull: React.FC = () => {
         <SceneArchitecture />
       </Sequence>
 
-      {/* Feature 1 — animated, then real clip */}
-      <Sequence from={930} durationInFrames={300}>
+      {/* Feature 1 — Visualize + explain: animated, then real clip */}
+      <Sequence from={690} durationInFrames={300}>
         <SceneFeature1 />
       </Sequence>
-      <Sequence from={1230} durationInFrames={180}>
+      <Sequence from={990} durationInFrames={682}>
         <SceneClip
           src={CLIP_SOURCES.visualize}
           tab="Visualize"
           heading="…and here it is for real 👇"
-          caption="Copilot draws the live graph in a VS Code tab"
+          caption="Copilot draws the graph, then explains any node you click"
           accent={C.cyan}
+          durationInFrames={682}
         />
       </Sequence>
 
-      {/* Feature 2 — animated, then real clip */}
-      <Sequence from={1410} durationInFrames={300}>
+      {/* Feature 2 — Expand + undo: animated, then real clip */}
+      <Sequence from={1672} durationInFrames={300}>
         <SceneFeature2 />
       </Sequence>
-      <Sequence from={1710} durationInFrames={180}>
+      <Sequence from={1972} durationInFrames={328}>
         <SceneClip
-          src={CLIP_SOURCES.interact}
-          tab="Interact"
-          heading="click → explain → expand 🪄"
-          caption="Selecting a node feeds context straight back to Copilot"
+          src={CLIP_SOURCES.expand}
+          tab="Expand"
+          heading="expand → undo 🪄"
+          caption="Grow the diagram in place, then step back with undo"
           accent={C.purple}
+          durationInFrames={328}
         />
       </Sequence>
 
-      {/* Feature 3 — animated, then real clip */}
-      <Sequence from={1890} durationInFrames={300}>
+      {/* Feature 3 — Search + code reference: animated, then real clip */}
+      <Sequence from={2300} durationInFrames={300}>
         <SceneFeature3 />
       </Sequence>
-      <Sequence from={2190} durationInFrames={180}>
+      <Sequence from={2600} durationInFrames={304}>
         <SceneClip
-          src={CLIP_SOURCES.modify}
-          tab="Modify"
-          heading="it edits real code 🤯"
-          caption="Copilot writes the endpoint and grows the diagram to match"
+          src={CLIP_SOURCES.search}
+          tab="Search"
+          heading="search → jump to code 🤯"
+          caption="A node or link opens the exact source file & line"
           accent={C.green}
+          durationInFrames={304}
+        />
+      </Sequence>
+
+      {/* Feature 4 — Diagram types: animated, then real clip */}
+      <Sequence from={2904} durationInFrames={300}>
+        <SceneFeature4 />
+      </Sequence>
+      <Sequence from={3204} durationInFrames={387}>
+        <SceneClip
+          src={CLIP_SOURCES.types}
+          tab="Types"
+          heading="one canvas, many diagrams 🎛️"
+          caption="Flowcharts, state machines, ER — on demand"
+          accent={C.yellow}
+          durationInFrames={387}
         />
       </Sequence>
 
       {/* How to download → future work → team outro */}
-      <Sequence from={2370} durationInFrames={360}>
+      <Sequence from={3591} durationInFrames={360}>
         <SceneDownload />
       </Sequence>
-      <Sequence from={2730} durationInFrames={300}>
+      <Sequence from={3951} durationInFrames={300}>
         <SceneFuture />
       </Sequence>
-      <Sequence from={3030} durationInFrames={300}>
+      <Sequence from={4251} durationInFrames={300}>
         <SceneTeamOutro />
       </Sequence>
     </AbsoluteFill>

@@ -12,7 +12,7 @@
 |-------|-------|
 | **Title** | Canvas for Copilot — see your code, don't just read it |
 | **Purpose** | Hackathon submission / demo video |
-| **Runtime** | Up to **4 min** allowed · recommended **~2–2.5 min** (current draft ~90 s — expandable, see §8) |
+| **Runtime** | Up to **4 min** allowed · current cut **~2:32** (full demo clips, see §2) |
 | **Format** | 1920×1080, 30 fps, H.264 `.mp4` |
 | **Audience** | Hackathon judges + developers |
 | **Tone** | Authentic, confident, energetic — real intern story, precise product claims |
@@ -33,7 +33,7 @@ explanations into **live, interactive diagrams** inside VS Code: *see* a system,
 click into it, and even change code through it.
 
 ### Three things every viewer must remember
-1. **Problem:** new to a big codebase + no time = text explanations are too slow.
+1. **Problem:** new to a big codebase + no time = text explanations are too slow and text abstraction might not suit some learning styles.
 2. **Solution:** Canvas for Copilot = live, interactive diagrams from Copilot, inside VS Code.
 3. **Magic:** a **bidirectional loop** — click, explain, expand/undo, and search the diagram, and Copilot acts on it; nodes and links even jump straight to the real code.
 
@@ -44,20 +44,23 @@ click into it, and even change code through it.
 | # | Scene | ~Time | Dur | Real clip? |
 |---|-------|-------|-----|------------|
 | 1 | 🪝 COLD-OPEN HOOK (the problem) | 0:00–0:06 | 6 s | — |
-| 2 | Problem deepens (walls of text) | 0:06–0:16 | 10 s | — |
-| 3 | TITLE REVEAL / Solution | 0:16–0:26 | 10 s | — |
-| 4 | 🔌 How it works · architecture (MCP) | 0:26–0:34 | 8 s | — |
-| 5 | Feature 1 · Visualize + explain (anim) | 0:34–0:42 | 8 s | — |
-| 6 | 🎥 Demo · Visualize + explain | 0:42–0:48 | 6 s | **clip-visualize.mp4** |
-| 7 | Feature 2 · Expand + undo (anim) | 0:48–0:56 | 8 s | — |
-| 8 | 🎥 Demo · Expand + undo | 0:56–1:02 | 6 s | **clip-expand.mp4** |
-| 9 | Feature 3 · Search + code reference (anim) | 1:02–1:10 | 8 s | — |
-| 10 | 🎥 Demo · Search + code reference | 1:10–1:16 | 6 s | **clip-search.mp4** |
-| 11 | Feature 4 · Diagram types (anim) | 1:16–1:24 | 8 s | — |
-| 12 | 🎥 Demo · Diagram types | 1:24–1:30 | 6 s | **clip-types.mp4** |
-| 13 | How to download | 1:30–1:42 | 12 s | optional clip |
-| 14 | Future work | 1:42–1:52 | 10 s | — |
-| 15 | Outro · Team + CTA | 1:52–2:02 | 10 s | — |
+| 2 | Problem deepens (walls of text) | 0:06–0:15 | 9 s | — |
+| 3 | TITLE REVEAL / Solution | 0:15–0:23 | 8 s | — |
+| 4 | Feature 1 · Visualize + explain (anim) | 0:23–0:33 | 10 s | — |
+| 5 | 🎥 Demo · Visualize + explain | 0:33–0:56 | 22.7 s | **feature-1-…scene-5-demo.mp4** |
+| 6 | Feature 2 · Expand + undo (anim) | 0:56–1:06 | 10 s | — |
+| 7 | 🎥 Demo · Expand + undo | 1:06–1:17 | 10.9 s | **feature-2-…scene-7-demo.mp4** |
+| 8 | Feature 3 · Search + code reference (anim) | 1:17–1:27 | 10 s | — |
+| 9 | 🎥 Demo · Search + code reference | 1:27–1:37 | 10.1 s | **feature-3-…scene-9-demo.mp4** |
+| 10 | Feature 4 · Diagram types (anim) | 1:37–1:47 | 10 s | — |
+| 11 | 🎥 Demo · Diagram types | 1:47–2:00 | 12.9 s | **feature-4-…scene-11-demo.mp4** |
+| 12 | How to download | 2:00–2:12 | 12 s | optional clip |
+| 13 | Future work | 2:12–2:22 | 10 s | — |
+| 14 | Outro · Team + CTA | 2:22–2:32 | 10 s | — |
+
+> **Total runtime ≈ 2:32** (4551 frames @ 30 fps). Demo clips (scenes 5/7/9/11)
+> play **in full** — their lengths are read from the actual recordings, so the
+> timeline reflows automatically if you swap a clip.
 
 ---
 
@@ -79,7 +82,7 @@ Format per scene: **VISUAL** · **ON-SCREEN TEXT** · **VOICEOVER** · **NOTES**
 
 ---
 
-### Scene 2 — Problem deepens · `0:06–0:16`
+### Scene 2 — Problem deepens · `0:06–0:15`
 - **VISUAL:** You "ask for help" — a fake terminal types `copilot explain this repo` and replies with an **endless wall of paragraphs** that keeps scrolling. Eyes-glaze-over energy.
 - **ON-SCREEN TEXT:**
   - Terminal: `$ copilot explain this repo` → 6–8 lines of dense prose ("…depends on… which depends on…")
@@ -90,7 +93,7 @@ Format per scene: **VISUAL** · **ON-SCREEN TEXT** · **VOICEOVER** · **NOTES**
 
 ---
 
-### Scene 3 — TITLE REVEAL / Solution · `0:16–0:26`
+### Scene 3 — TITLE REVEAL / Solution · `0:15–0:23`
 > The payoff. Logo arrives as the *answer* to the pain.
 - **VISUAL:** Beat drop. The wall of text **collapses / morphs into** a clean interactive node-graph that draws itself (Client→Gateway→Auth/Orders/Users). Title slams in over it.
 - **ON-SCREEN TEXT:**
@@ -102,22 +105,7 @@ Format per scene: **VISUAL** · **ON-SCREEN TEXT** · **VOICEOVER** · **NOTES**
 
 ---
 
-### Scene 4 — 🔌 How it works · architecture (MCP) · `0:26–0:34`
-> A quick "under the hood" beat — judges reward technical depth.
-- **VISUAL:** Three boxes spring-pop in left→right, joined by animated arrows that draw themselves: 🧠 **Copilot CLI** → 🔌 **Canvas MCP server** → 🪟 **Canvas tab**. A return-loop caption fades in beneath.
-- **ON-SCREEN TEXT:**
-  - Pill: `🔌 under the hood`
-  - Title: `Powered by an MCP server`
-  - `🧠 Copilot CLI — the brain · VS Code terminal`
-  - `🔌 Canvas MCP server — runs inside the extension` *(arrow label: `MCP tools`)*
-  - `🪟 Canvas tab — Cytoscape webview` *(arrow label: `diagram`)*
-  - `↩ a bidirectional loop — your clicks & selections feed context right back to Copilot`
-- **VOICEOVER:** *"Under the hood it's just MCP. Copilot CLI calls our Canvas MCP server — running inside the VS Code extension — which renders the diagram in a webview tab. And it's a two-way loop: what you click and select flows right back to Copilot."*
-- **NOTES:** Keep it fast (~8 s). The point is "open standard, runs locally, bidirectional" — don't get lost in detail.
-
----
-
-### Scene 5 — Feature 1 · Visualize + explain (animated) · `0:34–0:42`
+### Scene 4 — Feature 1 · Visualize + explain (animated) · `0:23–0:33`
 - **VISUAL:** Left: `1 · Visualize + explain` + bullets reveal. Right: graph builds node by node, then a node glows and an explanation card slides out beside it.
 - **ON-SCREEN TEXT:**
   - Heading: `1 · Visualize + explain`
@@ -129,7 +117,7 @@ Format per scene: **VISUAL** · **ON-SCREEN TEXT** · **VOICEOVER** · **NOTES**
 
 ---
 
-### Scene 6 — 🎥 Demo · Visualize + explain · `0:42–0:48`
+### Scene 5 — 🎥 Demo · Visualize + explain · `0:33–0:56`
 - **VISUAL:** Real recording in a VS Code-style window frame, subtle zoom, "REAL DEMO 👀" badge.
 - **ON-SCREEN TEXT:** `…and here it is for real 👇` / caption `Copilot draws the graph, then explains any node you click`
 - **VOICEOVER:** *"Here it is for real."*
@@ -137,7 +125,7 @@ Format per scene: **VISUAL** · **ON-SCREEN TEXT** · **VOICEOVER** · **NOTES**
 
 ---
 
-### Scene 7 — Feature 2 · Expand + undo (animated) · `0:48–0:56`
+### Scene 6 — Feature 2 · Expand + undo (animated) · `0:56–1:06`
 - **VISUAL:** Left: `2 · Expand + undo` + bullets. Right: the **Auth** node expands into a small subgraph; then an ↩️ undo collapses it back in place.
 - **ON-SCREEN TEXT:**
   - Heading: `2 · Expand + undo`
@@ -149,7 +137,7 @@ Format per scene: **VISUAL** · **ON-SCREEN TEXT** · **VOICEOVER** · **NOTES**
 
 ---
 
-### Scene 8 — 🎥 Demo · Expand + undo · `0:56–1:02`
+### Scene 7 — 🎥 Demo · Expand + undo · `1:06–1:17`
 - **VISUAL:** Real recording in the VS Code frame.
 - **ON-SCREEN TEXT:** `expand → undo 🪄` / caption `Grow the diagram in place, then step back with undo`
 - **VOICEOVER:** *"Expand, undo, repeat."*
@@ -157,7 +145,7 @@ Format per scene: **VISUAL** · **ON-SCREEN TEXT** · **VOICEOVER** · **NOTES**
 
 ---
 
-### Scene 9 — Feature 3 · Search + code reference (animated) · `1:02–1:10`
+### Scene 8 — Feature 3 · Search + code reference (animated) · `1:17–1:27`
 - **VISUAL:** Left: `3 · Search + code reference` + bullets. Right: a search box filters/highlights matching nodes; a node shows a 🔗 code badge; clicking it opens a source file at a specific line.
 - **ON-SCREEN TEXT:**
   - Heading: `3 · Search + code reference`
@@ -170,7 +158,7 @@ Format per scene: **VISUAL** · **ON-SCREEN TEXT** · **VOICEOVER** · **NOTES**
 
 ---
 
-### Scene 10 — 🎥 Demo · Search + code reference · `1:10–1:16`
+### Scene 9 — 🎥 Demo · Search + code reference · `1:27–1:37`
 - **VISUAL:** Real recording in the VS Code frame.
 - **ON-SCREEN TEXT:** `search → jump to code 🤯` / caption `A node or link opens the exact source file & line`
 - **VOICEOVER:** *"Search it, then jump straight to the code."*
@@ -178,7 +166,7 @@ Format per scene: **VISUAL** · **ON-SCREEN TEXT** · **VOICEOVER** · **NOTES**
 
 ---
 
-### Scene 11 — Feature 4 · Diagram types (animated) · `1:16–1:24`
+### Scene 10 — Feature 4 · Diagram types (animated) · `1:37–1:47`
 - **VISUAL:** Left: `4 · Diagram types` + bullets. Right: the canvas morphs through a quick carousel — flowchart → dependency → state machine → UML class → ER.
 - **ON-SCREEN TEXT:**
   - Heading: `4 · Diagram types`
@@ -190,7 +178,7 @@ Format per scene: **VISUAL** · **ON-SCREEN TEXT** · **VOICEOVER** · **NOTES**
 
 ---
 
-### Scene 12 — 🎥 Demo · Diagram types · `1:24–1:30`
+### Scene 11 — 🎥 Demo · Diagram types · `1:47–2:00`
 - **VISUAL:** Real recording in the VS Code frame.
 - **ON-SCREEN TEXT:** `one canvas, many diagrams 🎛️` / caption `Flowcharts, state machines, ER — on demand`
 - **VOICEOVER:** *"The right diagram for the right question."*
@@ -198,7 +186,7 @@ Format per scene: **VISUAL** · **ON-SCREEN TEXT** · **VOICEOVER** · **NOTES**
 
 ---
 
-### Scene 13 — How to download · `1:30–1:42`
+### Scene 12 — How to download · `2:00–2:12`
 - **VISUAL:** Clean "install" slide. VS Code Marketplace card mock + a terminal showing the MCP config / command. Numbered steps animate in.
 - **ON-SCREEN TEXT:**
   - Heading: `Get it in 3 steps 🚀`
@@ -211,7 +199,7 @@ Format per scene: **VISUAL** · **ON-SCREEN TEXT** · **VOICEOVER** · **NOTES**
 
 ---
 
-### Scene 14 — Future work · `1:42–1:52`
+### Scene 13 — Future work · `2:12–2:22`
 - **VISUAL:** Three forward-looking "roadmap" cards slide in (spring pop), each with a **floating icon** and a coloured glow.
 - **ON-SCREEN TEXT:**
   - Heading: `What's next 🔮`
@@ -223,7 +211,7 @@ Format per scene: **VISUAL** · **ON-SCREEN TEXT** · **VOICEOVER** · **NOTES**
 
 ---
 
-### Scene 15 — Outro · Team + CTA · `1:52–2:02`
+### Scene 14 — Outro · Team + CTA · `2:22–2:32`
 > Team belongs HERE (credits), not at the open.
 - **VISUAL:** Celebration emojis. Two-line kinetic payoff, then a row of **5 circular avatar slots** (equal size, evenly spaced) that pop in one by one, each with a name label beneath. Then the brand pill.
 - **ON-SCREEN TEXT:**
@@ -274,11 +262,13 @@ From `docs/PROJECT_BRIEF.md` + `docs/REQUIREMENTS.md`:
 
 - [ ] ~~Fill in real team names~~ ✅ done (Ashley, Guillermo, Hadwik, Nataliia, Oleksii)
 - [ ] Add 5 avatar photos to `public/avatars/` (`avatar-1.png`…`avatar-5.png`)
-- [ ] Confirm **exact install steps + marketplace name** (Scene 13)
-- [ ] Record `clip-visualize.mp4`, `clip-expand.mp4`, `clip-search.mp4`, `clip-types.mp4` → `public/clips/`
-- [ ] (Optional) record an install clip for Scene 13
-- [ ] Set `CLIP_SOURCES` in `src/CanvasForCopilot.tsx`
-- [ ] (Optional) record voiceover; add as `<Audio>`, drop music to ~25–30%
+- [ ] Confirm **exact install steps + marketplace name** (Scene 10)
+- [x] Record `clip-visualize.mp4`, `clip-expand.mp4`, `clip-search.mp4`, `clip-types.mp4` → `public/clips/`
+- [ ] (Optional) record an install clip for Scene 10
+- [x] Set `CLIP_SOURCES` in `src/CanvasForCopilot.tsx` (feature-1/2/3/4 demos wired into scenes 5/7/9/11)
+- [x] Scenes 1–3 voiceover wired in (`public/audio/scene-1-scene-2-scene-3.m4a`); music ducks to ~18% under it
+- [x] Scenes 12–14 voiceover wired in (`public/audio/scene-12-scene-13-scene-14.m4a`); music ducks to ~18% under it
+- [ ] (Optional) record voiceover for scenes 4–11; add as `<Audio>`, drop music to ~25–30%
 - [ ] Confirm Bensound credit / license code
 - [ ] Build the new scenes in Remotion: **Cold-open hook**, **How to download**, **Future work**, **Team outro**
 - [ ] Render: `npx remotion render CanvasForCopilotFull out/canvas-full.mp4`
