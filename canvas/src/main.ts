@@ -273,6 +273,35 @@ function buildStyle(theme: Theme): cytoscape.StylesheetStyle[] {
       selector: '.muted',
       style: { opacity: 0.4 },
     },
+    // Node/link search (KAN-38): dim non-matches, ring the matches, accent the
+    // current one.
+    {
+      selector: '.search-dim',
+      style: { opacity: 0.15 },
+    },
+    {
+      selector: 'node.search-hit',
+      style: ext({ 'border-width': 4, 'border-color': '#22d3ee' }),
+    },
+    {
+      selector: 'edge.search-hit',
+      style: ext({
+        'line-fill': 'solid',
+        'line-color': '#22d3ee',
+        'target-arrow-color': '#22d3ee',
+        width: 4,
+      }),
+    },
+    {
+      selector: '.search-current',
+      style: ext({
+        'border-width': 6,
+        'border-color': '#f0abfc',
+        'line-color': '#f0abfc',
+        'target-arrow-color': '#f0abfc',
+        width: 5,
+      }),
+    },
     // Linked-to-code marker (KAN-31) — a dashed emerald ring so the user sees which
     // nodes can jump to source.
     {
@@ -1050,6 +1079,7 @@ function toElementDef(el: CyElement): cytoscape.ElementDefinition {
 
 function render(elements: CyElement[]): void {
   closeNodeMenu(false);
+  closeSearch();
   colorOverrides.clear();
   manualEdgeControls.clear();
   cy.elements().remove();
@@ -1641,6 +1671,125 @@ document.addEventListener('pointerdown', (event) => {
   )
     return;
   closeMoreMenu();
+});
+
+/* ─── Node & link search (KAN-38) ─────────────────────────────────────────────
+ * Opens from the "More" menu or Ctrl/Cmd+F. Matches node labels/kinds/code-refs
+ * and edge labels in the current scope; dims the rest, rings the matches, and
+ * steps through them (Enter / ↑ ↓), centring each. */
+const searchBar = document.getElementById('search-bar');
+const searchInput = document.getElementById('search-input');
+const searchCount = document.getElementById('search-count');
+const searchPrevBtn = document.getElementById('search-prev');
+const searchNextBtn = document.getElementById('search-next');
+const searchCloseBtn = document.getElementById('search-close');
+const searchToggle = document.getElementById('search-toggle');
+
+let searchMatches: cytoscape.CollectionReturnValue | undefined;
+let searchIndex = 0;
+
+function elementHaystack(el: cytoscape.SingularElementArgument): string {
+  const parts: string[] = [];
+  const label = el.data('label');
+  if (typeof label === 'string') parts.push(label);
+  const kind = el.data('kind');
+  if (typeof kind === 'string') parts.push(kind);
+  const refs = el.data('codeRefs');
+  if (Array.isArray(refs)) {
+    for (const r of refs as CodeRef[]) {
+      if (r && typeof r.path === 'string') parts.push(r.path);
+      if (r && typeof r.symbol === 'string') parts.push(r.symbol);
+    }
+  }
+  return parts.join(' ').toLowerCase();
+}
+
+function clearSearchStyles(): void {
+  cy.elements().removeClass('search-dim search-hit search-current');
+}
+
+function updateSearchCount(): void {
+  if (!searchCount) return;
+  const n = searchMatches ? searchMatches.length : 0;
+  const q =
+    searchInput instanceof HTMLInputElement ? searchInput.value.trim() : '';
+  searchCount.textContent = n > 0 ? `${searchIndex + 1}/${n}` : q ? '0/0' : '';
+}
+
+function gotoMatch(index: number): void {
+  if (!searchMatches || searchMatches.length === 0) return;
+  searchIndex = (index + searchMatches.length) % searchMatches.length;
+  cy.elements().removeClass('search-current');
+  const el = searchMatches.eq(searchIndex);
+  el.addClass('search-current');
+  cy.animate({ center: { eles: el }, duration: 250, easing: 'ease-out' });
+  updateSearchCount();
+}
+
+function runSearch(query: string): void {
+  clearSearchStyles();
+  const q = query.trim().toLowerCase();
+  if (!q) {
+    searchMatches = undefined;
+    searchIndex = 0;
+    updateSearchCount();
+    return;
+  }
+  const matches = cy.elements().filter((el) => elementHaystack(el).includes(q));
+  searchMatches = matches;
+  searchIndex = 0;
+  if (matches.length > 0) {
+    cy.elements().addClass('search-dim');
+    matches.removeClass('search-dim').addClass('search-hit');
+    gotoMatch(0);
+  } else {
+    updateSearchCount();
+  }
+}
+
+function openSearch(): void {
+  if (!searchBar) return;
+  searchBar.hidden = false;
+  if (searchInput instanceof HTMLInputElement) {
+    searchInput.focus();
+    searchInput.select();
+    if (searchInput.value.trim()) runSearch(searchInput.value);
+  }
+}
+
+function closeSearch(): void {
+  clearSearchStyles();
+  searchMatches = undefined;
+  searchIndex = 0;
+  if (searchInput instanceof HTMLInputElement) searchInput.value = '';
+  if (searchCount) searchCount.textContent = '';
+  if (searchBar) searchBar.hidden = true;
+}
+
+searchToggle?.addEventListener('click', openSearch);
+searchInput?.addEventListener('input', () => {
+  if (searchInput instanceof HTMLInputElement) runSearch(searchInput.value);
+});
+searchInput?.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    gotoMatch(searchIndex + (event.shiftKey ? -1 : 1));
+  } else if (event.key === 'Escape') {
+    event.preventDefault();
+    closeSearch();
+  }
+});
+searchNextBtn?.addEventListener('click', () => gotoMatch(searchIndex + 1));
+searchPrevBtn?.addEventListener('click', () => gotoMatch(searchIndex - 1));
+searchCloseBtn?.addEventListener('click', closeSearch);
+window.addEventListener('keydown', (event) => {
+  if (
+    (event.ctrlKey || event.metaKey) &&
+    (event.key === 'f' || event.key === 'F')
+  ) {
+    event.preventDefault();
+    openSearch();
+  }
 });
 
 window.addEventListener('message', (event: MessageEvent<CanvasMessage>) => {
