@@ -631,6 +631,7 @@ setTitle(undefined);
 const nodeMenu = document.getElementById('node-menu');
 const labelInput = document.getElementById('node-label-input');
 const swatchContainer = document.getElementById('node-swatches');
+const nodeColorToggle = document.getElementById('node-color-toggle');
 const menuExpand = document.getElementById('ctx-expand');
 let menuNode: cytoscape.NodeSingular | undefined;
 // KAN-14: remember the label when the menu opens, so a commit can tell whether the
@@ -661,8 +662,10 @@ function openNodeMenu(node: cytoscape.NodeSingular, x: number, y: number): void 
   if (labelInput instanceof HTMLInputElement) {
     labelInput.value = String(node.data('label') ?? '');
   }
-  // Only offer "Expand element" when the node has neighbours to drill into.
+  // Only offer "Focus neighbours" when the node has neighbours to drill into.
   if (menuExpand) menuExpand.hidden = !isExpandable(node.id());
+  // Colours start collapsed each time the menu opens.
+  collapseColorSwatches();
   renderCodeRefs(node);
   nodeMenu.hidden = false;
   // Keep the menu inside the viewport.
@@ -735,6 +738,20 @@ if (swatchContainer) {
   custom.append(picker, document.createTextNode('+'));
   swatchContainer.append(custom);
 }
+
+// Collapse the colour swatches (called whenever the menu (re)opens).
+function collapseColorSwatches(): void {
+  if (swatchContainer) swatchContainer.hidden = true;
+  nodeColorToggle?.setAttribute('aria-expanded', 'false');
+}
+
+// "Change colour" reveals/hides the swatch grid so the menu stays compact.
+nodeColorToggle?.addEventListener('click', () => {
+  if (!swatchContainer) return;
+  const show = swatchContainer.hidden;
+  swatchContainer.hidden = !show;
+  nodeColorToggle.setAttribute('aria-expanded', String(show));
+});
 
 /* Code references + node actions inside the unified right-click menu (KAN-31/32). */
 const nodeCodeWrap = document.getElementById('node-code');
