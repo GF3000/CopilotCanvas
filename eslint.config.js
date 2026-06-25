@@ -9,6 +9,7 @@ export default [
       '**/out/**',
       '**/node_modules/**',
       '**/*.config.*',
+      'examples/**',
     ],
   },
   js.configs.recommended,

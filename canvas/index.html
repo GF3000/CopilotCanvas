@@ -208,6 +208,9 @@
         left: 16px;
         z-index: 10;
         max-width: 60vw;
+        display: flex;
+        align-items: center;
+        gap: 4px;
         padding: 8px 14px;
         border-radius: 14px;
         background: var(--surface);
@@ -217,6 +220,49 @@
         box-shadow:
           0 8px 26px var(--surface-shadow),
           inset 0 1px 0 var(--surface-inset);
+      }
+
+      /* Drill-down "Back to previous scope" button — appears once you Expand. */
+      #scope-back-btn {
+        flex: none;
+        width: 30px;
+        height: 30px;
+        display: grid;
+        place-items: center;
+        padding: 0;
+        margin: 0;
+        border: none;
+        border-radius: 8px;
+        background: transparent;
+        color: var(--icon);
+        cursor: pointer;
+        transition:
+          background 0.15s ease,
+          color 0.15s ease;
+      }
+
+      #scope-back-btn:hover {
+        background: var(--hover-bg);
+        color: var(--icon-hover);
+      }
+
+      #scope-back-btn:focus-visible {
+        outline: 2px solid var(--focus-ring);
+        outline-offset: -2px;
+      }
+
+      #scope-back-btn[hidden] {
+        display: none;
+      }
+
+      #scope-back-btn svg {
+        width: 18px;
+        height: 18px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2.2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
       }
 
       #diagram-title {
@@ -387,6 +433,12 @@
         text-transform: uppercase;
         letter-spacing: 0.04em;
         color: var(--text-muted);
+      }
+
+      .menu-divider {
+        height: 1px;
+        margin: 2px 0;
+        background: var(--divider);
       }
 
       .menu-input {
@@ -632,6 +684,18 @@
     <div id="cy"></div>
 
     <div id="title-bar">
+      <button
+        id="scope-back-btn"
+        type="button"
+        title="Back to previous scope"
+        aria-label="Back to previous scope"
+        hidden
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <line x1="19" y1="12" x2="5" y2="12" />
+          <path d="M12 19l-7-7 7-7" />
+        </svg>
+      </button>
       <h1
         id="diagram-title"
         class="is-placeholder"
@@ -804,6 +868,9 @@
         </button>
         <button id="node-expand" class="menu-action" type="button">
           Expand node
+        </button>
+        <button id="ctx-expand" class="menu-action" type="button">
+          Expand element
         </button>
         <button id="node-center" class="menu-action" type="button">
           Center on node
