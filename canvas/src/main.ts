@@ -19,6 +19,12 @@ import {
 } from '@canvas/shared';
 import { validateGraphModel } from './graphModel';
 import { closedNeighbourhood, countNodes, nodeLabel } from './scope';
+import {
+  computeLegendEntries,
+  type ColorOverride,
+  type LegendEntry,
+  type LegendNode,
+} from './legend';
 
 cytoscape.use(dagre);
 cytoscape.use(svg);
@@ -80,6 +86,11 @@ const NODE_COLORS: NodeColor[] = [
 
 // Per-node colour overrides (node id → colour), re-applied across theme changes.
 const colorOverrides = new Map<string, NodeColor>();
+
+// Per-node colours set by the CLI via inline `style.color` (node id → colour hex),
+// tracked so the legend reflects custom colours present from the initial render on
+// (not just manual swatch recolours) — KAN-40.
+const inlineColorOverrides = new Map<string, string>();
 
 // Edges the user has manually reshaped by dragging (edge id → curve control point).
 // These are exempted from the automatic parallel-edge separation (KAN-44).
@@ -657,8 +668,11 @@ function styleNodeColor(
 
 function applyNodeColor(color: NodeColor): void {
   if (!menuNode) return;
-  colorOverrides.set(menuNode.id(), color);
+  const id = menuNode.id();
+  colorOverrides.set(id, color);
+  inlineColorOverrides.delete(id); // a manual pick supersedes any CLI inline colour
   styleNodeColor(menuNode, color);
+  updateLegend(); // keep the legend truthful after a recolour (KAN-40)
 }
 
 function openNodeMenu(node: cytoscape.NodeSingular, x: number, y: number): void {
@@ -964,6 +978,8 @@ function handlePatch(msg: PatchMessage): void {
     // Remove first so an add can reuse an id.
     for (const id of msg.remove) {
       cy.getElementById(id).remove();
+      colorOverrides.delete(id);
+      inlineColorOverrides.delete(id);
     }
     // Merge data into existing elements in place (preserves position), plus any
     // classes / inline style (KAN-26).
@@ -979,9 +995,19 @@ function handlePatch(msg: PatchMessage): void {
       if (element.classes) target.addClass(element.classes);
       const style = mapStyle(element.style, target.isEdge());
       if (style) target.style(style as cytoscape.Css.Node);
+      // Track a CLI inline node recolour so the legend reflects it (KAN-40).
+      if (!target.isEdge() && element.style?.color) {
+        inlineColorOverrides.set(id, element.style.color);
+      }
     }
     if (msg.add.length > 0) {
       cy.add(msg.add.map(toElementDef));
+      for (const el of msg.add) {
+        const id = el.data.id;
+        if (typeof id === 'string' && !isEdgeElement(el) && el.style?.color) {
+          inlineColorOverrides.set(id, el.style.color);
+        }
+      }
     }
   });
 
@@ -1051,9 +1077,17 @@ function toElementDef(el: CyElement): cytoscape.ElementDefinition {
 function render(elements: CyElement[]): void {
   closeNodeMenu(false);
   colorOverrides.clear();
+  inlineColorOverrides.clear();
   manualEdgeControls.clear();
   cy.elements().remove();
   cy.add(elements.map(toElementDef));
+  // Record CLI inline node colours so the legend reflects them from the start.
+  for (const el of elements) {
+    const id = el.data.id;
+    if (typeof id === 'string' && !isEdgeElement(el) && el.style?.color) {
+      inlineColorOverrides.set(id, el.style.color);
+    }
+  }
   cy.layout(dagreLayout(true)).run();
   separateParallelEdges();
   cy.fit(undefined, FIT_PADDING);
@@ -1159,30 +1193,8 @@ function separateParallelEdges(): void {
 }
 
 // Semantic colour legend (KAN-30) — colours encode meaning, and this panel says
-// what. Swatch colours mirror the per-kind / status styles in buildStyle().
-interface LegendEntry {
-  key: string;
-  label: string;
-  color: string;
-  isEdge?: boolean;
-}
-
-const KIND_LEGEND: LegendEntry[] = [
-  { key: 'entrypoint', label: 'Entry point', color: '#d946ef' },
-  { key: 'service', label: 'Service / process', color: '#8b5cf6' },
-  { key: 'module', label: 'Module', color: '#6366f1' },
-  { key: 'datastore', label: 'Data store', color: '#06b6d4' },
-  { key: 'external', label: 'External', color: '#ec4899' },
-  { key: 'note', label: 'Note', color: '#fde68a' },
-];
-
-const STATUS_LEGEND: LegendEntry[] = [
-  { key: 'danger', label: 'Error / danger', color: '#ef4444' },
-  { key: 'success', label: 'Success', color: '#22c55e' },
-  { key: 'warning', label: 'Warning', color: '#f59e0b' },
-  { key: 'linked', label: 'Linked to code', color: '#34d399' },
-];
-
+// what. The model (kinds/statuses/overrides) + pure entry computation live in
+// ./legend; here we gather per-node input from the live graph and render the rows.
 const legendEl = document.getElementById('legend');
 const legendRows = document.getElementById('legend-rows');
 const legendToggle = document.getElementById('legend-toggle-btn');
@@ -1201,26 +1213,38 @@ function legendRow(entry: LegendEntry): HTMLElement {
   return row;
 }
 
-// Rebuild the legend from the kinds / status classes actually present, so it only
-// shows colours that mean something in the current diagram.
+/** A node's effective colour override — a manual swatch pick takes precedence over
+ *  a CLI inline `style.color`. Returns undefined when the node shows its kind colour. */
+function nodeOverrideColor(id: string): ColorOverride | undefined {
+  const swatch = colorOverrides.get(id);
+  if (swatch) return { color: swatch.fill, label: swatch.name };
+  const inline = inlineColorOverrides.get(id);
+  if (inline) return { color: inline, label: 'Custom' };
+  return undefined;
+}
+
+// Rebuild the legend from what's ACTUALLY on the canvas — the kinds at their default
+// colour, the status classes present, and any overridden/custom colours (so a
+// recoloured node, or a node the CLI created with style.color, is reflected, not
+// contradicted) — KAN-40.
 function updateLegend(): void {
   if (!legendEl || !legendRows) return;
-  const kinds = new Set<string>();
-  cy.nodes().forEach((n) => {
-    const k = n.data('kind') as unknown;
-    if (typeof k === 'string') kinds.add(k);
+  const nodes: LegendNode[] = cy.nodes().map((n) => {
+    const kind = n.data('kind') as unknown;
+    return {
+      kind: typeof kind === 'string' ? kind : undefined,
+      override: nodeOverrideColor(n.id()),
+    };
   });
   const statuses = new Set<string>();
   cy.elements().forEach((el) => {
     for (const c of el.classes()) statuses.add(c);
   });
 
-  const entries = [
-    ...KIND_LEGEND.filter((e) => kinds.has(e.key)),
-    ...STATUS_LEGEND.filter((e) => statuses.has(e.key)),
-  ];
+  const entries = computeLegendEntries(nodes, statuses);
   legendRows.replaceChildren(...entries.map(legendRow));
   legendEl.hidden = legendCollapsed || entries.length === 0;
+  legendToggle?.setAttribute('aria-pressed', String(!legendEl.hidden));
 }
 
 legendToggle?.addEventListener('click', () => {
