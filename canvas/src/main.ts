@@ -81,6 +81,10 @@ const NODE_COLORS: NodeColor[] = [
 // Per-node colour overrides (node id → colour), re-applied across theme changes.
 const colorOverrides = new Map<string, NodeColor>();
 
+// Edges the user has manually reshaped by dragging (edge id → curve control point).
+// These are exempted from the automatic parallel-edge separation (KAN-44).
+const manualEdgeControls = new Map<string, { distance: number; weight: number }>();
+
 // Scale an #rrggbb colour toward black (factor < 1) for a derived border/stop.
 function darken(hex: string, factor: number): string {
   const value = Number.parseInt(hex.slice(1), 16);
@@ -1047,6 +1051,7 @@ function toElementDef(el: CyElement): cytoscape.ElementDefinition {
 function render(elements: CyElement[]): void {
   closeNodeMenu(false);
   colorOverrides.clear();
+  manualEdgeControls.clear();
   cy.elements().remove();
   cy.add(elements.map(toElementDef));
   cy.layout(dagreLayout(true)).run();
@@ -1070,6 +1075,7 @@ function separateParallelEdges(): void {
   cy.edges().forEach((edge) => {
     const group = edge.parallelEdges();
     if (group.length < 2) {
+      if (manualEdgeControls.has(edge.id())) return; // keep the user's shape
       edge.style({
         'control-point-distances': 0,
         'text-margin-x': 0,
@@ -1085,6 +1091,7 @@ function separateParallelEdges(): void {
     handled.add(key);
     const n = group.length;
     group.forEach((e, i) => {
+      if (manualEdgeControls.has(e.id())) return; // user reshaped this one
       const dir = e.source().id() < e.target().id() ? 1 : -1;
       const spread = i - (n - 1) / 2;
       e.style({
@@ -1100,6 +1107,7 @@ function separateParallelEdges(): void {
   // arrows and the sibling label. Read midpoint() after pass 1 set the curves.
   cy.edges().forEach((edge) => {
     if (edge.parallelEdges().length < 2) return;
+    if (manualEdgeControls.has(edge.id())) return; // label follows manual curve
     const sp = edge.source().position();
     const tp = edge.target().position();
     const mid = edge.midpoint();
@@ -1325,6 +1333,68 @@ cy.on('tap', (evt) => {
     cy.elements().unselect();
     emitSelection([]);
   }
+});
+
+/* ─── Drag a link to manually reshape it (KAN-44) ─────────────────────────────
+ * Cytoscape only drags nodes, so we implement edge reshaping ourselves: grab an
+ * edge and drag to move its bezier control point to the cursor. Reshaped edges go
+ * into `manualEdgeControls` and are skipped by the auto-separation. */
+let draggingEdge: cytoscape.EdgeSingular | undefined;
+
+function applyEdgeControlFromPoint(
+  edge: cytoscape.EdgeSingular,
+  point: { x: number; y: number },
+): void {
+  const s = edge.source().position();
+  const t = edge.target().position();
+  const dx = t.x - s.x;
+  const dy = t.y - s.y;
+  const len = Math.hypot(dx, dy) || 1;
+  const ux = dx / len;
+  const uy = dy / len;
+  const wx = point.x - s.x;
+  const wy = point.y - s.y;
+  // Place the control point under the cursor: weight along the line, distance
+  // perpendicular to it.
+  const weight = Math.min(0.92, Math.max(0.08, (wx * ux + wy * uy) / len));
+  const distance = wx * -uy + wy * ux;
+  manualEdgeControls.set(edge.id(), { distance, weight });
+  edge.style({
+    'curve-style': 'unbundled-bezier',
+    'control-point-distances': distance,
+    'control-point-weights': weight,
+    'text-margin-x': 0,
+    'text-margin-y': 0,
+  });
+}
+
+const cyContainer = cy.container();
+cy.on('mouseover', 'edge', () => {
+  if (!draggingEdge && cyContainer) cyContainer.style.cursor = 'grab';
+});
+cy.on('mouseout', 'edge', () => {
+  if (!draggingEdge && cyContainer) cyContainer.style.cursor = '';
+});
+
+cy.on('tapstart', 'edge', (evt) => {
+  draggingEdge = evt.target as cytoscape.EdgeSingular;
+  // Stop the canvas from panning / box-selecting while we drag the link.
+  cy.userPanningEnabled(false);
+  cy.boxSelectionEnabled(false);
+  if (cyContainer) cyContainer.style.cursor = 'grabbing';
+});
+
+cy.on('tapdrag', (evt) => {
+  if (!draggingEdge) return;
+  applyEdgeControlFromPoint(draggingEdge, evt.position);
+});
+
+cy.on('tapend', () => {
+  if (!draggingEdge) return;
+  draggingEdge = undefined;
+  cy.userPanningEnabled(true);
+  cy.boxSelectionEnabled(true);
+  if (cyContainer) cyContainer.style.cursor = '';
 });
 
 // Node selection on right-click and the menu actions are handled by the unified
