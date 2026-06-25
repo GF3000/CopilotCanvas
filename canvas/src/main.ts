@@ -630,6 +630,9 @@ const labelInput = document.getElementById('node-label-input');
 const swatchContainer = document.getElementById('node-swatches');
 const menuExpand = document.getElementById('ctx-expand');
 let menuNode: cytoscape.NodeSingular | undefined;
+// KAN-14: remember the label when the menu opens, so a commit can tell whether the
+// user actually renamed the node (and what the old name was).
+let menuNodeOldLabel = '';
 
 function styleNodeColor(
   node: { style: (props: object) => unknown },
@@ -651,6 +654,7 @@ function applyNodeColor(color: NodeColor): void {
 function openNodeMenu(node: cytoscape.NodeSingular, x: number, y: number): void {
   if (!nodeMenu) return;
   menuNode = node;
+  menuNodeOldLabel = String(node.data('label') ?? '');
   if (labelInput instanceof HTMLInputElement) {
     labelInput.value = String(node.data('label') ?? '');
   }
@@ -672,9 +676,30 @@ function closeNodeMenu(commit: boolean): void {
   if (commit && menuNode && labelInput instanceof HTMLInputElement) {
     const text = labelInput.value.trim();
     if (text) menuNode.data('label', text);
+    // KAN-14: a real rename drives a matching code change via the extension.
+    if (text && text !== menuNodeOldLabel) {
+      emitDiagramEdited(menuNode.id(), menuNodeOldLabel, text);
+    }
   }
   if (nodeMenu) nodeMenu.hidden = true;
   menuNode = undefined;
+}
+
+// KAN-14: tell the extension the user edited the diagram directly (here, renamed a
+// node) so Copilot can propose a matching code change. We send the diagram_edited
+// contract (current elements) plus a focused `changed` hint of exactly what changed.
+function emitDiagramEdited(
+  nodeId: string,
+  oldLabel: string,
+  newLabel: string,
+): void {
+  vscode?.postMessage({
+    type: 'diagram_edited',
+    sessionId: 'webview',
+    diagramId: currentDiagramId ?? '',
+    elements: currentScopeElements,
+    changed: { kind: 'node-label', nodeId, oldLabel, newLabel },
+  });
 }
 
 // Build the colour swatches once (presets + a custom colour picker).
