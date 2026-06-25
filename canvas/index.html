@@ -454,6 +454,95 @@
         display: none;
       }
 
+      /* Node/link search bar (KAN-38) — top-centre glass pill. */
+      #search-bar {
+        position: absolute;
+        top: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 40;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 8px 6px 12px;
+        border-radius: 14px;
+        background: var(--surface);
+        backdrop-filter: blur(14px) saturate(160%);
+        -webkit-backdrop-filter: blur(14px) saturate(160%);
+        border: 1px solid var(--surface-border);
+        box-shadow:
+          0 8px 26px var(--surface-shadow),
+          inset 0 1px 0 var(--surface-inset);
+        color: var(--text);
+      }
+
+      #search-bar[hidden] {
+        display: none;
+      }
+
+      #search-bar .search-icon {
+        width: 16px;
+        height: 16px;
+        flex: none;
+        fill: none;
+        stroke: var(--icon);
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      #search-input {
+        font: inherit;
+        font-size: 13px;
+        width: 200px;
+        padding: 4px 2px;
+        border: none;
+        background: transparent;
+        color: var(--text);
+        outline: none;
+      }
+
+      #search-input::placeholder {
+        color: var(--text-muted);
+      }
+
+      .search-count {
+        font-size: 12px;
+        color: var(--text-muted);
+        min-width: 34px;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .search-nav {
+        width: 28px;
+        height: 28px;
+        display: grid;
+        place-items: center;
+        padding: 0;
+        border: none;
+        border-radius: 8px;
+        background: transparent;
+        color: var(--icon);
+        cursor: pointer;
+        transition: background 0.14s ease;
+      }
+
+      .search-nav:hover {
+        background: var(--hover-bg);
+        color: var(--icon-hover);
+      }
+
+      .search-nav svg {
+        width: 16px;
+        height: 16px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
       .export-field {
         display: flex;
         flex-direction: column;
@@ -893,6 +982,20 @@
         </button>
         <div id="more-menu" hidden role="menu" aria-label="More controls">
           <button
+            id="search-toggle"
+            class="more-item"
+            type="button"
+            role="menuitem"
+            title="Search nodes & links (Ctrl/Cmd+F)"
+            aria-label="Search nodes and links"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="11" cy="11" r="7" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <span>Search</span>
+          </button>
+          <button
             id="theme-toggle-btn"
             class="more-item"
             type="button"
@@ -996,6 +1099,56 @@
     <div id="legend" role="group" aria-label="Colour legend" hidden>
       <h2>Legend</h2>
       <div id="legend-rows"></div>
+    </div>
+
+    <div id="search-bar" hidden role="search" aria-label="Search nodes and links">
+      <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="11" cy="11" r="7" />
+        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+      </svg>
+      <input
+        id="search-input"
+        type="text"
+        placeholder="Search nodes &amp; links…"
+        autocomplete="off"
+        spellcheck="false"
+        aria-label="Search query"
+      />
+      <span id="search-count" class="search-count"></span>
+      <button
+        id="search-prev"
+        class="search-nav"
+        type="button"
+        title="Previous match (Shift+Enter)"
+        aria-label="Previous match"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M18 15l-6-6-6 6" />
+        </svg>
+      </button>
+      <button
+        id="search-next"
+        class="search-nav"
+        type="button"
+        title="Next match (Enter)"
+        aria-label="Next match"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
+      <button
+        id="search-close"
+        class="search-nav"
+        type="button"
+        title="Close (Esc)"
+        aria-label="Close search"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <line x1="6" y1="6" x2="18" y2="18" />
+          <line x1="6" y1="18" x2="18" y2="6" />
+        </svg>
+      </button>
     </div>
 
     <div id="node-menu" hidden role="menu" aria-label="Edit node">
