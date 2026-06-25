@@ -1462,6 +1462,9 @@ function restoreSnapshot(snapshot: UndoSnapshot): void {
   currentScopeElements = cyToElements();
   updateScopeBar();
   updateLegend();
+  // Fit the restored graph into view so the WHOLE previous diagram is shown (the
+  // saved pan/zoom could otherwise leave part of it off-screen). KAN-34.
+  cy.fit(undefined, FIT_PADDING);
 }
 
 function performUndo(): void {
