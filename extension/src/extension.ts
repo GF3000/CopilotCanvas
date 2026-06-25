@@ -42,6 +42,7 @@ export async function activate(
       onPatchDiagram: (patch) => CanvasPanel.patch(patch),
       getSelection: () => CanvasPanel.getSelection(),
       getNodeContext: (id) => CanvasPanel.getNodeContext(id),
+      getEdgeContext: (id) => CanvasPanel.getEdgeContext(id),
       linkNodeToCode: (id, ref) => CanvasPanel.linkNodeToCode(id, ref),
       openNodeCode: (id) => CanvasPanel.openNodeCode(id),
     });

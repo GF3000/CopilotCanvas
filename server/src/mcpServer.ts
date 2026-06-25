@@ -58,7 +58,9 @@ const CODEREFS_SCHEMA = z
     }),
   )
   .optional()
-  .describe('Code location(s) this node maps to, so the user can jump to the code.');
+  .describe(
+    'Code location(s) this node or link maps to, so the user can jump to the code.',
+  );
 
 export interface CanvasSelectionInfo {
   diagramId?: string;
@@ -75,6 +77,15 @@ export interface CanvasNodeContext {
   outgoing: { toId: string; toLabel?: string; edgeLabel?: string }[];
 }
 
+export interface CanvasEdgeContext {
+  id: string;
+  label?: string;
+  sourceId: string;
+  sourceLabel?: string;
+  targetId: string;
+  targetLabel?: string;
+}
+
 export interface CanvasServerDeps {
   /** Called when a tool wants to render a (new/replacement) diagram in the canvas. */
   onOpenDiagram: (diagram: DiagramMessage) => void | Promise<void>;
@@ -87,6 +98,8 @@ export interface CanvasServerDeps {
   getSelection: () => CanvasSelectionInfo;
   /** Returns rich context for a node (defaults to the selection) for explanations. */
   getNodeContext: (id?: string) => CanvasNodeContext | undefined;
+  /** Returns context for an edge/link (defaults to the selection) for explanations. */
+  getEdgeContext: (id?: string) => CanvasEdgeContext | undefined;
   /** Attach a code reference to a node. Returns false if the node isn't found. */
   linkNodeToCode: (id: string, ref: CodeRef) => boolean;
   /**
@@ -203,34 +216,50 @@ export function buildCanvasMcpServer(deps: CanvasServerDeps): McpServer {
   server.registerTool(
     'describe_node',
     {
-      title: 'Get a node\u2019s context so you can explain it',
+      title: 'Get a node\u2019s or link\u2019s context so you can explain it',
       description:
-        'Return rich context about a node on the Canvas for Copilot canvas — its ' +
-        'label, kind, and how it connects to its neighbours (incoming and outgoing ' +
-        'edges with their labels) — so you can give a relevant explanation. Call ' +
-        'this when the user asks to explain, describe, or "what is" a node or the ' +
-        'current selection (e.g. "explain this node", "what does the Auth service ' +
-        'do?"). If nodeId is omitted, the currently selected node is used. ' +
-        'Read-only. Combine the returned graph context with your own knowledge to ' +
-        'explain the node in the CLI.',
+        'Return rich context about a node OR an edge/link on the Canvas for Copilot ' +
+        'canvas so you can give a relevant explanation. For a node: its label, kind, ' +
+        'and how it connects to its neighbours (incoming and outgoing edges with ' +
+        'their labels). For an edge/link: its label and the two endpoints it ' +
+        'connects. Call this when the user asks to explain, describe, or "what is" a ' +
+        'node, a link/connection, or the current selection (e.g. "explain this node", ' +
+        '"what does this arrow mean?"). If the id is omitted, the current selection ' +
+        '(node or edge) is used. Read-only. Combine the returned graph context with ' +
+        'your own knowledge to explain it in the CLI.',
       inputSchema: {
         nodeId: z
           .string()
           .optional()
-          .describe('Node id to describe; omit to use the current selection.'),
+          .describe(
+            'Node or edge id to describe; omit to use the current selection.',
+          ),
       },
       annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
     },
     ({ nodeId }) => {
       const ctx = deps.getNodeContext(nodeId);
       if (!ctx) {
+        const edge = deps.getEdgeContext(nodeId);
+        if (edge) {
+          const from = edge.sourceLabel ?? edge.sourceId;
+          const to = edge.targetLabel ?? edge.targetId;
+          const arrow = edge.label ? `--(${edge.label})-->` : '-->';
+          const lines = [
+            `Link/connection: ${edge.id}${edge.label ? ` ("${edge.label}")` : ''}`,
+            `From: ${from} (id: ${edge.sourceId})`,
+            `To: ${to} (id: ${edge.targetId})`,
+            `Direction: ${from} ${arrow} ${to}`,
+          ];
+          return { content: [{ type: 'text', text: lines.join('\n') }] };
+        }
         return {
           content: [
             {
               type: 'text',
               text: nodeId
-                ? `No node "${nodeId}" is on the canvas.`
-                : 'No node is selected. Ask the user to click the node they want explained, or name it.',
+                ? `No node or link "${nodeId}" is on the canvas.`
+                : 'Nothing is selected. Ask the user to click the node or link they want explained, or name it.',
             },
           ],
         };
@@ -268,14 +297,15 @@ export function buildCanvasMcpServer(deps: CanvasServerDeps): McpServer {
   server.registerTool(
     'link_node_to_code',
     {
-      title: 'Link a node to a code location',
+      title: 'Link a node or link to a code location',
       description:
         'Attach a code reference (file path + optional line range / symbol) to a ' +
-        'node, so the user can later jump from the node to that code. Call this when ' +
-        'you know where a node lives in the repo (from your analysis) or when the ' +
-        'user asks to "link this node to <file>". Paths are repo-relative.',
+        'node OR an edge/link, so the user can later jump from it to that code. Call ' +
+        'this when you know where a node or a connection lives in the repo (from your ' +
+        'analysis) or when the user asks to "link this node/link to <file>". Paths ' +
+        'are repo-relative.',
       inputSchema: {
-        nodeId: z.string().describe('The node id to link.'),
+        nodeId: z.string().describe('The node or edge id to link.'),
         path: z.string().describe('Repo-relative file path, e.g. "src/auth/jwt.ts".'),
         startLine: z
           .number()
@@ -300,14 +330,14 @@ export function buildCanvasMcpServer(deps: CanvasServerDeps): McpServer {
         return {
           isError: true,
           content: [
-            { type: 'text', text: `No node "${nodeId}" is on the canvas to link.` },
+            { type: 'text', text: `No node or link "${nodeId}" is on the canvas to link.` },
           ],
         };
       }
       const where = ref.range ? `${path}:${ref.range.startLine}` : path;
       return {
         content: [
-          { type: 'text', text: `Linked node "${nodeId}" to ${where}.` },
+          { type: 'text', text: `Linked "${nodeId}" to ${where}.` },
         ],
       };
     },
@@ -325,21 +355,22 @@ export function buildCanvasMcpServer(deps: CanvasServerDeps): McpServer {
     server.registerTool(
       name,
       {
-        title: 'Open a node\u2019s linked code in the editor',
+        title: 'Open a node\u2019s or link\u2019s linked code in the editor',
         description:
           (primary ? '' : '(alias of open_node_code) ') +
-          'Open the code linked to a node in the VS Code editor and jump straight to ' +
-          'the line (defaults to the currently selected node). ALWAYS use this — do ' +
-          'not just print the path — whenever the user asks to see / show / open / ' +
-          'view / "jump to" / "go to" / "take me to" the code, source, implementation, ' +
-          'or lines of code for a node or the selection (e.g. "show me the code for ' +
-          'this", "open this node\u2019s code", "jump to the source"). If the node ' +
-          'isn\u2019t linked to any code, say so plainly — do not guess a location.',
+          'Open the code linked to a node OR an edge/link in the VS Code editor and ' +
+          'jump straight to the line (defaults to the current selection). ALWAYS use ' +
+          'this — do not just print the path — whenever the user asks to see / show / ' +
+          'open / view / "jump to" / "go to" / "take me to" the code, source, ' +
+          'implementation, or lines of code for a node, a link/connection, or the ' +
+          'selection (e.g. "show me the code for this", "open this link\u2019s code", "jump ' +
+          'to the source"). If it isn\u2019t linked to any code, say so plainly — do not ' +
+          'guess a location.',
         inputSchema: {
           nodeId: z
             .string()
             .optional()
-            .describe('Node id; omit to use the current selection.'),
+            .describe('Node or edge id; omit to use the current selection.'),
         },
         annotations: { readOnlyHint: true, openWorldHint: false },
       },
@@ -349,15 +380,15 @@ export function buildCanvasMcpServer(deps: CanvasServerDeps): McpServer {
           const at = r.line ? `${r.path}:${r.line}` : r.path;
           return {
             content: [
-              { type: 'text', text: `Opened ${at} in the editor for node "${r.nodeId}".` },
+              { type: 'text', text: `Opened ${at} in the editor for "${r.nodeId}".` },
             ],
           };
         }
         const reason =
           r.reason === 'not-linked'
-            ? `Node "${r.nodeId}" isn\u2019t linked to any code yet. Link it first with link_node_to_code, or tell the user it has no code reference.`
+            ? `"${r.nodeId}" isn\u2019t linked to any code yet. Link it first with link_node_to_code, or tell the user it has no code reference.`
             : r.reason === 'no-node'
-              ? 'No node is selected. Ask the user to click the node whose code they want.'
+              ? 'Nothing is selected. Ask the user to click the node or link whose code they want.'
               : r.reason === 'no-canvas'
                 ? 'No diagram is open on the canvas.'
                 : 'Could not open the linked file (it may not exist at that path).';
@@ -493,28 +524,33 @@ function registerExpandNodeTool(
   server.registerTool(
     'expand_node',
     {
-      title: 'Expand a node into a richer sub-graph (in place)',
+      title: 'Expand a node or link into a richer sub-graph (in place)',
       description:
-        'Expand / drill into / "show more detail for" a node on the Canvas for ' +
-        'Copilot canvas: add a sub-graph of child nodes around it and re-render in ' +
+        'Expand / drill into / "show more detail for" a node OR an edge/link on the ' +
+        'Canvas for Copilot canvas: add a sub-graph of detail and re-render in ' +
         'place (the current pan/zoom is preserved — the diagram is not regenerated). ' +
         'Use this whenever the user asks to expand, drill into, break down, unfold, ' +
-        'or "show more detail / internals / children" for a node or the selection. ' +
+        'or "show more detail / internals / children" for a node, a link/connection, ' +
+        'or the selection. For a NODE, add child nodes around it. For an EDGE/LINK, ' +
+        'insert intermediate node(s)/step(s) ALONG the link (connect them between the ' +
+        'two endpoints) and pass the original edge id in `remove` if the path ' +
+        'replaces the direct connection. ' +
         'IMPORTANT — clarify scope FIRST: unless the kind and depth are already ' +
         'specified in the request, ASK the user what KIND of expansion they want — a ' +
         'brief annotation/note, a few extra detail nodes, or a full richer sub-graph ' +
         '— and HOW DEEP (how many levels). Only once you know the kind + depth, ' +
         'generate the sub-graph and call this tool. Make sure you know the parent ' +
-        'node id first (call get_selection if the user said "this node"). Provide the ' +
-        'new child nodes in addNodes and the edges connecting the parent to them (and ' +
-        'among them) in addEdges. For an "annotation", add a single kind:"note" node ' +
-        'joined by an edge with the "annotation" class. Keep each level focused ' +
-        '(roughly 2-6 new nodes per level).',
+        'node or edge id first (call get_selection if the user said "this"). Provide ' +
+        'the new nodes in addNodes and the connecting edges in addEdges. For an ' +
+        '"annotation", add a single kind:"note" node joined by an edge with the ' +
+        '"annotation" class. Keep each level focused (roughly 2-6 new nodes per level).',
       inputSchema: {
         parentId: z
           .string()
           .optional()
-          .describe('Id of the node to expand; omit to use the current selection.'),
+          .describe(
+            'Id of the node or edge to expand; omit to use the current selection.',
+          ),
         mode: z
           .enum(['annotation', 'detail', 'subgraph'])
           .optional()
@@ -536,7 +572,7 @@ function registerExpandNodeTool(
             }),
           )
           .optional()
-          .describe('New child nodes to add around the parent.'),
+          .describe('New nodes to add (around the parent node, or along the link).'),
         addEdges: z
           .array(
             z.object({
@@ -549,26 +585,39 @@ function registerExpandNodeTool(
           )
           .optional()
           .describe(
-            'Edges connecting the parent to the new nodes (and among them).',
+            'Edges connecting the parent (or the two endpoints) to the new nodes.',
+          ),
+        remove: z
+          .array(z.string())
+          .optional()
+          .describe(
+            'Ids of elements to remove as part of the expansion — typically the original direct edge when you insert intermediate step(s) along a link.',
           ),
       },
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
-    async ({ parentId, mode, depth, addNodes, addEdges }) => {
-      const ctx = deps.getNodeContext(parentId);
-      if (!ctx) {
+    async ({ parentId, mode, depth, addNodes, addEdges, remove }) => {
+      const nodeCtx = deps.getNodeContext(parentId);
+      const edgeCtx = nodeCtx ? undefined : deps.getEdgeContext(parentId);
+      if (!nodeCtx && !edgeCtx) {
         return {
           isError: true,
           content: [
             {
               type: 'text',
               text: parentId
-                ? `No node "${parentId}" is on the canvas to expand.`
-                : 'No node is selected to expand. Ask the user to click the node they want expanded, or name it.',
+                ? `No node or link "${parentId}" is on the canvas to expand.`
+                : 'Nothing is selected to expand. Ask the user to click the node or link they want expanded, or name it.',
             },
           ],
         };
       }
+
+      const targetId = nodeCtx ? nodeCtx.id : edgeCtx!.id;
+      const targetLabel = nodeCtx
+        ? (nodeCtx.label ?? nodeCtx.id)
+        : (edgeCtx!.label ?? edgeCtx!.id);
+      const targetKind = edgeCtx ? 'link' : 'node';
 
       // No sub-graph yet → guide the model to settle scope with the user first.
       if (!addNodes?.length) {
@@ -578,16 +627,18 @@ function registerExpandNodeTool(
             {
               type: 'text',
               text:
-                `Ready to expand "${ctx.label ?? ctx.id}" (id: ${ctx.id}). First decide WITH ` +
-                'THE USER the kind of expansion (annotation / detail / subgraph) and how many ' +
-                'levels deep, then call expand_node again with addNodes (the new child nodes) ' +
-                'and addEdges connecting them to this node.',
+                `Ready to expand the ${targetKind} "${targetLabel}" (id: ${targetId}). First decide ` +
+                'WITH THE USER the kind of expansion (annotation / detail / subgraph) and how many ' +
+                'levels deep, then call expand_node again with addNodes (the new nodes) and addEdges ' +
+                (edgeCtx
+                  ? 'connecting them between the two endpoints (and pass this edge id in `remove` if the path replaces the direct link).'
+                  : 'connecting them to this node.'),
             },
           ],
         };
       }
 
-      const { patch, counts } = buildPatch({ addNodes, addEdges });
+      const { patch, counts } = buildPatch({ addNodes, addEdges, remove });
       const applied = await deps.onPatchDiagram(patch);
       if (!applied) {
         return {
@@ -604,13 +655,14 @@ function registerExpandNodeTool(
       const how = [mode, depth ? `depth ${depth}` : undefined]
         .filter(Boolean)
         .join(', ');
+      const removedNote = counts.removed ? `, removed ${counts.removed}` : '';
       return {
         content: [
           {
             type: 'text',
-            text: `Expanded "${ctx.label ?? ctx.id}"${
+            text: `Expanded the ${targetKind} "${targetLabel}"${
               how ? ` (${how})` : ''
-            } in place: added ${counts.added} element(s).`,
+            } in place: added ${counts.added} element(s)${removedNote}.`,
           },
         ],
       };
@@ -645,6 +697,7 @@ const DIAGRAM_INPUT_SCHEMA = {
         label: z.string().optional().describe('Optional short edge label.'),
         classes: STYLE_CLASSES_SCHEMA,
         style: STYLE_SCHEMA,
+        codeRefs: CODEREFS_SCHEMA,
       }),
     )
     .describe('Directed edges connecting node ids.'),

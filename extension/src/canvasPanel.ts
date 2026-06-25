@@ -22,6 +22,16 @@ export interface NodeContext {
   outgoing: { toId: string; toLabel?: string; edgeLabel?: string }[];
 }
 
+/** Context for an edge/link so the model can explain or expand the connection. */
+export interface EdgeContext {
+  id: string;
+  label?: string;
+  sourceId: string;
+  sourceLabel?: string;
+  targetId: string;
+  targetLabel?: string;
+}
+
 interface NodeInfo {
   label?: string;
   kind?: string;
@@ -32,6 +42,7 @@ interface EdgeInfo {
   source: string;
   target: string;
   label?: string;
+  codeRefs?: CodeRef[];
 }
 
 /** What we persist so the canvas can be rebuilt after a full window reload. */
@@ -245,27 +256,35 @@ export class CanvasPanel {
   }
 
   /**
-   * Context-menu "Open in editor": open the node's code. If it isn't linked yet,
-   * try to resolve it via the workspace symbol provider (by the node's label),
-   * link it, then open. If nothing is found, ask the user to have Copilot link it.
+   * Context-menu "Open in editor": open the node's or link's code. For a node that
+   * isn't linked yet, try to resolve it via the workspace symbol provider (by the
+   * node's label), link it, then open. If nothing is found, ask the user to have
+   * Copilot link it.
    */
   private async handleOpenCode(
-    nodeId: string,
+    id: string,
     refIndex?: number,
   ): Promise<void> {
-    const node = this.nodes.get(nodeId);
-    if (!node) return;
+    const node = this.nodes.get(id);
+    const edge = node ? undefined : this.edges.get(id);
+    if (!node && !edge) return;
 
-    if (!node.codeRefs?.length) {
-      const resolved = await this.resolveCodeFor(nodeId, node.label ?? nodeId);
+    const hasRefs = (node?.codeRefs ?? edge?.codeRefs)?.length;
+    if (!hasRefs) {
+      // Only nodes can be auto-resolved by label (a link has no symbol of its own).
+      const resolved =
+        node !== undefined &&
+        (await this.resolveCodeFor(id, node.label ?? id));
       if (!resolved) {
+        const what = edge ? 'link' : 'node';
+        const name = node?.label ?? edge?.label ?? id;
         void vscode.window.showInformationMessage(
-          `Canvas for Copilot: couldn't locate code for "${node.label ?? nodeId}". Ask Copilot to link it (e.g. "link this node to its code").`,
+          `Canvas for Copilot: couldn't locate code for ${what} "${name}". Ask Copilot to link it (e.g. "link this ${what} to its code").`,
         );
         return;
       }
     }
-    await CanvasPanel.openNodeCode(nodeId, refIndex);
+    await CanvasPanel.openNodeCode(id, refIndex);
   }
 
   /** Best-effort: find a workspace symbol matching the label and link the node. */
@@ -294,33 +313,47 @@ export class CanvasPanel {
   }
 
   /**
-   * "Explain node" context-menu action: send a prompt to the Copilot CLI terminal
-   * asking it to explain this node. Copilot calls describe_node (per the canvas
+   * "Explain" context-menu action: send a prompt to the Copilot CLI terminal asking
+   * it to explain this node or link. Copilot calls describe_node (per the canvas
    * instruction) and prints the full explanation in the CLI — closing the
    * canvas → CLI loop, since the stateless MCP server can't push a turn itself.
    */
-  private handleExplain(nodeId: string): void {
-    const label = this.nodes.get(nodeId)?.label;
-    const name = label ? `"${label}" (id: ${nodeId})` : `id: ${nodeId}`;
+  private handleExplain(id: string): void {
+    const edge = this.edges.get(id);
+    if (edge) {
+      this.sendToTerminal(
+        `Explain the link/connection ${this.edgeName(id, edge)} on the ` +
+          `Canvas for Copilot diagram — what this relationship means.`,
+      );
+      return;
+    }
+    const label = this.nodes.get(id)?.label;
+    const name = label ? `"${label}" (id: ${id})` : `id: ${id}`;
     this.sendToTerminal(
       `Explain the node ${name} on the Canvas for Copilot diagram.`,
     );
   }
 
+  /** Readable name for an edge: its label (if any) and the endpoints it joins. */
+  private edgeName(id: string, edge: EdgeInfo): string {
+    const from = this.nodes.get(edge.source)?.label ?? edge.source;
+    const to = this.nodes.get(edge.target)?.label ?? edge.target;
+    const lbl = edge.label ? `"${edge.label}" ` : '';
+    return `${lbl}from "${from}" to "${to}" (id: ${id})`;
+  }
+
   /**
-   * "Expand node" context-menu action: the webview dialog has already collected the
-   * kind of expansion and depth, so build a fully-specified prompt and send it to
-   * the CLI. Copilot calls expand_node with those settings and the canvas
-   * re-renders the new sub-graph in place.
+   * "Expand" context-menu action: the webview dialog has already collected the kind
+   * of expansion and depth, so build a fully-specified prompt and send it to the
+   * CLI. Copilot calls expand_node with those settings and the canvas re-renders the
+   * new sub-graph in place. For an edge, the new detail is inserted along the link.
    */
   private handleExpand(
-    nodeId: string,
+    id: string,
     mode: string | undefined,
     depth: number | undefined,
     focus: string | undefined,
   ): void {
-    const label = this.nodes.get(nodeId)?.label;
-    const name = label ? `"${label}" (id: ${nodeId})` : `id: ${nodeId}`;
     const kind =
       mode === 'annotation'
         ? 'a brief annotation/note'
@@ -329,6 +362,21 @@ export class CanvasPanel {
           : 'a few extra detail nodes';
     const levels = depth && depth > 0 ? `${depth} level(s) deep` : '1 level deep';
     const focusPart = focus?.trim() ? ` Focus on: ${focus.trim()}.` : '';
+    const edge = this.edges.get(id);
+    if (edge) {
+      this.sendToTerminal(
+        `Expand the link/connection ${this.edgeName(id, edge)} on the Canvas for ` +
+          `Copilot diagram as ${kind}, ${levels}.` +
+          focusPart +
+          ' Use the expand_node tool to insert the new intermediate node(s)/step(s) ' +
+          'along this link, connecting them between the two endpoints; remove the ' +
+          'original direct edge if you replace it with the path. Use these settings ' +
+          '— no need to ask me.',
+      );
+      return;
+    }
+    const label = this.nodes.get(id)?.label;
+    const name = label ? `"${label}" (id: ${id})` : `id: ${id}`;
     this.sendToTerminal(
       `Expand the node ${name} on the Canvas for Copilot diagram as ${kind}, ${levels}.` +
         focusPart +
@@ -507,14 +555,39 @@ export class CanvasPanel {
     };
   }
 
-  /** Attach a code reference to a node; marks it visually as linked. */
+  /**
+   * Context for an edge/link so the model can explain or expand the connection: its
+   * label and the two endpoints it joins. If `id` is omitted, uses the first
+   * selected edge. Returns undefined if there's no such edge.
+   */
+  static getEdgeContext(id?: string): EdgeContext | undefined {
+    const panel = CanvasPanel.current;
+    if (!panel) return undefined;
+    const targetId = id ?? panel.selection.find((s) => panel.edges.has(s));
+    if (!targetId) return undefined;
+    const edge = panel.edges.get(targetId);
+    if (!edge) return undefined;
+    return {
+      id: targetId,
+      label: edge.label,
+      sourceId: edge.source,
+      sourceLabel: panel.nodes.get(edge.source)?.label,
+      targetId: edge.target,
+      targetLabel: panel.nodes.get(edge.target)?.label,
+    };
+  }
+
+  /** Attach a code reference to a node or edge; marks a node visually as linked. */
   static linkNodeToCode(id: string, ref: CodeRef): boolean {
     const panel = CanvasPanel.current;
     const node = panel?.nodes.get(id);
-    if (!panel || !node) return false;
-    node.codeRefs = [...(node.codeRefs ?? []), ref];
-    // Mark the node 'linked' on the canvas AND deliver the code refs so the canvas
-    // node carries them (renderCodeRefs / "go to code" in the menu reads node data).
+    const edge = node ? undefined : panel?.edges.get(id);
+    const target = node ?? edge;
+    if (!panel || !target) return false;
+    target.codeRefs = [...(target.codeRefs ?? []), ref];
+    // Deliver the code refs so the canvas element carries them (renderCodeRefs /
+    // "go to code" in the menu reads element data). Only nodes get the 'linked'
+    // ring marker (there's no edge equivalent style).
     panel.sendPatch({
       type: 'patch',
       sessionId: 'cli',
@@ -522,12 +595,18 @@ export class CanvasPanel {
       version: 0,
       add: [],
       remove: [],
-      update: [{ data: { id }, classes: 'linked', codeRefs: node.codeRefs }],
+      update: [
+        {
+          data: { id },
+          classes: node ? 'linked' : undefined,
+          codeRefs: target.codeRefs,
+        },
+      ],
     });
     return true;
   }
 
-  /** Open a node's linked code in the editor (defaults to the selection). */
+  /** Open a node's or link's linked code in the editor (defaults to the selection). */
   static async openNodeCode(
     id?: string,
     refIndex?: number,
@@ -540,9 +619,12 @@ export class CanvasPanel {
   }> {
     const panel = CanvasPanel.current;
     if (!panel) return { opened: false, reason: 'no-canvas' };
-    const nodeId = id ?? panel.selection.find((s) => panel.nodes.has(s));
+    const nodeId =
+      id ??
+      panel.selection.find((s) => panel.nodes.has(s) || panel.edges.has(s));
     if (!nodeId) return { opened: false, reason: 'no-node' };
-    const refs = panel.nodes.get(nodeId)?.codeRefs;
+    const refs =
+      panel.nodes.get(nodeId)?.codeRefs ?? panel.edges.get(nodeId)?.codeRefs;
     const ref =
       (refIndex !== undefined ? refs?.[refIndex] : undefined) ?? refs?.[0];
     if (!ref) return { opened: false, reason: 'not-linked', nodeId };
@@ -597,6 +679,7 @@ export class CanvasPanel {
         source: String(source),
         target: String(target),
         label: typeof label === 'string' ? label : undefined,
+        codeRefs: el.codeRefs,
       });
     } else {
       this.nodes.set(id, {
