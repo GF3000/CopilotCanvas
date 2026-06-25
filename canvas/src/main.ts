@@ -1405,6 +1405,8 @@ interface UndoSnapshot {
   elements: CyElement[];
   title: string;
   colorOverrides: [string, NodeColor][];
+  zoom: number;
+  pan: { x: number; y: number };
 }
 
 const undoHistory = createHistory<UndoSnapshot>(100);
@@ -1426,6 +1428,8 @@ function captureSnapshot(): UndoSnapshot {
     elements: cyToElements(),
     title: currentTitle,
     colorOverrides: [...colorOverrides.entries()],
+    zoom: cy.zoom(),
+    pan: { ...cy.pan() },
   };
 }
 
@@ -1460,6 +1464,11 @@ function restoreSnapshot(snapshot: UndoSnapshot): void {
   }
   updateScopeBar();
   updateLegend();
+  // Restore the saved view. The dagre layout is deterministic, so re-rendering the
+  // same graph reproduces the same node positions — meaning the captured zoom/pan
+  // lines up with what the user was looking at. (Overrides render()'s fit.)
+  cy.zoom(snapshot.zoom);
+  cy.pan(snapshot.pan);
 }
 
 function performUndo(): void {
