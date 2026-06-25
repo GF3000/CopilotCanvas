@@ -1446,19 +1446,19 @@ const Avatar: React.FC<{
         flexDirection: "column",
         alignItems: "center",
         gap: 14,
-        width: 300,
+        width: 320,
       }}
     >
       <div
         style={{
-          width: 230,
-          height: 230,
+          width: 250,
+          height: 250,
           borderRadius: "50%",
           background: member.img
             ? undefined
             : `linear-gradient(135deg, ${member.color}, ${member.color}99)`,
-          border: `7px solid ${member.color}`,
-          boxShadow: `0 0 50px ${member.color}66`,
+          border: `8px solid ${member.color}`,
+          boxShadow: `0 0 56px ${member.color}66`,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -1480,7 +1480,7 @@ const Avatar: React.FC<{
             style={{
               fontFamily: FONT,
               fontWeight: 900,
-              fontSize: 84,
+              fontSize: 96,
               color: C.ink,
             }}
           >
