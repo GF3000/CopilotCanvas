@@ -20,7 +20,6 @@ import {
 import { validateGraphModel } from './graphModel';
 import { closedNeighbourhood, countNodes, nodeLabel } from './scope';
 import { createHistory } from './history';
-import { captureDiagram, restoreDiagram, type DiagramSnapshot } from './snapshot';
 
 cytoscape.use(dagre);
 cytoscape.use(svg);
@@ -1394,14 +1393,16 @@ function handleDiagram(msg: DiagramMessage): void {
   updateScopeBar();
 }
 
-/* ─── Undo history (KAN-34) ──────────────────────────────────────────────────
- * Step back through diagram changes — each patch (expand / edit / annotate / link
- * styling) and each manual recolour/rename pushes exactly one undoable step — to
- * the first version, where Undo is disabled. A snapshot captures the rendered graph
- * (with node positions), the view (pan/zoom), the manual colour overrides and the
- * title, so an undo restores the previous state IN PLACE without re-running layout.
- * Exposed as the "Undo" item in the More menu and Ctrl/Cmd+Z. */
-interface UndoSnapshot extends DiagramSnapshot {
+/* ─── Undo / redo history (KAN-34) ───────────────────────────────────────────
+ * Step back/forward through diagram changes — each patch (expand / edit / annotate
+ * / link styling) and each manual recolour/rename pushes exactly one undoable step
+ * — to the first version, where Undo is disabled. A snapshot stores the FULL graph
+ * as protocol elements (plus the title and manual colour overrides); a restore
+ * re-renders it through the same `render()` path the app uses for every diagram, so
+ * the whole previous/next diagram is reliably reproduced. Exposed as the "Undo" /
+ * "Redo" items in the More menu and Ctrl/Cmd+Z / Ctrl+Y (Ctrl/Cmd+Shift+Z). */
+interface UndoSnapshot {
+  elements: CyElement[];
   title: string;
   colorOverrides: [string, NodeColor][];
 }
@@ -1410,11 +1411,19 @@ const undoHistory = createHistory<UndoSnapshot>(100);
 const undoBtn = document.getElementById('undo-btn');
 const redoBtn = document.getElementById('redo-btn');
 
+/** Map the live graph back to protocol elements (full current diagram). */
+function cyToElements(): CyElement[] {
+  return cy.elements().map((e) => {
+    const el: CyElement = { data: { ...e.data() } };
+    const classes = e.classes().join(' ');
+    if (classes) el.classes = classes;
+    return el;
+  });
+}
+
 function captureSnapshot(): UndoSnapshot {
-  // The full graph + viewport (see snapshot.ts) plus the chrome state the canvas
-  // owns: the title and the manual colour overrides.
   return {
-    ...captureDiagram(cy),
+    elements: cyToElements(),
     title: currentTitle,
     colorOverrides: [...colorOverrides.entries()],
   };
@@ -1435,36 +1444,22 @@ function pushUndoSnapshot(): void {
   updateUndoRedoButtons();
 }
 
-/** Map the live graph back to protocol elements (for drill-down bookkeeping). */
-function cyToElements(): CyElement[] {
-  return cy.elements().map((e) => {
-    const el: CyElement = { data: { ...e.data() } };
-    const classes = e.classes().join(' ');
-    if (classes) el.classes = classes;
-    return el;
-  });
-}
-
 function restoreSnapshot(snapshot: UndoSnapshot): void {
-  closeNodeMenu(false);
-  restoreDiagram(cy, snapshot);
-  // Re-assert the manual colour overrides on top of the restored graph.
-  colorOverrides.clear();
+  // An undo/redo restores a full top-level diagram; clear any drill-down scope.
+  scopeStack.length = 0;
+  currentScopeElements = snapshot.elements;
+  setTitle(snapshot.title);
+  // render() clears the canvas, re-adds the elements, lays them out and fits — the
+  // same proven path used for every incoming diagram, so the whole diagram shows.
+  render(snapshot.elements);
+  // render() clears colour overrides; re-assert the snapshot's manual recolours.
   for (const [id, color] of snapshot.colorOverrides) {
     colorOverrides.set(id, color);
     const node = cy.getElementById(id);
     if (node.nonempty()) styleNodeColor(node, color);
   }
-  setTitle(snapshot.title);
-  separateParallelEdges();
-  // An undo/redo restores a top-level content version; clear any drill-down scope.
-  scopeStack.length = 0;
-  currentScopeElements = cyToElements();
   updateScopeBar();
   updateLegend();
-  // Fit the restored graph into view so the WHOLE previous diagram is shown (the
-  // saved pan/zoom could otherwise leave part of it off-screen). KAN-34.
-  cy.fit(undefined, FIT_PADDING);
 }
 
 function performUndo(): void {
