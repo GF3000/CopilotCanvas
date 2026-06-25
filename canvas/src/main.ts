@@ -293,10 +293,13 @@ function buildStyle(theme: Theme): cytoscape.StylesheetStyle[] {
       }),
     },
     {
-      selector: '.search-current',
+      selector: 'node.search-current',
+      style: ext({ 'border-width': 6, 'border-color': '#f0abfc' }),
+    },
+    {
+      selector: 'edge.search-current',
       style: ext({
-        'border-width': 6,
-        'border-color': '#f0abfc',
+        'line-fill': 'solid',
         'line-color': '#f0abfc',
         'target-arrow-color': '#f0abfc',
         width: 5,
