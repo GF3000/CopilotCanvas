@@ -40,13 +40,23 @@ to it. So registration is just an `mcp-config.json` entry pointing at the extens
 
 1. **Register the Canvas MCP server** with Copilot CLI. Easiest: when you run the
    extension it **offers one-time setup** — click **"Set up"** and it registers the
-   `canvas` server and adds the "always draw with the canvas" instruction for you.
-   To do it manually instead, add to `~/.copilot/mcp-config.json`:
+   `canvas` server, adds the "always draw with the canvas" instruction, and installs
+   the `/diagram*` skills for you. To do it manually instead, add to
+   `~/.copilot/mcp-config.json`:
    ```json
    "canvas": { "type": "http", "url": "http://127.0.0.1:4123/mcp", "tools": ["*"] }
    ```
 2. **Run the extension** (F5 dev host, or install the `.vsix`). On activation it
    starts the MCP server on `127.0.0.1:4123` and shows *"MCP server ready at …"*.
+
+> **Works in any project (global install):** "Set up" copies the diagram **skills**
+> into `~/.copilot/skills/` (the personal location the CLI scans for *every* project),
+> so the `/diagram`, `/diagram-dependency`, `/diagram-flowchart`,
+> `/diagram-state-machine`, `/diagram-class` and `/diagram-er` slash commands work in
+> all your repos — not only this one. (A repo's own `.github/skills/` is only
+> discovered while you're inside that repo.) The skills ship inside the `.vsix`
+> (`dist/skills/`); after setup, **restart the CLI and run `/skills reload`**. The
+> extension also refreshes them automatically on upgrade.
 
 > **Reliable tool triggering:** this repo ships `.github/copilot-instructions.md`
 > (and the extension can install a global copy) telling Copilot to **always** use the
