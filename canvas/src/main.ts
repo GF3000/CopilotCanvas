@@ -1408,6 +1408,7 @@ interface UndoSnapshot extends DiagramSnapshot {
 
 const undoHistory = createHistory<UndoSnapshot>(100);
 const undoBtn = document.getElementById('undo-btn');
+const redoBtn = document.getElementById('redo-btn');
 
 function captureSnapshot(): UndoSnapshot {
   // The full graph + viewport (see snapshot.ts) plus the chrome state the canvas
@@ -1419,16 +1420,19 @@ function captureSnapshot(): UndoSnapshot {
   };
 }
 
-function updateUndoButton(): void {
+function updateUndoRedoButtons(): void {
   if (undoBtn instanceof HTMLButtonElement) {
     undoBtn.disabled = !undoHistory.canUndo();
+  }
+  if (redoBtn instanceof HTMLButtonElement) {
+    redoBtn.disabled = !undoHistory.canRedo();
   }
 }
 
 /** Record the current diagram state as an undoable step (call BEFORE a change). */
 function pushUndoSnapshot(): void {
   undoHistory.push(captureSnapshot());
-  updateUndoButton();
+  updateUndoRedoButtons();
 }
 
 /** Map the live graph back to protocol elements (for drill-down bookkeeping). */
@@ -1453,7 +1457,7 @@ function restoreSnapshot(snapshot: UndoSnapshot): void {
   }
   setTitle(snapshot.title);
   separateParallelEdges();
-  // An undo restores a top-level content version; clear any drill-down scope.
+  // An undo/redo restores a top-level content version; clear any drill-down scope.
   scopeStack.length = 0;
   currentScopeElements = cyToElements();
   updateScopeBar();
@@ -1461,22 +1465,30 @@ function restoreSnapshot(snapshot: UndoSnapshot): void {
 }
 
 function performUndo(): void {
-  const snapshot = undoHistory.undo();
-  if (!snapshot) return;
-  restoreSnapshot(snapshot);
-  updateUndoButton();
+  if (!undoHistory.canUndo()) return;
+  const snapshot = undoHistory.undo(captureSnapshot());
+  if (snapshot) restoreSnapshot(snapshot);
+  updateUndoRedoButtons();
+}
+
+function performRedo(): void {
+  if (!undoHistory.canRedo()) return;
+  const snapshot = undoHistory.redo(captureSnapshot());
+  if (snapshot) restoreSnapshot(snapshot);
+  updateUndoRedoButtons();
 }
 
 undoBtn?.addEventListener('click', () => performUndo());
+redoBtn?.addEventListener('click', () => performRedo());
 
-// Ctrl/Cmd+Z — but don't hijack undo while the user is typing in a field.
+// Undo/redo keyboard shortcuts — but don't hijack them while typing in a field.
 window.addEventListener('keydown', (event) => {
-  const isUndo =
-    (event.ctrlKey || event.metaKey) &&
-    !event.shiftKey &&
-    !event.altKey &&
-    event.key.toLowerCase() === 'z';
-  if (!isUndo) return;
+  if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
+  const key = event.key.toLowerCase();
+  // Ctrl/Cmd+Z = undo; Ctrl/Cmd+Shift+Z or Ctrl+Y = redo.
+  const isUndo = key === 'z' && !event.shiftKey;
+  const isRedo = (key === 'z' && event.shiftKey) || key === 'y';
+  if (!isUndo && !isRedo) return;
   const target = event.target as HTMLElement | null;
   if (
     target &&
@@ -1488,7 +1500,8 @@ window.addEventListener('keydown', (event) => {
     return;
   }
   event.preventDefault();
-  performUndo();
+  if (isUndo) performUndo();
+  else performRedo();
 });
 
 // background clears the selection.
