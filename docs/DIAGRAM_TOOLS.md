@@ -27,8 +27,8 @@ identically for every type.
 
 Each diagram type is **also** exposed as a Copilot CLI **skill** so you can invoke it
 explicitly with a `/` slash command (instead of relying on Copilot to pick the tool
-from a free-text request). The skills live in `.github/skills/` (repo-shared) and are
-marked `user-invocable: true`, so they appear under `/`:
+from a free-text request). The canonical copies live in `.github/skills/` (repo-shared)
+and are marked `user-invocable: true`, so they appear under `/`:
 
 | Slash command | Renders | MCP tool it calls |
 |---------------|---------|-------------------|
@@ -55,6 +55,17 @@ adding or editing a skill, run `/skills reload` in the CLI (or `/skills list` to
 confirm it loaded). Skills are also discoverable from other locations Copilot scans —
 project `.github/skills/`, `.agents/skills/`, `.claude/skills/`; personal
 `~/.copilot/skills/`.
+
+**Use in any project (global install).** `.github/skills/` is only discovered while
+you work *inside this repo*. Because Canvas for Copilot ships as a VS Code extension
+used on *other* projects, the extension's one-time **"Set up"** copies these skills
+into **`~/.copilot/skills/`** — the personal location the CLI scans for every project —
+so `/diagram*` works everywhere. The skills are bundled into the `.vsix`
+(`dist/skills/`, via `extension/scripts/copy-skills.mjs`) and installed/refreshed by
+`ensureSkills()` in `extension/src/setup.ts`. After setup, restart the CLI and run
+`/skills reload`. (Natural-language requests like "draw a flowchart of X" already work
+in any project once the MCP server + global instruction are registered — only the `/`
+commands need the skill files.)
 
 
 ## Architecture
