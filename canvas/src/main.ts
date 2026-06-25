@@ -1060,6 +1060,28 @@ function render(elements: CyElement[]): void {
 }
 
 // Bow apart edges that connect the same pair of nodes — including bidirectional
+// Measure an edge label's rendered box (incl. background padding) so we can push
+// it far enough to clear the arrow — long labels need a bigger offset than short
+// ones (KAN-41). Mirrors the edge label style: font-size 11, text-max-width 160,
+// text-background-padding 5.
+let labelMeasureCtx: CanvasRenderingContext2D | null = null;
+function measureLabelBox(text: string): { w: number; h: number } {
+  if (!text) return { w: 0, h: 0 };
+  const MAX_W = 160;
+  const PAD = 5;
+  const LINE_H = 11 * 1.35;
+  if (!labelMeasureCtx) {
+    labelMeasureCtx = document.createElement('canvas').getContext('2d');
+  }
+  if (!labelMeasureCtx) return { w: 0, h: 0 };
+  labelMeasureCtx.font = `11px ${FONT_FAMILY}`;
+  const full = labelMeasureCtx.measureText(text).width;
+  if (full <= MAX_W) return { w: full + PAD * 2, h: LINE_H + PAD * 2 };
+  const lines = Math.ceil(full / MAX_W); // wrapped onto multiple lines
+  return { w: MAX_W + PAD * 2, h: lines * LINE_H + PAD * 2 };
+}
+
+// Bow apart edges that connect the same pair of nodes — including bidirectional
 // pairs (A→B and B→A) — and place each label just OUTSIDE its own arc's apex (on
 // the side the arc bows) so neither the lines nor the mid-point labels overlap,
 // and a label never sits under the other edge (KAN-41). Cytoscape's `bezier` only
@@ -1068,7 +1090,7 @@ function render(elements: CyElement[]): void {
 // outward. Needs node positions, so call it AFTER layout.
 function separateParallelEdges(): void {
   const BOW = 22; // half the perpendicular distance between parallel arcs
-  const OUT = 26; // push the label this far beyond the arc apex, same side
+  const GAP = 12; // clearance between the arrow and the near edge of the label
   const handled = new Set<string>();
 
   // Pass 1: bow the arcs apart.
@@ -1125,7 +1147,14 @@ function separateParallelEdges(): void {
       bx /= len;
       by /= len;
     }
-    edge.style({ 'text-margin-x': bx * OUT, 'text-margin-y': by * OUT });
+    // Scale the offset with the label's extent in the push direction, so wide
+    // (long-text) labels are pushed proportionally further and never overlap the
+    // arrow. For a vertical edge the push is horizontal → use the label width;
+    // for a horizontal edge → its height.
+    const box = measureLabelBox(String(edge.data('label') ?? ''));
+    const extent = Math.abs(bx) * box.w + Math.abs(by) * box.h;
+    const out = extent / 2 + GAP;
+    edge.style({ 'text-margin-x': bx * out, 'text-margin-y': by * out });
   });
 }
 
