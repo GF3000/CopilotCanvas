@@ -1,67 +1,87 @@
-// A small, generic, bounded undo/redo history (KAN-34). Kept free of DOM/Cytoscape
-// so it's unit-testable; canvas/src/main.ts stores diagram snapshots in it.
+// A version timeline with a current pointer (KAN-34). Backs Undo, Redo and the
+// "history of changes" list — all three are just movements of `current` over an
+// ordered list of full diagram states. Kept free of DOM/Cytoscape so it's
+// unit-testable; canvas/src/main.ts stores diagram snapshots in it.
 //
-// Model: an undo stack and a redo stack of full states.
-// - `push(state)` records the current state (BEFORE a change) as an undo step and
-//   clears the redo stack — a brand-new change invalidates any redo history.
-// - `undo(current)` returns the previous state to restore and saves `current` for
-//   redo. `redo(current)` is the mirror. Passing the live `current` state lets the
-//   manager move it onto the opposite stack so you can walk both directions.
+// `record(state)` appends the latest state (dropping any redo tail — a new change
+// from an earlier version forks the timeline). `undo`/`redo` step the pointer;
+// `goto(i)` jumps to any version. `replaceCurrent` updates the current entry in
+// place (e.g. to remember the view you left a version at).
 
 export interface History<T> {
-  /** Record the current state (before a change) and clear the redo stack. */
-  push(state: T): void;
-  /** Step back: returns the previous state; `current` is kept for redo. */
-  undo(current: T): T | undefined;
-  /** Step forward again: returns the next state; `current` is kept for undo. */
-  redo(current: T): T | undefined;
-  /** Whether there is a step to undo (false at the first/base version). */
+  /** Append a newly-applied state as the latest version (drops any redo tail). */
+  record(state: T): void;
+  /** Replace the current version's stored state in place (no pointer change). */
+  replaceCurrent(state: T): void;
+  /** Step to the previous version; returns it, or undefined if at the first. */
+  undo(): T | undefined;
+  /** Step to the next version; returns it, or undefined if at the latest. */
+  redo(): T | undefined;
+  /** Jump to a specific version index; returns it, or undefined if invalid/current. */
+  goto(index: number): T | undefined;
+  /** Whether there is an earlier version to undo to. */
   canUndo(): boolean;
-  /** Whether there is an undone step to redo. */
+  /** Whether there is a later version to redo to. */
   canRedo(): boolean;
-  /** Drop all history (both directions). */
+  /** All versions, oldest first (for the history list). */
+  entries(): readonly T[];
+  /** Index of the current version (-1 when empty). */
+  index(): number;
+  /** Drop all history. */
   reset(): void;
-  /** Number of undoable steps currently held. */
-  size(): number;
 }
 
 /**
- * Create a bounded history. `limit` caps the undo stack: once exceeded, the oldest
- * step is dropped (so very long sessions keep the most recent `limit` steps).
+ * Create a bounded version timeline. `limit` caps the number of versions kept;
+ * once exceeded, the oldest is dropped.
  */
 export function createHistory<T>(limit = 100): History<T> {
-  const undoStack: T[] = [];
-  const redoStack: T[] = [];
+  let timeline: T[] = [];
+  let current = -1;
+
   return {
-    push(state: T): void {
-      undoStack.push(state);
-      if (undoStack.length > limit) undoStack.shift();
-      redoStack.length = 0;
+    record(state: T): void {
+      // Forking from an earlier version discards the versions after it.
+      timeline = timeline.slice(0, current + 1);
+      timeline.push(state);
+      while (timeline.length > limit) timeline.shift();
+      current = timeline.length - 1;
     },
-    undo(current: T): T | undefined {
-      const prev = undoStack.pop();
-      if (prev === undefined) return undefined;
-      redoStack.push(current);
-      return prev;
+    replaceCurrent(state: T): void {
+      if (current >= 0) timeline[current] = state;
     },
-    redo(current: T): T | undefined {
-      const next = redoStack.pop();
-      if (next === undefined) return undefined;
-      undoStack.push(current);
-      return next;
+    undo(): T | undefined {
+      if (current <= 0) return undefined;
+      current -= 1;
+      return timeline[current];
+    },
+    redo(): T | undefined {
+      if (current >= timeline.length - 1) return undefined;
+      current += 1;
+      return timeline[current];
+    },
+    goto(index: number): T | undefined {
+      if (index < 0 || index >= timeline.length || index === current) {
+        return undefined;
+      }
+      current = index;
+      return timeline[current];
     },
     canUndo(): boolean {
-      return undoStack.length > 0;
+      return current > 0;
     },
     canRedo(): boolean {
-      return redoStack.length > 0;
+      return current < timeline.length - 1;
+    },
+    entries(): readonly T[] {
+      return timeline;
+    },
+    index(): number {
+      return current;
     },
     reset(): void {
-      undoStack.length = 0;
-      redoStack.length = 0;
-    },
-    size(): number {
-      return undoStack.length;
+      timeline = [];
+      current = -1;
     },
   };
 }

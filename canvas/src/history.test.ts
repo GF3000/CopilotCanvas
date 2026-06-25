@@ -1,70 +1,97 @@
 import { describe, it, expect } from 'vitest';
 import { createHistory } from './history';
 
-describe('createHistory', () => {
-  it('starts empty — nothing to undo or redo at the base version', () => {
+describe('createHistory (version timeline)', () => {
+  it('starts empty — nothing to undo/redo, no current version', () => {
     const h = createHistory<string>();
     expect(h.canUndo()).toBe(false);
     expect(h.canRedo()).toBe(false);
-    expect(h.undo('cur')).toBeUndefined();
-    expect(h.redo('cur')).toBeUndefined();
-    expect(h.size()).toBe(0);
+    expect(h.index()).toBe(-1);
+    expect(h.entries()).toEqual([]);
+    expect(h.undo()).toBeUndefined();
+    expect(h.redo()).toBeUndefined();
   });
 
-  it('undoes in LIFO order back to the base', () => {
+  it('records versions and exposes them oldest-first with a current pointer', () => {
     const h = createHistory<string>();
-    h.push('s0'); // state before the move to s1
-    h.push('s1'); // state before the move to s2 (current = s2)
-    expect(h.size()).toBe(2);
+    h.record('v0');
+    h.record('v1');
+    h.record('v2');
+    expect(h.entries()).toEqual(['v0', 'v1', 'v2']);
+    expect(h.index()).toBe(2);
     expect(h.canUndo()).toBe(true);
-    expect(h.undo('s2')).toBe('s1');
-    expect(h.undo('s1')).toBe('s0');
-    expect(h.canUndo()).toBe(false); // back at the first version
-    expect(h.undo('s0')).toBeUndefined();
-  });
-
-  it('redoes the steps that were undone', () => {
-    const h = createHistory<string>();
-    h.push('s0');
-    h.push('s1'); // current = s2
-    expect(h.undo('s2')).toBe('s1'); // redo now holds [s2]
-    expect(h.canRedo()).toBe(true);
-    expect(h.undo('s1')).toBe('s0'); // redo now holds [s2, s1]
-    expect(h.redo('s0')).toBe('s1'); // forward to s1
-    expect(h.redo('s1')).toBe('s2'); // forward to s2
-    expect(h.canRedo()).toBe(false);
-    expect(h.redo('s2')).toBeUndefined();
-  });
-
-  it('a new change after an undo clears the redo stack', () => {
-    const h = createHistory<string>();
-    h.push('s0'); // current = s1
-    h.undo('s1'); // -> s0, redo = [s1]
-    expect(h.canRedo()).toBe(true);
-    h.push('s0b'); // a new change from s0 invalidates redo
     expect(h.canRedo()).toBe(false);
   });
 
-  it('reset clears both directions', () => {
-    const h = createHistory<number>();
-    h.push(1);
-    h.undo(2);
-    h.reset();
+  it('undoes and redoes along the timeline', () => {
+    const h = createHistory<string>();
+    h.record('v0');
+    h.record('v1');
+    h.record('v2');
+    expect(h.undo()).toBe('v1');
+    expect(h.undo()).toBe('v0');
     expect(h.canUndo()).toBe(false);
+    expect(h.undo()).toBeUndefined();
+    expect(h.redo()).toBe('v1');
+    expect(h.redo()).toBe('v2');
     expect(h.canRedo()).toBe(false);
-    expect(h.size()).toBe(0);
+    expect(h.redo()).toBeUndefined();
   });
 
-  it('is bounded — drops the oldest step beyond the limit', () => {
+  it('jumps to any version with goto', () => {
+    const h = createHistory<string>();
+    h.record('v0');
+    h.record('v1');
+    h.record('v2');
+    expect(h.goto(0)).toBe('v0');
+    expect(h.index()).toBe(0);
+    expect(h.canRedo()).toBe(true);
+    expect(h.goto(2)).toBe('v2');
+    // goto current or out of range returns undefined
+    expect(h.goto(2)).toBeUndefined();
+    expect(h.goto(9)).toBeUndefined();
+    expect(h.goto(-1)).toBeUndefined();
+  });
+
+  it('recording after an undo forks the timeline (drops the redo tail)', () => {
+    const h = createHistory<string>();
+    h.record('v0');
+    h.record('v1');
+    h.record('v2');
+    h.undo(); // back to v1
+    h.undo(); // back to v0
+    h.record('v1b'); // fork from v0
+    expect(h.entries()).toEqual(['v0', 'v1b']);
+    expect(h.index()).toBe(1);
+    expect(h.canRedo()).toBe(false);
+  });
+
+  it('replaceCurrent updates the current version in place', () => {
+    const h = createHistory<string>();
+    h.record('v0');
+    h.record('v1');
+    h.replaceCurrent('v1-edited');
+    expect(h.entries()).toEqual(['v0', 'v1-edited']);
+    expect(h.index()).toBe(1);
+  });
+
+  it('is bounded — drops the oldest version beyond the limit', () => {
     const h = createHistory<number>(3);
-    h.push(1);
-    h.push(2);
-    h.push(3);
-    h.push(4); // evicts 1
-    expect(h.size()).toBe(3);
-    expect(h.undo(99)).toBe(4);
-    expect(h.undo(4)).toBe(3);
-    expect(h.undo(3)).toBe(2);
-    expect(h.canUndo()).toBe(false); // 1 was dropped
+    h.record(1);
+    h.record(2);
+    h.record(3);
+    h.record(4); // evicts 1
+    expect(h.entries()).toEqual([2, 3, 4]);
+    expect(h.index()).toBe(2);
+  });
+
+  it('reset clears the timeline', () => {
+    const h = createHistory<number>();
+    h.record(1);
+    h.record(2);
+    h.reset();
+    expect(h.entries()).toEqual([]);
+    expect(h.index()).toBe(-1);
+    expect(h.canUndo()).toBe(false);
   });
 });

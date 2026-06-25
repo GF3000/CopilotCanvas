@@ -690,9 +690,9 @@ function styleNodeColor(
 
 function applyNodeColor(color: NodeColor): void {
   if (!menuNode) return;
-  pushUndoSnapshot(); // make the recolour undoable (KAN-34)
   colorOverrides.set(menuNode.id(), color);
   styleNodeColor(menuNode, color);
+  recordVersion(); // record the recoloured diagram as a version (KAN-34)
 }
 
 function openNodeMenu(node: cytoscape.NodeSingular, x: number, y: number): void {
@@ -721,13 +721,12 @@ function closeNodeMenu(commit: boolean): void {
   if (commit && menuNode && labelInput instanceof HTMLInputElement) {
     const text = labelInput.value.trim();
     const oldLabel = menuNodeOldLabel.trim();
-    // KAN-34: capture the pre-rename state so the rename is undoable.
-    if (text && text !== oldLabel) pushUndoSnapshot();
     if (text) menuNode.data('label', text);
     // KAN-14: a real rename drives a matching code change via the extension.
     // Compare trimmed-vs-trimmed so whitespace alone never counts as a rename.
     if (text && text !== oldLabel) {
       emitDiagramEdited(menuNode.id(), oldLabel, text);
+      recordVersion(); // record the renamed diagram as a version (KAN-34)
     }
   }
   if (nodeMenu) nodeMenu.hidden = true;
@@ -1007,8 +1006,6 @@ function clearError(): void {
 // exactly — no layout runs. Structural ADDS re-run the dagre layout (without
 // re-fitting, so zoom/pan are kept) so new nodes are placed without overlap (KAN-25).
 function handlePatch(msg: PatchMessage): void {
-  // KAN-34: record the pre-patch state so this change can be undone.
-  pushUndoSnapshot();
   cy.batch(() => {
     // Remove first so an add can reuse an id.
     for (const id of msg.remove) {
@@ -1055,6 +1052,8 @@ function handlePatch(msg: PatchMessage): void {
   // Keep an open search in sync with the mutated graph (matches may have been
   // added/removed) instead of holding stale element references.
   refreshSearchIfOpen();
+  // KAN-34: the patched diagram is a new version in the history.
+  recordVersion();
 }
 
 // Map the whitelisted inline style subset (KAN-26, option B) to Cytoscape
@@ -1370,14 +1369,6 @@ function handleDiagram(msg: DiagramMessage): void {
     showError(result.errors);
     return;
   }
-  // KAN-34: a new full diagram REPLACES the current one. If something is already on
-  // the canvas, push it as an undoable step first, so Undo returns to that previous
-  // diagram (its full state). The very first diagram (empty canvas) starts history
-  // fresh; on reload-recovery the canvas is empty too, so the replayed base diagram
-  // doesn't create a bogus step.
-  if (currentDiagramId !== undefined && cy.elements().length > 0) {
-    pushUndoSnapshot();
-  }
   currentDiagramId = msg.diagramId;
   // A new diagram from the host is a fresh top-level scope.
   scopeStack.length = 0;
@@ -1387,6 +1378,10 @@ function handleDiagram(msg: DiagramMessage): void {
     render(result.elements);
     clearError();
     updateLegend();
+    // KAN-34: record this diagram as a new version in the history timeline, so the
+    // user can step/jump back to earlier diagrams and work off them. (Reload-recovery
+    // replays the base diagram + patches, which rebuilds the timeline.)
+    recordVersion();
   } catch (err) {
     showError([`Cytoscape could not render this model: ${String(err)}`]);
   }
@@ -1442,10 +1437,16 @@ function updateUndoRedoButtons(): void {
   }
 }
 
-/** Record the current diagram state as an undoable step (call BEFORE a change). */
-function pushUndoSnapshot(): void {
-  undoHistory.push(captureSnapshot());
+/** Record the current (post-change) diagram as the latest version (KAN-34). */
+function recordVersion(): void {
+  undoHistory.record(captureSnapshot());
+  afterHistoryChange();
+}
+
+/** Refresh the Undo/Redo buttons and the history list after any history movement. */
+function afterHistoryChange(): void {
   updateUndoRedoButtons();
+  renderHistoryList();
 }
 
 function restoreSnapshot(snapshot: UndoSnapshot): void {
@@ -1471,22 +1472,107 @@ function restoreSnapshot(snapshot: UndoSnapshot): void {
   cy.pan(snapshot.pan);
 }
 
+/** Navigate to a version: remember the current view first, then restore the target. */
+function navigateTo(snapshot: UndoSnapshot | undefined): void {
+  if (!snapshot) return;
+  restoreSnapshot(snapshot);
+  afterHistoryChange();
+}
+
 function performUndo(): void {
   if (!undoHistory.canUndo()) return;
-  const snapshot = undoHistory.undo(captureSnapshot());
-  if (snapshot) restoreSnapshot(snapshot);
-  updateUndoRedoButtons();
+  undoHistory.replaceCurrent(captureSnapshot()); // remember the current view
+  navigateTo(undoHistory.undo());
 }
 
 function performRedo(): void {
   if (!undoHistory.canRedo()) return;
-  const snapshot = undoHistory.redo(captureSnapshot());
-  if (snapshot) restoreSnapshot(snapshot);
-  updateUndoRedoButtons();
+  undoHistory.replaceCurrent(captureSnapshot());
+  navigateTo(undoHistory.redo());
+}
+
+/** Jump straight to a version from the history list. */
+function performGoto(index: number): void {
+  undoHistory.replaceCurrent(captureSnapshot());
+  navigateTo(undoHistory.goto(index));
 }
 
 undoBtn?.addEventListener('click', () => performUndo());
 redoBtn?.addEventListener('click', () => performRedo());
+
+/* ─── History menu (KAN-34): the ☰ button by the title lists every version so the
+ * user can jump back to an earlier diagram and keep working from it. ─────────── */
+const historyBtn = document.getElementById('history-btn');
+const historyMenu = document.getElementById('history-menu');
+const historyList = document.getElementById('history-list');
+const historyEmpty = document.getElementById('history-empty');
+
+function closeHistoryMenu(): void {
+  if (historyMenu) historyMenu.hidden = true;
+  historyBtn?.setAttribute('aria-expanded', 'false');
+}
+
+// Rebuild the version list (newest first); the current version is marked.
+function renderHistoryList(): void {
+  if (!historyList) return;
+  const entries = undoHistory.entries();
+  const current = undoHistory.index();
+  if (historyBtn instanceof HTMLButtonElement) historyBtn.disabled = entries.length === 0;
+  if (historyEmpty) historyEmpty.hidden = entries.length > 0;
+
+  const rows: HTMLElement[] = [];
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const snap = entries[i];
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'history-item' + (i === current ? ' is-current' : '');
+    item.setAttribute('role', 'menuitem');
+
+    const num = document.createElement('span');
+    num.className = 'history-num';
+    num.textContent = `v${i + 1}`;
+    const label = document.createElement('span');
+    label.className = 'history-label';
+    label.textContent = snap.title?.trim() || 'Untitled diagram';
+    item.append(num, label);
+    if (i === current) {
+      const tag = document.createElement('span');
+      tag.className = 'history-current-tag';
+      tag.textContent = 'current';
+      item.append(tag);
+    }
+
+    item.addEventListener('click', () => {
+      closeHistoryMenu();
+      performGoto(i);
+    });
+    rows.push(item);
+  }
+  historyList.replaceChildren(...rows);
+}
+
+historyBtn?.addEventListener('click', () => {
+  if (!historyMenu) return;
+  const show = historyMenu.hidden;
+  if (show) renderHistoryList();
+  historyMenu.hidden = !show;
+  historyBtn.setAttribute('aria-expanded', String(show));
+});
+
+window.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && historyMenu && !historyMenu.hidden) closeHistoryMenu();
+});
+document.addEventListener('pointerdown', (event) => {
+  if (!historyMenu || historyMenu.hidden) return;
+  const target = event.target;
+  if (
+    target instanceof Node &&
+    (historyMenu.contains(target) || historyBtn?.contains(target))
+  ) {
+    return;
+  }
+  closeHistoryMenu();
+});
 
 // Undo/redo keyboard shortcuts — but don't hijack them while typing in a field.
 window.addEventListener('keydown', (event) => {
