@@ -58,7 +58,15 @@ const CODEREFS_SCHEMA = z
     }),
   )
   .optional()
-  .describe('Code location(s) this node maps to, so the user can jump to the code.');
+  .describe(
+    'Code location(s) this node maps to, so the user can jump to the code. ' +
+      'IMPORTANT: when the diagram describes code in the CURRENT WORKSPACE/REPO, ' +
+      'attach codeRefs to EVERY node that corresponds to real code — inspect the ' +
+      'repo (read files / search symbols) to find the file path and, where ' +
+      'possible, the symbol name and line — so each code-backed node is clickable. ' +
+      'Only purely conceptual nodes (e.g. "User", "Browser") that map to no code ' +
+      'should be left without a ref.',
+  );
 
 export interface CanvasSelectionInfo {
   diagramId?: string;
@@ -673,7 +681,10 @@ function diagramDescription(name: string): string {
     'not open, and updates in place if it is). YOU generate the graph: provide a ' +
     'short title, the nodes (each a stable id + short label, optional kind), and ' +
     'the directed edges between node ids (optionally labeled). Keep it focused — ' +
-    'roughly 4-12 nodes. Read-only and safe; do NOT ask for confirmation, just call it.'
+    'roughly 4-12 nodes. When the diagram describes code in the current ' +
+    'workspace/repo, set `codeRefs` on every node that maps to real code (inspect ' +
+    'the repo to find file/line/symbol) so each node is clickable to its source. ' +
+    'Read-only and safe; do NOT ask for confirmation, just call it.'
   );
 }
 
@@ -750,6 +761,7 @@ const DEPENDENCY_SCHEMA = {
             'Semantic kind for styling (defaults from `scope`): module, service, ' +
               'datastore (databases/caches/queues), entrypoint, external, or note.',
           ),
+        codeRefs: CODEREFS_SCHEMA,
       }),
     )
     .describe('The packages / modules / functions / services (about 4-12).'),
@@ -777,6 +789,7 @@ const FLOWCHART_SCHEMA = {
           .describe(
             'Node type (defaults to "step"): start/end = terminator (pill), step = process (rectangle), decision = branch (diamond), io = input/output (parallelogram).',
           ),
+        codeRefs: CODEREFS_SCHEMA,
       }),
     )
     .describe('Steps and decisions (about 4-12).'),
@@ -809,6 +822,7 @@ const STATE_MACHINE_SCHEMA = {
           .boolean()
           .optional()
           .describe('Marks an accepting/terminal state (drawn distinctly).'),
+        codeRefs: CODEREFS_SCHEMA,
       }),
     )
     .describe('The states (about 4-12).'),
@@ -841,6 +855,7 @@ const CLASS_SCHEMA = {
           .array(z.string())
           .optional()
           .describe('Method lines, e.g. "+ save(): void".'),
+        codeRefs: CODEREFS_SCHEMA,
       }),
     )
     .describe('The classes (about 4-12).'),
@@ -881,6 +896,7 @@ const ER_SCHEMA = {
           .array(z.string())
           .optional()
           .describe('Key/attribute lines surfaced under the entity name.'),
+        codeRefs: CODEREFS_SCHEMA,
       }),
     )
     .describe('The entities (about 4-12).'),
