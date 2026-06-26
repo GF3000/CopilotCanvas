@@ -4,6 +4,7 @@
   "description": "Renders Copilot CLI diagrams as an interactive Cytoscape canvas tab.",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "publisher": "canvas-for-copilot",
   "engines": {
     "vscode": "^1.90.0"

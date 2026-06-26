@@ -51,3 +51,8 @@ and the definition of done. Then continue with the document map below.
 ```
 PROJECT_BRIEF → REQUIREMENTS → ARCHITECTURE + DATA_MODEL → TASKS → implement → TEST_PLAN
 ```
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
+
