@@ -32,8 +32,8 @@
 - **Context:** Canvas for Copilot needs a visual surface connected to a Copilot CLI
   session. Two delivery vehicles were considered: (a) a standalone Copilot CLI
   skill that opens a browser tab and bridges over WebSocket, or (b) a VS Code
-  extension that renders the canvas in a webview. We have a hackathon timebox and
-  want the novel "bidirectional loop" working as fast as possible.
+  extension that renders the canvas in a webview. We had a tight timebox and
+  wanted the novel "bidirectional loop" working as fast as possible.
 - **Decision:** Build the **standalone CLI skill + local WebSocket server +
   browser-based canvas** first. Design the **canvas as a self-contained,
   portable web bundle** (no hard dependency on either host). A VS Code extension
@@ -50,7 +50,7 @@
     — Copilot CLI remains the brain.
 - **Alternatives considered:**
   - *VS Code extension first:* heavier setup, CSP friction, and ties the demo to
-    the editor. Rejected for the hackathon timebox.
+    the editor. Rejected for the timebox.
   - *Native Copilot-in-VS-Code via chat participants:* different, heavier
     integration; out of scope.
 
@@ -107,7 +107,7 @@
   in this space (reported in background research, individually unverified) includes
   ChangeGuard, DiagramZu, the Mermaid Chart VS Code extension, RepoArchitectAgent,
   and AppContext.
-- **Decision:** For the hackathon build, stay with the **CLI skill + local
+- **Decision:** For the initial build, stay with the **CLI skill + local
   WebSocket bridge + portable browser canvas** (ADR-001), **not** MCP Apps. Keep
   the message protocol transport-agnostic (see `DATA_MODEL.md`) so an MCP Apps
   transport could be added later without rewriting the canvas.
@@ -250,14 +250,14 @@
     quick day-1 spike since it could delete the extension epic if it works well.
   - *Option 1 — standalone terminal + separate VS Code window:* true terminal-first
     but needs a **cross-process/window bridge** and session pairing — too much for
-    the timebox. **Deferred** as a post-hackathon "decoupled viewer."
+    the timebox. **Deferred** as a future "decoupled viewer."
 
-### Addendum (2026-06-23) — KAN-16 relay decision: **Pattern 1 (extension hosts the MCP server)**
+### Addendum (2026-06-23) — relay decision: **Pattern 1 (extension hosts the MCP server)**
 
 The "server ↔ extension relay" risk above is resolved. The Canvas MCP server runs
 **in-process inside the VS Code extension**, exposed over a **local HTTP Streamable
 MCP endpoint** (`http://127.0.0.1:4123/mcp`). Copilot CLI connects to it like any
-other HTTP MCP server (an `mcp-config.json` entry, exactly as EngHub/Atlassian are
+other HTTP MCP server (an `mcp-config.json` entry, like any remote MCP server is
 configured). Because the tool handler runs in the extension process, it already owns
 the webview — so a tool call opens the canvas tab and `postMessage`s the diagram
 **with no separate bridge**.
@@ -268,4 +268,4 @@ the webview — so a tool call opens the canvas tab and `postMessage`s the diagr
   to the extension (2 processes + channel). Kept only as a debugging fallback; its
   one advantage (server reusable outside VS Code) is unneeded (NFR-3 is a stretch).
 - **First feature built on this:** `open_canvas` tool → renders a fixed
-  example graph in the canvas tab (the prototype / KAN-16 proof).
+  example graph in the canvas tab (the prototype proof).

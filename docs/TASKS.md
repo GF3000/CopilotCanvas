@@ -3,66 +3,58 @@
 > The hand-off to AI agents. Small, ordered, independently-implementable items —
 > one focused PR each. Reference the requirement(s) each satisfies.
 >
-> **The Jira KAN board is the live source of truth for status & ownership; this
-> file mirrors it.** Each task below lists its **KAN key**. Claim a task on the
-> board (set it **In Progress** + assign yourself) before you start — see
-> `AGENTS.md` → *Jira tracking*.
+> **This file is the source of truth for status & ownership.** Claim a task (set it
+> **in-progress** + assign yourself) before you start — see `AGENTS.md` → *Task tracking*.
 
 ## Conventions
 
-- **ID:** kebab-case, descriptive; each maps to a **KAN-N** issue on the board.
+- **ID:** kebab-case, descriptive.
 - **Status:** `todo` | `in-progress` | `in-review` | `done` | `blocked`
-  (mirrors Jira To Do / In Progress / In Review / Done / Blocked). Statuses in this
-  doc are a **snapshot** — the board is authoritative.
 - **Size:** one PR. Split if larger.
-- **Tags/labels:** every task carries a `canvas` / `server` / `extension` label on
-  the board (foundation tasks carry all three).
+- **Tags/labels:** every task carries a `canvas` / `server` / `extension` label
+  (foundation tasks carry all three).
 
-## Epics & ownership (3-day plan)
+## Epics & ownership
 
 Three epics, one per location (*proposed, changeable* — see `PROJECT_BRIEF.md`).
-Mirror these tasks on the Jira **KAN** board and keep both in sync. Target
-**feature-complete by end of Wednesday**; Thursday is for the demo video.
 
-| Epic | Owner | Tasks (KAN keys) |
+| Epic | Owner | Tasks |
 |------|-------|-------|
-| **Frontend / Canvas UI** (`/canvas`) | **US (3p)** | `canvas-render` (KAN-6), `node-selection` (KAN-7), `expand-node` render (KAN-11), `live-update` render (KAN-13) |
-| **MCP logic / tools** (`/server`) | **Dublin (2p)** | `mcp-server` (KAN-9), `create_diagram` (KAN-19), typed diagram skills `diagram-dependency`/`diagram-flowchart`/`diagram-state-machine`/`diagram-class`/`diagram-er` (KAN-20..24), `explain-node` (KAN-8), `expand-node` (KAN-11), `node-code-refs` (KAN-12), `modify-from-node` (KAN-10) |
-| **VS Code extension / bridge** (`/extension`) | **India (1p)** | `mcp-apps-host-spike` (KAN-16), `vscode-extension` (KAN-17), `mcp-app-launch` (KAN-18), `live-update` (KAN-13), `multi-host-validation` (KAN-15), `diagram-edit-to-code` (KAN-14) |
-| **Shared kick-off** (do first, together) | All | `repo-scaffold` (KAN-5), `shared-protocol` (KAN-4) |
+| **Frontend / Canvas UI** (`/canvas`) | **US (3p)** | `canvas-render`, `node-selection`, `expand-node` render, `live-update` render |
+| **MCP logic / tools** (`/server`) | **Dublin (2p)** | `mcp-server`, `create_diagram`, typed diagram skills `diagram-dependency`/`diagram-flowchart`/`diagram-state-machine`/`diagram-class`/`diagram-er`, `explain-node`, `expand-node`, `node-code-refs`, `modify-from-node` |
+| **VS Code extension / bridge** (`/extension`) | **India (1p)** | `mcp-apps-host-spike`, `vscode-extension`, `mcp-app-launch`, `live-update`, `multi-host-validation`, `diagram-edit-to-code` |
+| **Shared kick-off** (do first, together) | All | `repo-scaffold`, `shared-protocol` |
 
-> `shared-protocol` is the cross-epic contract — land it early on day 1 so all
+> `shared-protocol` is the cross-epic contract — land it early so all
 > three streams can build against stable types. The **architecture is Option 3**
 > (ADR-007): Copilot CLI in VS Code's integrated terminal is the brain; the
 > extension renders the canvas as a webview tab and bridges CLI ⇄ canvas.
 
 ## Status snapshot & what's ready now
 
-_As of the example-diagram + create_diagram prototype landing (keep in sync with the board):_
+_As of the example-diagram + create_diagram prototype landing:_
 
-- ✅ **Done:** `repo-scaffold` (KAN-5) — monorepo builds green; F5 dev loop verified.
-- 🔵 **In review:** `shared-protocol` (KAN-4) — contract compiles; ratify at the
-  16:30 sync, then → Done. `mcp-apps-host-spike` (KAN-16) — relay proven (Pattern 1).
-  `create_diagram` (KAN-19) — tool built on the prototype.
-- 🟢 **Ready to start now** (dependencies satisfied): `mcp-server` (KAN-9),
-  `canvas-render` (KAN-6), `vscode-extension` (KAN-17). The prototype already seeds
+- ✅ **Done:** `repo-scaffold` — monorepo builds green; F5 dev loop verified.
+- 🔵 **In review:** `shared-protocol` — contract compiles; ratify, then → Done.
+  `mcp-apps-host-spike` — relay proven (Pattern 1).
+  `create_diagram` — tool built on the prototype.
+- 🟢 **Ready to start now** (dependencies satisfied): `mcp-server`,
+  `canvas-render`, `vscode-extension`. The prototype already seeds
   all three, so each epic can begin immediately.
-- 🟡 **In progress:** typed diagram skills (KAN-20..24) — `diagram_dependency`,
+- 🟡 **In progress:** typed diagram skills — `diagram_dependency`,
   `diagram_flowchart`, `diagram_state_machine`, `diagram_class`, `diagram_er` built on
-  `create_diagram` (KAN-19), each also a `/diagram-*` CLI skill with per-type notation
+  `create_diagram`, each also a `/diagram-*` CLI skill with per-type notation
   (see `docs/DIAGRAM_TOOLS.md`).
-- ⛔ **Blocked (waiting):** everything downstream of `mcp-app-launch` (KAN-18, the
-  Goal-1 integration) — see the dependency links on the board or the graph below.
+- ⛔ **Blocked (waiting):** everything downstream of `mcp-app-launch` (the
+  Goal-1 integration) — see the dependency graph below.
 
-> Find ready tasks on the board with JQL:
-> `project = KAN AND statusCategory != Done AND issueLinkType is EMPTY` — or simply
-> open a task and check its **"is blocked by"** links are all Done.
+> Find ready tasks: open a task and check its **"depends on"** list is all done.
 
 ---
 
 ## Phase 0 — Scaffold
 
-### `repo-scaffold` — KAN-5
+### `repo-scaffold`
 - **Status:** done · **Satisfies:** ARCHITECTURE (folder structure), NFR-3
 - **Description:** Create the monorepo skeleton: `/server`, `/canvas`, `/extension`,
   `/shared`. Init TypeScript, package.json(s), a bundler for `/canvas` (Vite or
@@ -72,7 +64,7 @@ _As of the example-diagram + create_diagram prototype landing (keep in sync with
 - **Acceptance:** `npm install`, `npm run build`, `npm run lint`, `npm test` all
   run successfully (tests may be trivial); the extension skeleton activates in VS Code.
 
-### `shared-protocol` — KAN-4
+### `shared-protocol`
 - **Status:** in-review · **Satisfies:** DATA_MODEL
 - **Description:** Implement `/shared/protocol.ts` — the discriminated-union
   message types and entity interfaces (DiagramState, NodeMeta, CodeRef, Selection,
@@ -82,7 +74,7 @@ _As of the example-diagram + create_diagram prototype landing (keep in sync with
 - **Acceptance:** types compile and are importable from `/server`, `/canvas`, and
   `/extension`; a type-level test asserts every `type` value is covered.
 
-### `mcp-apps-host-spike` — KAN-16
+### `mcp-apps-host-spike`
 - **Status:** todo · **Satisfies:** ADR-007 (risk), NFR-3
 - **Description:** **Day-1 de-risking spike.** Stand up a trivial Canvas MCP server
   and (a) confirm how a VS Code webview hosts the MCP Apps `postMessage` channel, and
@@ -98,7 +90,7 @@ _As of the example-diagram + create_diagram prototype landing (keep in sync with
 
 ## Phase 1 — Goal 1: Visualize (Basic)
 
-### `mcp-server` — KAN-9
+### `mcp-server`
 - **Status:** todo · **Satisfies:** FR-1, FR-2, NFR-1, NFR-4
 - **Description:** In `/server`, implement the **MCP server** that declares the
   canvas **MCP App** HTML UI resource (MIME `text/html;profile=mcp-app`) and
@@ -109,7 +101,7 @@ _As of the example-diagram + create_diagram prototype landing (keep in sync with
 - **Acceptance:** a `diagram` message sent via the server's tool reaches the
   extension; canvas events arrive back at the server.
 
-### `vscode-extension` — KAN-17
+### `vscode-extension`
 - **Status:** todo · **Satisfies:** FR-2, NFR-1
 - **Description:** In `/extension`, implement the **thin VS Code extension** that
   opens the canvas as a **webview editor tab**, loads the `/canvas` bundle, sets a
@@ -120,7 +112,7 @@ _As of the example-diagram + create_diagram prototype landing (keep in sync with
 - **Acceptance:** activating the extension opens a canvas webview tab; messages
   posted to the webview arrive, and webview→extension events are received.
 
-### `canvas-render` — KAN-6
+### `canvas-render`
 - **Status:** todo · **Satisfies:** FR-1, FR-3
 - **Description:** In `/canvas`, build the MCP App that connects to the webview
   `postMessage` channel, handles `hello`, renders an incoming `diagram`'s
@@ -130,7 +122,7 @@ _As of the example-diagram + create_diagram prototype landing (keep in sync with
 - **Acceptance:** given a `diagram` message, the Cytoscape graph renders;
   pan/zoom/reset work; a bad graph model shows an error, not a blank screen.
 
-### `mcp-app-launch` — KAN-18
+### `mcp-app-launch`
 - **Status:** todo · **Satisfies:** FR-1, FR-2
 - **Description:** Wire the end-to-end open: a Copilot-CLI-invoked server tool that
   generates/accepts a graph model (Cytoscape `elements`) and pushes a `diagram`,
@@ -139,7 +131,7 @@ _As of the example-diagram + create_diagram prototype landing (keep in sync with
 - **Acceptance:** invoking the tool from the CLI opens the canvas tab with the
   diagram; a second invocation updates the same tab in place.
 
-### `live-update` — KAN-13
+### `live-update`
 - **Status:** todo · **Satisfies:** FR-4, NFR-2, NFR-4
 - **Description:** Wire live updates: new `diagram`/`patch` messages re-render the
   canvas tab in place; handle webview reload / channel re-init gracefully.
@@ -153,7 +145,7 @@ _As of the example-diagram + create_diagram prototype landing (keep in sync with
 
 ## Phase 2 — Goal 2: Interact (Intermediate)
 
-### `node-selection` — KAN-7
+### `node-selection`
 - **Status:** todo · **Satisfies:** FR-5, FR-8
 - **Description:** Canvas: tapping a Cytoscape node selects it (visual state via a
   class/selector) and emits `node_selected` to the extension. Server: persist
@@ -162,7 +154,7 @@ _As of the example-diagram + create_diagram prototype landing (keep in sync with
 - **Acceptance:** clicking highlights the node and the server can read the current
   selection; selection persists across a re-render where the node still exists.
 
-### `explain-node` — KAN-8
+### `explain-node`
 - **Status:** todo · **Satisfies:** FR-6, FR-8
 - **Description:** Implement the `explain` interaction: the canvas sends an
   `interaction` with the selection (via the extension); server prompts Copilot with
@@ -171,7 +163,7 @@ _As of the example-diagram + create_diagram prototype landing (keep in sync with
 - **Acceptance:** with a node selected, "explain this node" yields a relevant
   Copilot explanation in the CLI.
 
-### `expand-node` — KAN-11
+### `expand-node`
 - **Status:** todo · **Satisfies:** FR-7
 - **Description:** Implement the `expand` interaction: server regenerates a richer
   subgraph for the selected node and pushes a `diagram`/`patch`; canvas re-renders
@@ -184,14 +176,14 @@ _As of the example-diagram + create_diagram prototype landing (keep in sync with
 
 ## Phase 3 — Goal 3: Modify (Advanced)
 
-### `node-code-refs` — KAN-12
+### `node-code-refs`
 - **Status:** todo · **Satisfies:** FR-9 (prerequisite)
 - **Description:** Populate `NodeMeta.codeRefs` when generating diagrams so a node
   maps to concrete file/symbol locations; expose lookup in the server.
 - **Depends on:** expand-node
 - **Acceptance:** a selected node resolves to one or more real code locations.
 
-### `modify-from-node` — KAN-10
+### `modify-from-node`
 - **Status:** todo · **Satisfies:** FR-9
 - **Description:** Implement the `modify` interaction: take selected node +
   instruction, gather code context via `codeRefs`, **ask the user clarifying
@@ -200,7 +192,7 @@ _As of the example-diagram + create_diagram prototype landing (keep in sync with
 - **Acceptance:** selecting an entrypoint node + "add a new entrypoint to do X"
   triggers clarifying questions, a real code edit, and an updated diagram.
 
-### `diagram-edit-to-code` (stretch) — KAN-14
+### `diagram-edit-to-code` (stretch)
 - **Status:** todo · **Satisfies:** FR-10
 - **Description:** Allow direct diagram edits on the canvas (`diagram_edited`);
   server proposes matching code changes.
@@ -211,7 +203,7 @@ _As of the example-diagram + create_diagram prototype landing (keep in sync with
 
 ## Phase 4 — Stretch
 
-### `multi-host-validation` — KAN-15
+### `multi-host-validation`
 - **Status:** todo · **Satisfies:** NFR-3, ADR-007
 - **Description:** **Stretch.** VS Code is the primary host. Optionally validate the
   same canvas bundle/MCP App in a second MCP host and fix host-specific

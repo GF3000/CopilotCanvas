@@ -116,7 +116,7 @@ notation, so the diagram reads correctly for its domain.
 **Acceptance criteria:**
 - [ ] Dedicated MCP tools exist — `diagram_dependency`, `diagram_flowchart`,
       `diagram_state_machine`, `diagram_class`, `diagram_er` — each built on
-      `create_diagram` (KAN-19), with a tuned description so the matching
+      `create_diagram`, with a tuned description so the matching
       natural-language request routes to it.
 - [ ] Each is also a Copilot CLI **skill** invocable with `/` (`/diagram-<type>`),
       plus a `/diagram` dispatcher that auto-detects the type from the request.
@@ -127,7 +127,7 @@ notation, so the diagram reads correctly for its domain.
 - [ ] Edges referencing unknown node ids are dropped + reported (never blank the
       canvas); cycles render without error.
 
-**Priority:** Should · **Depends on:** FR-1 (maps to KAN-20..24)
+**Priority:** Should · **Depends on:** FR-1
 
 ## Non-functional requirements
 
@@ -144,4 +144,4 @@ notation, so the diagram reads correctly for its domain.
 - **Must have:** FR-1..FR-7 (Goal 1 complete + core of Goal 2), FR-9
 - **Should have:** FR-8, FR-11 (typed diagram skills)
 - **Could have:** FR-10, multi-host validation
-- **Won't have (this hackathon):** persistence, cloud hosting, non-graph formats
+- **Won't have (out of scope):** persistence, cloud hosting, non-graph formats

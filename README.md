@@ -24,23 +24,22 @@ https://github.com/GF3000/CopilotCanvas/releases/download/v0.1.0/canvas-for-copi
 
 **Before doing anything else, read [`AGENTS.md`](AGENTS.md).** It holds the
 mandatory rules every contributor (human or AI) must follow — including the
-**required Jira (KAN) MCP setup and board-update workflow**, git/PR conventions,
+**task-tracking workflow**, git/PR conventions,
 and the definition of done. Then continue with the document map below.
 
 ## How to use this repo
 
-1. **Read [`AGENTS.md`](AGENTS.md) first** — mandatory conventions & the Jira
-   tracking workflow.
+1. **Read [`AGENTS.md`](AGENTS.md) first** — mandatory conventions & the
+   task-tracking workflow.
 2. Read the documents in [`docs/`](docs/) in order (see below).
-3. Pick a task on the Jira **KAN** board (mirrored in `docs/TASKS.md`), claim it,
-   and implement it.
-4. Self-validate against `docs/TEST_PLAN.md` and keep the KAN task updated.
+3. Pick a task in `docs/TASKS.md`, claim it, and implement it.
+4. Self-validate against `docs/TEST_PLAN.md` and keep `docs/TASKS.md` updated.
 
 ## Document map
 
 | Order | Document | Purpose |
 |-------|----------|---------|
-| 0 | [`AGENTS.md`](AGENTS.md) | **Read first** — mandatory conventions, Jira workflow, DoD |
+| 0 | [`AGENTS.md`](AGENTS.md) | **Read first** — mandatory conventions, task workflow, DoD |
 | 1 | [`docs/PROJECT_BRIEF.md`](docs/PROJECT_BRIEF.md) | The **why** — problem, pitch, scope |
 | 2 | [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md) | The **what** — features & acceptance criteria |
 | 3 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | The **how** — stack, components, diagrams |

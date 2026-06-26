@@ -14,11 +14,9 @@
 5. Self-validate against `docs/TEST_PLAN.md` before declaring a task done.
 6. **Commit and push often** — many agents work in parallel; integrate small
    changes frequently and rebase on the latest `main` (see *Collaboration* below).
-7. **Keep Jira (KAN) updated — mandatory.** You **must** have the Atlassian (Jira)
-   MCP toolset connected and use it to keep the board in sync (see *Jira tracking*
-   below). Set your task to `In Progress` before starting, move it to `In Review` /
-   `Done` as it progresses, and keep the task description accurate when scope
-   changes. Work that isn't reflected on the board is not considered done.
+7. **Keep `docs/TASKS.md` updated.** Set your task to `in-progress` before starting,
+   move it to `in-review` / `done` as it progresses, and keep the task description
+   accurate when scope changes.
 
 ## Getting started (Day-1 checklist)
 
@@ -28,26 +26,24 @@ New here? Do this in order:
    `docs/ARCHITECTURE.md` (we ship **Option 3**, ADR-007: Copilot CLI in VS Code's
    integrated terminal is the brain; a thin extension renders the canvas as a
    webview tab).
-2. **Connect the Jira MCP toolset** and sign in (see *Jira tracking* below). This is
-   mandatory before you touch code.
-3. **Clone & verify the build:** `npm install` then `npm run build && npm run lint &&
+2. **Clone & verify the build:** `npm install` then `npm run build && npm run lint &&
    npm test` — all should be green. `npm run dev` starts the canvas + watchers.
-4. **Pick a ready task** (see below), move it to **In Progress** on the KAN board,
+3. **Pick a ready task** (see below), set it to **in-progress** in `docs/TASKS.md`,
    and assign it to yourself.
-5. **Open a draft PR immediately** on a branch named `<author>/<jira-key>-<slug>` so
+4. **Open a draft PR immediately** on a branch named `<author>/<slug>` so
    others see your WIP and don't collide.
-6. Implement against the contract in `/shared/protocol.ts`; self-validate against
-   `docs/TEST_PLAN.md`; keep the KAN task updated; merge small and often.
+5. Implement against the contract in `/shared/protocol.ts`; self-validate against
+   `docs/TEST_PLAN.md`; keep `docs/TASKS.md` updated; merge small and often.
 
 ### Pick a ready task
 
-A task is **ready** when all the issues that **block** it on the board are `Done`.
-- Filter the KAN board by your component label (`canvas` / `server` / `extension`).
-- Open a candidate and check its **"is blocked by"** links are all resolved.
+A task is **ready** when all the tasks that **block** it are `done`.
+- Filter `docs/TASKS.md` by your component label (`canvas` / `server` / `extension`).
+- Open a candidate and check its **"depends on"** tasks are all resolved.
 - See `docs/TASKS.md` → *Status snapshot & what's ready now* for the current
-  ready/blocked list and a JQL filter.
+  ready/blocked list.
 - The day-1 ready set is `repo-scaffold`/`shared-protocol` (foundation), then
-  `mcp-apps-host-spike` (KAN-16), `mcp-server` (KAN-8), `canvas-render` (KAN-6) —
+  `mcp-apps-host-spike`, `mcp-server`, `canvas-render` —
   one per epic, so all three streams start in parallel.
 
 ## Tech stack
@@ -106,51 +102,27 @@ npm test
 npm run lint
 ```
 
-## Jira tracking (mandatory)
+## Task tracking
 
-The team tracks all work on the Jira **KAN** board
-(`https://microsoft-team-canvas.atlassian.net`, project key **KAN**, cloudId
-`e8a1bb51-d1ab-417f-999a-647b8b4f2186`). Keeping it current is **mandatory** — it is
-how 6 people across 3 time zones coordinate.
+Track all work in `docs/TASKS.md`. Keeping it current is **mandatory** — it is
+how contributors coordinate and avoid duplicating work.
 
-**Required setup — connect the Atlassian (Jira) MCP toolset.** Every agent/contributor
-**must** have the official Atlassian Rovo MCP server registered before starting work.
-Add it to your MCP client config (for Copilot CLI, `~/.copilot/mcp-config.json`):
-
-```json
-{
-  "mcpServers": {
-    "atlassian": {
-      "type": "http",
-      "url": "https://mcp.atlassian.com/v1/mcp",
-      "tools": ["*"]
-    }
-  }
-}
-```
-
-Restart the client and complete the OAuth 2.1 sign-in to `microsoft-team-canvas`.
-If the org has Rovo / Remote MCP disabled, an admin must enable it first.
-
-**What you must keep updated (using the Jira MCP tools):**
-- **Claim before you start:** move your task to **In Progress** and assign it to
+**What you must keep updated (in `docs/TASKS.md`):**
+- **Claim before you start:** set your task to **in-progress** and assign it to
   yourself — so two people don't pick the same task.
-- **Progress the status:** **In Progress → In Review → Done** as work moves; use
-  **Blocked** (with a comment explaining why) if you're stuck.
+- **Progress the status:** **in-progress → in-review → done** as work moves; use
+  **blocked** (with a note explaining why) if you're stuck.
 - **Keep the description accurate:** if scope or acceptance changes, edit the task
-  description to match — the board must reflect reality.
-- **Comment on meaningful events:** landing a commit/PR, decisions, hand-offs.
-  Reference the commit/PR and the Jira key.
-- **Mirror `docs/TASKS.md`:** the board and `docs/TASKS.md` must stay in sync.
-
-Work that isn't reflected on the board is **not considered done**.
+  to match.
+- **Note meaningful events:** landing a commit/PR, decisions, hand-offs. Reference
+  the commit/PR.
 
 ## Git & PR conventions
 
-- **Branch naming:** `<author>/<jira-key>-<slug>`, e.g. `t-gfrancogim/KAN-12-cytoscape-render`.
-- **Commit messages:** Conventional Commits, referencing the Jira key,
-  e.g. `feat(canvas): render Cytoscape graph (KAN-12)`.
-- One task per PR; reference the Jira key in the PR title.
+- **Branch naming:** `<author>/<slug>`, e.g. `t-gfrancogim/cytoscape-render`.
+- **Commit messages:** Conventional Commits,
+  e.g. `feat(canvas): render Cytoscape graph`.
+- One task per PR; reference the task in the PR title.
 
 ## Collaboration: commit & push often
 
@@ -180,5 +152,5 @@ constantly to avoid painful merge conflicts and duplicated work.
 - [ ] Tests added/updated and passing
 - [ ] Lint passes
 - [ ] Relevant docs updated
-- [ ] **Jira (KAN) task updated** — status moved to `Done`, description accurate,
-      commit/PR referenced (see *Jira tracking*)
+- [ ] **`docs/TASKS.md` updated** — status moved to `done`, description accurate,
+      commit/PR referenced (see *Task tracking*)

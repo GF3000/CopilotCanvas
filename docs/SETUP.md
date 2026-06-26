@@ -127,7 +127,7 @@ Good for end-to-end / demo recording. Uninstall from the Extensions panel.
 
 **3. Automated tests (`@vscode/test-electron`).**
 Headless VS Code that activates the extension and asserts behavior — add for CI once
-there is real logic (KAN-17), not for the stub.
+there is real logic in the `vscode-extension` task, not for the stub.
 
 ## Using it from Copilot CLI
 

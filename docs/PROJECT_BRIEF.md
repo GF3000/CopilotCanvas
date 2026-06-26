@@ -102,13 +102,9 @@ The user can modify both code and the diagram through the canvas.
 
 ## Constraints & assumptions
 
-- **Timebox:** 3-day hackathon — **Tue, Wed, Thu**. Implementation runs Tue–Wed;
-  **Thu is reserved for the presentation/demo video**, so aim to be
-  **feature-complete by end of Wednesday**.
 - **Team:** 6 people across 3 locations / time zones — **US (3)**, **Dublin (2)**,
-  **India (1)**. Daily sync at **16:30 Dublin time**. Tracking on the Jira board
-  (**KAN**); day-to-day comms on **Teams**. Because of the wide time-zone spread,
-  **commit/push and update the board frequently** so hand-offs work across zones.
+  **India (1)**. Because of the wide time-zone spread,
+  **commit/push and update `docs/TASKS.md` frequently** so hand-offs work across zones.
 - **Hard constraints:** runs locally; **Copilot CLI in VS Code's integrated
   terminal** is the brain; the canvas is an **MCP App rendered as a VS Code webview
   tab** by the extension (ADR-005 + ADR-007).

@@ -5,17 +5,17 @@ set of **specialised diagram skills** — one per common diagram type. Each skil
 a dedicated MCP tool with a tuned description, so a natural-language request like
 *"show the dependency graph of the auth module"* or *"draw the state machine for an
 order"* routes Copilot to the right tool. They all build on the same Cytoscape
-graph model and render through the shared `buildDiagram` path (KAN-19), so edge
+graph model and render through the shared `buildDiagram` path, so edge
 validation, the auto-layout, selection, "explain", and "jump to code" all work
 identically for every type.
 
-| Skill (primary tool) | Aliases | Jira | What it renders |
-|----------------------|---------|------|-----------------|
-| `diagram_dependency` | `dependency_diagram` | KAN-20 | Modules/services + "depends on" edges (cycles OK) |
-| `diagram_flowchart` | `flowchart` | KAN-21 | Steps + decisions with labeled branches |
-| `diagram_state_machine` | `state_diagram`, `state_machine` | KAN-22 | States + event-labeled transitions; initial/final marked |
-| `diagram_class` | `class_diagram` | KAN-23 | UML classes + relations with distinct arrowheads |
-| `diagram_er` | `er_diagram`, `entity_relationship_diagram` | KAN-24 | Entities + cardinality-labeled relationships |
+| Skill (primary tool) | Aliases | What it renders |
+|----------------------|---------|-----------------|
+| `diagram_dependency` | `dependency_diagram` | Modules/services + "depends on" edges (cycles OK) |
+| `diagram_flowchart` | `flowchart` | Steps + decisions with labeled branches |
+| `diagram_state_machine` | `state_diagram`, `state_machine` | States + event-labeled transitions; initial/final marked |
+| `diagram_class` | `class_diagram` | UML classes + relations with distinct arrowheads |
+| `diagram_er` | `er_diagram`, `entity_relationship_diagram` | Entities + cardinality-labeled relationships |
 
 > The model **generates the graph** and passes it to the tool; the tool converts it
 > to the protocol's Cytoscape `elements` and renders it. As with `create_diagram`,
@@ -110,7 +110,7 @@ palette + fonts so the canvas looks cohesive.
 
 ## Per-type conventions
 
-### Dependency (`diagram_dependency`, KAN-20)
+### Dependency (`diagram_dependency`)
 - **Nodes**: `kind` is any canvas node kind — `module` (default), `service`,
   `datastore` (databases/caches/queues), `entrypoint`, `external`, or `note`.
 - **Edges**: `dependencies: [{ from, to }]` — `from` *depends on* `to`. Direction
@@ -122,7 +122,7 @@ palette + fonts so the canvas looks cohesive.
   level and should reflect it in the title (e.g. "Server call graph").
 - **Cycles** render fine (dagre handles them).
 
-### Flowchart (`diagram_flowchart`, KAN-21)
+### Flowchart (`diagram_flowchart`)
 - **Nodes** carry a `type`, each drawn with its standard flowchart symbol:
   - `start` / `end` — **terminator** (rounded pill); `start` is the entry-point
     colour, `end` an emerald "done" fill.
@@ -131,13 +131,13 @@ palette + fonts so the canvas looks cohesive.
   - `io` — **parallelogram** (input/output).
 - **Edges**: label the edges out of a `decision` with the branch (`"yes"`/`"no"`).
 
-### State machine (`diagram_state_machine`, KAN-22)
+### State machine (`diagram_state_machine`)
 - **States**: set `initial: true` on the start state (bright emerald fill) and
   `final: true` on accepting states (thick double border).
 - **Transitions**: drawn with an **open (stick) arrowhead** (UML convention); `event`
   labels each transition with its trigger/condition.
 
-### Class diagram (`diagram_class`, KAN-23)
+### Class diagram (`diagram_class`)
 - **Classes**: drawn as **sharp-cornered UML boxes**; optional `attributes` and
   `methods` lines are **folded into the node label** (see the limitation below).
 - **Relations**: `type` is one of `inheritance`, `realization`, `association`,
@@ -152,12 +152,12 @@ palette + fonts so the canvas looks cohesive.
   - `aggregation` — solid line, hollow ◇ diamond at the **whole/owner** (`from`).
   - `composition` — solid line, filled ◆ diamond at the **whole/owner** (`from`).
 
-  **Limitation (documented per KAN-23):** Cytoscape has no UML *compartments*, so
+  **Limitation:** Cytoscape has no UML *compartments*, so
   attributes/methods appear as extra lines inside the node box (separated by a rule),
   not in separate attribute/method sections. The relation **kind is fully
   distinguishable** via the custom arrowheads added in `canvas/src/main.ts`.
 
-### Entity / relationship (`diagram_er`, KAN-24)
+### Entity / relationship (`diagram_er`)
 - **Entities**: `kind: datastore`, drawn as **sharp-cornered "table" boxes**; optional
   `attributes` (e.g. keys) are surfaced under the entity name.
 - **Relationships**: drawn as a **plain line** (no arrowhead); the `cardinality`
@@ -223,13 +223,13 @@ npm run lint
 
 ## Acceptance criteria coverage
 
-- **KAN-20** — directed dependency diagram renders; cycles render without error. ✅
-- **KAN-21** — readable directed flowchart with labeled decision branches (diamond
+- **Dependency** — directed dependency diagram renders; cycles render without error. ✅
+- **Flowchart** — readable directed flowchart with labeled decision branches (diamond
   decisions, terminator/process/io shapes); edges to unknown nodes handled gracefully
   (dropped + reported). ✅
-- **KAN-22** — states with labeled (open-arrow) transitions and a clearly marked
+- **State machine** — states with labeled (open-arrow) transitions and a clearly marked
   initial state (+ final states). ✅
-- **KAN-23** — classes with relations; inheritance / realization / association /
+- **Class diagram** — classes with relations; inheritance / realization / association /
   dependency / aggregation / composition visually distinguishable via distinct UML
   arrowheads and dashed/solid lines; compartment limitation documented. ✅
-- **KAN-24** — entities (table boxes) with cardinality-labeled relationship edges. ✅
+- **Entity / relationship** — entities (table boxes) with cardinality-labeled relationship edges. ✅

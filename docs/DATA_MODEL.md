@@ -14,15 +14,15 @@ and unsuitable for **order/time** diagrams (what-happens-when).
 
 | Diagram type | Supported | Notes |
 |--------------|-----------|-------|
-| Flowchart | ✅ Yes | `diagram_flowchart` (KAN-21): terminator/process/decision/io shapes, labeled branches |
-| Dependency / call graph / architecture | ✅ Yes (primary) | `diagram_dependency` (KAN-20): Cytoscape's sweet spot — the main use case; cycles OK |
-| Entity/relationship graph | ✅ Yes | `diagram_er` (KAN-24): entity "table" boxes; cardinality-labeled relationship lines |
-| State machine | ✅ Yes | `diagram_state_machine` (KAN-22): states; initial/final marked; open-arrow transitions labeled with events |
-| Class diagram | ⚠️ Partial | `diagram_class` (KAN-23): distinct UML arrowheads (inheritance/realization/association/dependency/aggregation/composition); UML compartments (attrs/methods) folded into the node label, not separate sections — see docs/DIAGRAM_TOOLS.md |
+| Flowchart | ✅ Yes | `diagram_flowchart`: terminator/process/decision/io shapes, labeled branches |
+| Dependency / call graph / architecture | ✅ Yes (primary) | `diagram_dependency`: Cytoscape's sweet spot — the main use case; cycles OK |
+| Entity/relationship graph | ✅ Yes | `diagram_er`: entity "table" boxes; cardinality-labeled relationship lines |
+| State machine | ✅ Yes | `diagram_state_machine`: states; initial/final marked; open-arrow transitions labeled with events |
+| Class diagram | ⚠️ Partial | `diagram_class`: distinct UML arrowheads (inheritance/realization/association/dependency/aggregation/composition); UML compartments (attrs/methods) folded into the node label, not separate sections — see docs/DIAGRAM_TOOLS.md |
 | Sequence diagram | ❌ No | Needs lifelines + time ordering; Cytoscape models topology, not time |
 | Timeline / Gantt | ❌ No | Needs a time axis + explicit positions, which D2 forbids (canvas auto-layouts) |
 
-Each ✅ type has a dedicated MCP **skill/tool** built on `create_diagram` (KAN-19); the
+Each ✅ type has a dedicated MCP **skill/tool** built on `create_diagram`; the
 tool applies the type's **notation** (conventional shapes/arrowheads) via internal
 `classes` the canvas stylesheet defines. See `docs/DIAGRAM_TOOLS.md` for the full
 per-type notation and the `/diagram*` slash commands.
@@ -30,7 +30,7 @@ per-type notation and the `/diagram*` slash commands.
 **Rule of thumb:** graph-shaped (who-connects-to-whom) ✅; order/time-shaped
 (what-happens-when) ❌. Supporting sequence/timeline would require relaxing D2 (let
 the server send positions / a time axis) or a second renderer — a deliberate
-protocol change, not a quick tweak. Out of scope for this hackathon (see
+protocol change, not a quick tweak. Out of scope (see
 `PROJECT_BRIEF.md` and ADR-006).
 
 ## Conventions
@@ -200,8 +200,8 @@ the user can do X."*
 
 ## Protocol decisions (ratified)
 
-> Locked design decisions for `/shared/protocol.ts` (KAN-4). The protocol is
-> **append-only & PR-reviewed**; propose changes at the daily sync, never edit
+> Locked design decisions for `/shared/protocol.ts`. The protocol is
+> **append-only & PR-reviewed**; propose changes via PR, never edit
 > unilaterally.
 
 - **D1 — Envelope:** `protocol.ts` types describe **message payloads only**
@@ -246,7 +246,7 @@ the user can do X."*
   - **Style classes** (`CyElement.classes`) — a curated vocabulary the canvas
     defines: `big`, `small`, `highlight`, `muted`, `danger`, `success`, `warning`,
     `annotation` (dashed arrowless leader line for notes).
-    - The typed diagram tools (KAN-20..24) additionally emit **internal notation
+    - The typed diagram tools additionally emit **internal notation
       classes** the canvas styles per diagram type — e.g. `decision`, `fc-process`,
       `fc-terminator`, `initial`/`final`, `uml-class`, `inheritance`/`composition`,
       `er-entity`. These are produced server-side by the typed builders, not part of
@@ -255,13 +255,13 @@ the user can do X."*
     `{ color?, fontSize?, size? }` only (`color` → node fill / edge line;
     `fontSize` → label px; `size` → node label-padding px, ignored for edges).
   - Exposed via the `create_diagram` and `update_diagram` tools (per node/edge).
-- **D15 — Semantic colour (KAN-30):** colour encodes meaning, not decoration.  **Node role** comes from `kind`, with a fixed palette: `entrypoint` = Entry point,
+- **D15 — Semantic colour:** colour encodes meaning, not decoration.  **Node role** comes from `kind`, with a fixed palette: `entrypoint` = Entry point,
   `service` = Service/process, `module` = Module, `datastore` = Data store,
   `external` = External, `note` = Note. **Status** comes from the classes `danger`
   (error), `success`, `warning`. The canvas shows a **legend** of the kinds/statuses
   present so colours are self-explanatory. Copilot is instructed to use `kind`/status
   consistently and only set an explicit `style.color` on direct user request.
-- **D16 — Code links (KAN-31):** a node may carry `codeRefs: CodeRef[]`
+- **D16 — Code links:** a node may carry `codeRefs: CodeRef[]`
   (`{ path, range?, symbol? }`, repo-relative paths). The `link_node_to_code` tool
   attaches a ref (and marks the node `linked`); `open_node_code` opens the file and
   reveals the range in the editor, or reports the node isn't linked. Nodes can also
