@@ -2,7 +2,7 @@
   "name": "canvas-for-copilot",
   "displayName": "Canvas for Copilot",
   "description": "Renders Copilot CLI diagrams as an interactive Cytoscape canvas tab.",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "publisher": "canvas-for-copilot",
   "engines": {
