@@ -1814,11 +1814,12 @@ export const CanvasForCopilotFull: React.FC = () => {
               3013, 3301, 3321, 3576, 3596, 3860, 3880, 4329, 4349, 4696, 4716,
               5630, durationInFrames,
             ],
-            // 0.18 = ducked under a voiceover · 0.6 = music carries a VO-less
-            // scene (architecture beat + the four muted demo clips).
+            // 0.05 = sits well under a voiceover (VO stays clearly in front) ·
+            // 0.6 = music carries a VO-less scene (architecture beat + the four
+            // muted demo clips).
             [
-              0, 0.5, 0.18, 0.18, 0.6, 0.6, 0.18, 0.18, 0.6, 0.6, 0.18, 0.18,
-              0.6, 0.6, 0.18, 0.18, 0.6, 0.6, 0.18, 0.18, 0.6, 0.6, 0.18, 0.18,
+              0, 0.28, 0.05, 0.05, 0.6, 0.6, 0.05, 0.05, 0.6, 0.6, 0.05, 0.05,
+              0.6, 0.6, 0.05, 0.05, 0.6, 0.6, 0.05, 0.05, 0.6, 0.6, 0.05, 0.05,
               0,
             ],
             { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
