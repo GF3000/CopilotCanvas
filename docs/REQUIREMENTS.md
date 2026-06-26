@@ -102,11 +102,10 @@ evolve together.
 **Priority:** Must (advanced tier) · **Depends on:** FR-5, FR-7
 
 ### FR-10: Direct diagram edit drives proposed code changes
-**Acceptance criteria:**
-- [ ] Editing the diagram on the canvas emits `diagram_edited`.
-- [ ] Copilot proposes matching code changes for the edit.
+**Status:** Dropped — the inline node-rename edit was removed (it fired
+spurious renames on node selection/pan/zoom). No `diagram_edited` message exists.
 
-**Priority:** Could · **Depends on:** FR-9
+**Priority:** Won't · **Depends on:** FR-9
 
 ### FR-11: Typed diagram skills (dependency, flowchart, state machine, class, ER)
 **User story:** As a developer, I want to ask for a specific kind of diagram (or

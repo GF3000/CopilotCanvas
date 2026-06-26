@@ -27,8 +27,6 @@ export function handle(m: CanvasMessage): string {
       return m.diagramId;
     case 'interaction':
       return m.action;
-    case 'diagram_edited':
-      return m.diagramId;
     case 'save_image':
       return m.fileName;
     case 'ack':
@@ -51,7 +49,6 @@ const ALL_TYPES: Record<CanvasMessageType, true> = {
   hello: true,
   node_selected: true,
   interaction: true,
-  diagram_edited: true,
   save_image: true,
   ack: true,
   error: true,

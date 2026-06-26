@@ -668,7 +668,6 @@ setTitle(undefined);
 /* ─── Node context menu: right-click a node to edit its label and colour ─── */
 
 const nodeMenu = document.getElementById('node-menu');
-const labelInput = document.getElementById('node-label-input');
 const swatchContainer = document.getElementById('node-swatches');
 const nodeColorToggle = document.getElementById('node-color-toggle');
 const menuExpand = document.getElementById('ctx-expand');
@@ -676,9 +675,6 @@ let menuNode: cytoscape.NodeSingular | undefined;
 // The context menu also opens for edges/links; the active edge is tracked
 // separately so node-only logic (colour, code refs) stays guarded by `menuNode`.
 let menuEdge: cytoscape.EdgeSingular | undefined;
-// KAN-14: remember the label when the menu opens, so a commit can tell whether the
-// user actually renamed the node (and what the old name was).
-let menuNodeOldLabel = '';
 
 /** Id of whatever the context menu currently targets (node or edge). */
 function menuTargetId(): string | undefined {
@@ -707,11 +703,6 @@ function openNodeMenu(node: cytoscape.NodeSingular, x: number, y: number): void 
   if (!nodeMenu) return;
   menuNode = node;
   menuEdge = undefined;
-  menuNodeOldLabel = String(node.data('label') ?? '');
-  if (labelInput instanceof HTMLInputElement) {
-    labelInput.value = String(node.data('label') ?? '');
-    labelInput.placeholder = 'Node label';
-  }
   // Node-only sections (colour, code references) apply when targeting a node.
   if (nodeColorToggle) nodeColorToggle.hidden = false;
   // Only offer "Focus neighbours" when the node has neighbours to drill into.
@@ -721,22 +712,15 @@ function openNodeMenu(node: cytoscape.NodeSingular, x: number, y: number): void 
   renderCodeRefs(node);
   nodeMenu.hidden = false;
   positionMenu(x, y);
-  // Don't auto-focus/select the label field: the menu's primary actions are
-  // Explain/Expand, and auto-focusing made the rename field look "active" and
-  // invited accidental edits (which then fired a spurious rename on close).
 }
 
 // Open the same context menu for an edge/link. Edges support a focused subset:
-// edit label, Explain, Expand with AI and Center — the node-only sections
-// (colour, code references, focus-neighbours) are hidden.
+// Explain, Expand with AI and Center — the node-only sections (colour, code
+// references, focus-neighbours) are hidden.
 function openEdgeMenu(edge: cytoscape.EdgeSingular, x: number, y: number): void {
   if (!nodeMenu) return;
   menuEdge = edge;
   menuNode = undefined;
-  if (labelInput instanceof HTMLInputElement) {
-    labelInput.value = String(edge.data('label') ?? '');
-    labelInput.placeholder = 'Link label';
-  }
   if (nodeColorToggle) nodeColorToggle.hidden = true;
   if (swatchContainer) swatchContainer.hidden = true;
   if (menuExpand) menuExpand.hidden = true;
@@ -754,42 +738,10 @@ function positionMenu(x: number, y: number): void {
   nodeMenu.style.top = `${Math.max(8, Math.min(y, window.innerHeight - height - 8))}px`;
 }
 
-function closeNodeMenu(commit: boolean): void {
-  if (commit && labelInput instanceof HTMLInputElement) {
-    const text = labelInput.value.trim();
-    if (menuNode) {
-      const oldLabel = menuNodeOldLabel.trim();
-      if (text) menuNode.data('label', text);
-      // KAN-14: a real rename drives a matching code change via the extension.
-      // Compare trimmed-vs-trimmed so whitespace alone never counts as a rename.
-      if (text && text !== oldLabel) {
-        emitDiagramEdited(menuNode.id(), oldLabel, text);
-      }
-    } else if (menuEdge) {
-      // Edge/link labels are free-form and may be cleared.
-      menuEdge.data('label', text);
-    }
-  }
+function closeNodeMenu(): void {
   if (nodeMenu) nodeMenu.hidden = true;
   menuNode = undefined;
   menuEdge = undefined;
-}
-
-// KAN-14: tell the extension the user edited the diagram directly (here, renamed a
-// node) so Copilot can propose a matching code change. We send the diagram_edited
-// contract (current elements) plus a focused `changed` hint of exactly what changed.
-function emitDiagramEdited(
-  nodeId: string,
-  oldLabel: string,
-  newLabel: string,
-): void {
-  vscode?.postMessage({
-    type: 'diagram_edited',
-    sessionId: 'webview',
-    diagramId: currentDiagramId ?? '',
-    elements: currentScopeElements,
-    changed: { kind: 'node-label', nodeId, oldLabel, newLabel },
-  });
 }
 
 // Build the colour swatches once (presets + a custom colour picker).
@@ -858,7 +810,7 @@ function openNodeCode(nodeId: string, refIndex: number): void {
     nodeId,
     refIndex,
   });
-  closeNodeMenu(false);
+  closeNodeMenu();
 }
 
 // Populate (and show/hide) the "Code references" section for the menu's element
@@ -889,7 +841,7 @@ function renderCodeRefs(
 // "Center" action — re-frame the view on the menu's node or edge.
 nodeCenterBtn?.addEventListener('click', () => {
   const target = menuNode ?? menuEdge;
-  closeNodeMenu(false);
+  closeNodeMenu();
   if (target)
     cy.animate({ center: { eles: target }, duration: 200, easing: 'ease-out' });
 });
@@ -898,7 +850,7 @@ nodeCenterBtn?.addEventListener('click', () => {
 // the full explanation is produced in the CLI (it calls describe_node).
 nodeExplainBtn?.addEventListener('click', () => {
   const id = menuTargetId();
-  closeNodeMenu(false);
+  closeNodeMenu();
   if (id)
     vscode?.postMessage({ type: 'node_action', action: 'explain', nodeId: id });
 });
@@ -957,7 +909,7 @@ function submitExpand(): void {
 // (works for the menu's node or edge).
 nodeExpandBtn?.addEventListener('click', () => {
   const id = menuTargetId();
-  closeNodeMenu(false);
+  closeNodeMenu();
   if (id) openExpandDialog(id);
 });
 
@@ -966,7 +918,7 @@ nodeExpandBtn?.addEventListener('click', () => {
 // "Expand node" above.
 menuExpand?.addEventListener('click', () => {
   const id = menuNode?.id();
-  closeNodeMenu(false);
+  closeNodeMenu();
   if (id) expandElement(id);
 });
 
@@ -989,7 +941,7 @@ document.addEventListener('pointerdown', (event) => {
 // Escape closes the menu even when focus isn't in the label field.
 window.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && nodeMenu && !nodeMenu.hidden) {
-    closeNodeMenu(false);
+    closeNodeMenu();
   }
 });
 
@@ -1028,26 +980,16 @@ cy.on('cxttap', 'edge', (event) => {
   );
 });
 cy.on('cxttap', (event) => {
-  if (event.target === cy) closeNodeMenu(false);
+  if (event.target === cy) closeNodeMenu();
 });
-cy.on('pan zoom', () => closeNodeMenu(true));
+cy.on('pan zoom', () => closeNodeMenu());
 
-labelInput?.addEventListener('keydown', (event) => {
-  if (event.key === 'Enter') {
-    event.preventDefault();
-    closeNodeMenu(true);
-  } else if (event.key === 'Escape') {
-    event.preventDefault();
-    closeNodeMenu(false);
-  }
-});
-
-// A click anywhere outside the open menu commits and closes it.
+// A click anywhere outside the open menu closes it.
 document.addEventListener('pointerdown', (event) => {
   if (!nodeMenu || nodeMenu.hidden) return;
   const target = event.target;
   if (target instanceof Node && nodeMenu.contains(target)) return;
-  closeNodeMenu(true);
+  closeNodeMenu();
 });
 
 function showError(messages: string[]): void {
@@ -1165,7 +1107,7 @@ function toElementDef(el: CyElement): cytoscape.ElementDefinition {
 }
 
 function render(elements: CyElement[]): void {
-  closeNodeMenu(false);
+  closeNodeMenu();
   closeSearch();
   colorOverrides.clear();
   manualEdgeControls.clear();
@@ -1467,7 +1409,7 @@ function handleDiagram(msg: DiagramMessage): void {
 
 /* ─── Undo / redo history (KAN-34) ───────────────────────────────────────────
  * Step back/forward through diagram changes — each patch (expand / edit / annotate
- * / link styling) and each manual recolour/rename pushes exactly one undoable step
+ * / link styling) and each manual recolour pushes exactly one undoable step
  * — to the first version, where Undo is disabled. A snapshot stores the FULL graph
  * as protocol elements (plus the title and manual colour overrides); a restore
  * re-renders it through the same `render()` path the app uses for every diagram, so

@@ -92,7 +92,7 @@ const cy = cytoscape({
    graph model (`elements`) and sends a `diagram` notification over the MCP Apps
    channel; the canvas renders it with Cytoscape.
 2. **Canvas → model (feedback):** the user pans/zooms/selects/edits; the canvas
-   emits `node_selected` / `interaction` / `diagram_edited` JSON-RPC messages; the
+   emits `node_selected` / `interaction` JSON-RPC messages; the
    MCP server turns them into Copilot prompts/actions (with the selected node as
    context).
 
@@ -117,7 +117,7 @@ const cy = cytoscape({
 - **Responsibility:** Open and own the **canvas webview tab** in VS Code, set its
   CSP, and run the **MCP Apps JSON-RPC `postMessage`** channel to the canvas bundle.
   Relay graph models from the Canvas MCP server into the webview, and forward
-  `node_selected` / `interaction` / `diagram_edited` events from the webview back to
+  `node_selected` / `interaction` events from the webview back to
   the server/CLI. Manages tab lifecycle and reconnection.
 - **Talks to:** the Canvas MCP server (relay link — likely launches/embeds it or
   connects over a local channel), the canvas webview (`postMessage`).

@@ -197,13 +197,6 @@ export interface InteractionMessage extends BaseMessage {
   text?: string;
 }
 
-/** The user edited the diagram directly (advanced). */
-export interface DiagramEditedMessage extends BaseMessage {
-  type: 'diagram_edited';
-  diagramId: string;
-  elements: CyElement[];
-}
-
 /** Image export format the canvas can produce. */
 export type ImageFormat = 'png' | 'jpg' | 'svg';
 
@@ -249,7 +242,6 @@ export type CanvasToServerMessage =
   | HelloMessage
   | NodeSelectedMessage
   | InteractionMessage
-  | DiagramEditedMessage
   | SaveImageMessage
   | AckMessage
   | ErrorMessage;
@@ -273,8 +265,6 @@ export const isNodeSelectedMessage = (m: CanvasMessage): m is NodeSelectedMessag
   m.type === 'node_selected';
 export const isInteractionMessage = (m: CanvasMessage): m is InteractionMessage =>
   m.type === 'interaction';
-export const isDiagramEditedMessage = (m: CanvasMessage): m is DiagramEditedMessage =>
-  m.type === 'diagram_edited';
 export const isSaveImageMessage = (m: CanvasMessage): m is SaveImageMessage =>
   m.type === 'save_image';
 export const isAckMessage = (m: CanvasMessage): m is AckMessage =>

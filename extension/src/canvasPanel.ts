@@ -167,7 +167,6 @@ export class CanvasPanel {
         mode?: unknown;
         depth?: unknown;
         focus?: unknown;
-        changed?: unknown;
         format?: unknown;
         data?: unknown;
         encoding?: unknown;
@@ -221,8 +220,6 @@ export class CanvasPanel {
             typeof msg.depth === 'number' ? msg.depth : undefined,
             typeof msg.focus === 'string' ? msg.focus : undefined,
           );
-        } else if (msg?.type === 'diagram_edited') {
-          this.handleDiagramEdited(msg.changed);
         }
       },
       null,
@@ -236,7 +233,6 @@ export class CanvasPanel {
     action?: unknown;
     nodeId?: unknown;
     nodeIds?: unknown;
-    changed?: unknown;
   }): string {
     const type = msg?.type ?? 'unknown';
     if (type === 'node_selected') {
@@ -247,10 +243,6 @@ export class CanvasPanel {
       const action = typeof msg.action === 'string' ? msg.action : '?';
       const nodeId = typeof msg.nodeId === 'string' ? msg.nodeId : '?';
       return `node_action:${action} (${nodeId})`;
-    }
-    if (type === 'diagram_edited') {
-      const c = msg.changed as { nodeId?: string } | undefined;
-      return `diagram_edited (${c?.nodeId ?? '?'})`;
     }
     return type;
   }
@@ -382,46 +374,6 @@ export class CanvasPanel {
         focusPart +
         ' Use the expand_node tool to add the new nodes in place, connecting them to ' +
         'this node. Use these settings — no need to ask me.',
-    );
-  }
-
-  /**
-   * KAN-14 (diagram-edit-to-code): the user edited the diagram directly on the
-   * canvas (here, renamed a node). Ask Copilot — via the CLI terminal — to propose
-   * a matching code change. Copilot is the modify engine (no separate server tool
-   * needed), mirroring the explain/expand actions. If the node maps to code
-   * (`codeRefs`), the prompt points Copilot straight at the file/line.
-   */
-  private handleDiagramEdited(changedRaw: unknown): void {
-    const changed = changedRaw as
-      | { kind?: string; nodeId?: string; oldLabel?: string; newLabel?: string }
-      | undefined;
-    if (!changed || changed.kind !== 'node-label') return;
-    const { nodeId, oldLabel, newLabel } = changed;
-    if (typeof nodeId !== 'string' || typeof newLabel !== 'string') return;
-
-    // Keep our index in sync so getSelection/getNodeContext reflect the new label.
-    const node = this.nodes.get(nodeId);
-    const refs = node?.codeRefs ?? [];
-    if (node) node.label = newLabel;
-
-    // Point Copilot at the code: a linked node gives an exact file/line; an
-    // unlinked one is located by searching for its old name as a symbol.
-    const locate =
-      refs.length > 0
-        ? ` It maps to ${refs
-            .map((r) => (r.range ? `${r.path}:${r.range.startLine}` : r.path))
-            .join(', ')}.`
-        : oldLabel
-          ? ` Find the code by searching the workspace for a symbol named "${oldLabel}".`
-          : '';
-    const from = oldLabel ? `"${oldLabel}" to ` : '';
-    this.sendToTerminal(
-      `On the Canvas for Copilot diagram I renamed the node ${from}"${newLabel}".` +
-        `${locate} Propose and apply the matching code change — rename the ` +
-        `corresponding symbol and update all its references. If you can't confidently ` +
-        `find the symbol, or the change is ambiguous, ask me first. Then update the ` +
-        `diagram if needed.`,
     );
   }
 

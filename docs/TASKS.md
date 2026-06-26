@@ -192,12 +192,11 @@ _As of the example-diagram + create_diagram prototype landing:_
 - **Acceptance:** selecting an entrypoint node + "add a new entrypoint to do X"
   triggers clarifying questions, a real code edit, and an updated diagram.
 
-### `diagram-edit-to-code` (stretch)
-- **Status:** todo · **Satisfies:** FR-10
-- **Description:** Allow direct diagram edits on the canvas (`diagram_edited`);
-  server proposes matching code changes.
+### `diagram-edit-to-code` (stretch) — KAN-14
+- **Status:** dropped · **Satisfies:** FR-10 (Won't)
+- **Description:** Removed — the inline node-rename edit fired spurious renames on
+  node selection/pan/zoom, so the feature and its `diagram_edited` message were cut.
 - **Depends on:** modify-from-node
-- **Acceptance:** an edited node/edge produces a sensible proposed code change.
 
 ---
 

@@ -177,11 +177,6 @@ spotlight the listed nodes).
 For `modify` (advanced), `text` is the instruction, e.g. *"add a new entrypoint so
 the user can do X."*
 
-### `diagram_edited` — user edited the diagram directly (advanced)
-```json
-{ "type": "diagram_edited", "sessionId": "abc", "diagramId": "d1", "elements": [ "…edited graph model…" ] }
-```
-
 ### `ack` / `error`
 ```json
 { "type": "ack", "sessionId": "abc", "msgId": "m1" }
