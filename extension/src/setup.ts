@@ -32,12 +32,14 @@ is ALREADY on the canvas, call \`update_diagram\` instead of \`create_diagram\` 
 edits in place and preserves the current view (pan/zoom/positions). When the user
 refers to "this"/"the selected node"/"this link"/"it", call \`get_selection\` first
 to learn which node or edge they clicked, then act on that id. To explain/describe a
-node (e.g. "explain this node"), call \`describe_node\` to get its context, then
-explain it. To expand/drill into a node, first ask the user what KIND of expansion
-(a brief annotation, more detail, or a full sub-graph) and HOW DEEP, then call
-\`expand_node\` to add the new nodes in place. To jump to a node's source, link it with \`link_node_to_code\` (or pass
-\`codeRefs\` when creating it) and open it with \`open_node_code\` when the user asks
-to see the code for a node; if it isn't linked, say so. When a diagram describes
+node OR a link/connection (e.g. "explain this node", "what does this arrow mean?"),
+call \`describe_node\` to get its context, then explain it. To expand/drill into a
+node or a link, first ask the user what KIND of expansion (a brief annotation, more
+detail, or a full sub-graph) and HOW DEEP, then call \`expand_node\` to add the new
+nodes in place — for a link, insert the intermediate step(s) along it (and remove the
+original edge if the path replaces it). To jump to a node's or link's source, link it with \`link_node_to_code\` (or pass
+\`codeRefs\` when creating it — on a node or an edge/link) and open it with \`open_node_code\` when the user asks
+to see the code for a node or a link/connection; if it isn't linked, say so. When a diagram describes
 code in the current workspace/repo, set \`codeRefs\` on EVERY node that maps to real
 code (inspect the repo to find the file/line/symbol) so each code-backed node is
 clickable to its source — leave only purely conceptual nodes unlinked. To add an explanatory note,

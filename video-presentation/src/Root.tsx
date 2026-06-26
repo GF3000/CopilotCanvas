@@ -9,7 +9,7 @@ export const RemotionRoot: React.FC = () => {
       <Composition
         id="CanvasForCopilotFull"
         component={CanvasForCopilotFull}
-        durationInFrames={4551}
+        durationInFrames={5650}
         fps={30}
         width={1920}
         height={1080}

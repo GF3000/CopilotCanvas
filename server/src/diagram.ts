@@ -54,6 +54,7 @@ export interface DiagramInputEdge {
   label?: string;
   classes?: string[];
   style?: CyStyle;
+  codeRefs?: CodeRefInput[];
 }
 
 export interface DiagramInput {
@@ -137,6 +138,7 @@ export function buildDiagram(input: DiagramInput): BuildResult {
       }),
       classes: classesOf(e.classes),
       style: styleOf(e.style),
+      codeRefs: toCodeRefs(e.codeRefs),
     })),
   ];
 

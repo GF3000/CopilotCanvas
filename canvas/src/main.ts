@@ -673,9 +673,17 @@ const swatchContainer = document.getElementById('node-swatches');
 const nodeColorToggle = document.getElementById('node-color-toggle');
 const menuExpand = document.getElementById('ctx-expand');
 let menuNode: cytoscape.NodeSingular | undefined;
+// The context menu also opens for edges/links; the active edge is tracked
+// separately so node-only logic (colour, code refs) stays guarded by `menuNode`.
+let menuEdge: cytoscape.EdgeSingular | undefined;
 // KAN-14: remember the label when the menu opens, so a commit can tell whether the
 // user actually renamed the node (and what the old name was).
 let menuNodeOldLabel = '';
+
+/** Id of whatever the context menu currently targets (node or edge). */
+function menuTargetId(): string | undefined {
+  return menuNode?.id() ?? menuEdge?.id();
+}
 
 function styleNodeColor(
   node: { style: (props: object) => unknown },
@@ -698,39 +706,73 @@ function applyNodeColor(color: NodeColor): void {
 function openNodeMenu(node: cytoscape.NodeSingular, x: number, y: number): void {
   if (!nodeMenu) return;
   menuNode = node;
+  menuEdge = undefined;
   menuNodeOldLabel = String(node.data('label') ?? '');
   if (labelInput instanceof HTMLInputElement) {
     labelInput.value = String(node.data('label') ?? '');
+    labelInput.placeholder = 'Node label';
   }
+  // Node-only sections (colour, code references) apply when targeting a node.
+  if (nodeColorToggle) nodeColorToggle.hidden = false;
   // Only offer "Focus neighbours" when the node has neighbours to drill into.
   if (menuExpand) menuExpand.hidden = !isExpandable(node.id());
   // Colours start collapsed each time the menu opens.
   collapseColorSwatches();
   renderCodeRefs(node);
   nodeMenu.hidden = false;
-  // Keep the menu inside the viewport.
-  const { width, height } = nodeMenu.getBoundingClientRect();
-  nodeMenu.style.left = `${Math.max(8, Math.min(x, window.innerWidth - width - 8))}px`;
-  nodeMenu.style.top = `${Math.max(8, Math.min(y, window.innerHeight - height - 8))}px`;
+  positionMenu(x, y);
   // Don't auto-focus/select the label field: the menu's primary actions are
   // Explain/Expand, and auto-focusing made the rename field look "active" and
   // invited accidental edits (which then fired a spurious rename on close).
 }
 
+// Open the same context menu for an edge/link. Edges support a focused subset:
+// edit label, Explain, Expand with AI and Center — the node-only sections
+// (colour, code references, focus-neighbours) are hidden.
+function openEdgeMenu(edge: cytoscape.EdgeSingular, x: number, y: number): void {
+  if (!nodeMenu) return;
+  menuEdge = edge;
+  menuNode = undefined;
+  if (labelInput instanceof HTMLInputElement) {
+    labelInput.value = String(edge.data('label') ?? '');
+    labelInput.placeholder = 'Link label';
+  }
+  if (nodeColorToggle) nodeColorToggle.hidden = true;
+  if (swatchContainer) swatchContainer.hidden = true;
+  if (menuExpand) menuExpand.hidden = true;
+  // Links can carry code references too (KAN-31/32) — show them if present.
+  renderCodeRefs(edge);
+  nodeMenu.hidden = false;
+  positionMenu(x, y);
+}
+
+// Keep the menu inside the viewport.
+function positionMenu(x: number, y: number): void {
+  if (!nodeMenu) return;
+  const { width, height } = nodeMenu.getBoundingClientRect();
+  nodeMenu.style.left = `${Math.max(8, Math.min(x, window.innerWidth - width - 8))}px`;
+  nodeMenu.style.top = `${Math.max(8, Math.min(y, window.innerHeight - height - 8))}px`;
+}
+
 function closeNodeMenu(commit: boolean): void {
-  if (commit && menuNode && labelInput instanceof HTMLInputElement) {
+  if (commit && labelInput instanceof HTMLInputElement) {
     const text = labelInput.value.trim();
-    const oldLabel = menuNodeOldLabel.trim();
-    if (text) menuNode.data('label', text);
-    // KAN-14: a real rename drives a matching code change via the extension.
-    // Compare trimmed-vs-trimmed so whitespace alone never counts as a rename.
-    if (text && text !== oldLabel) {
-      emitDiagramEdited(menuNode.id(), oldLabel, text);
-      recordVersion(); // record the renamed diagram as a version (KAN-34)
+    if (menuNode) {
+      const oldLabel = menuNodeOldLabel.trim();
+      if (text) menuNode.data('label', text);
+      // KAN-14: a real rename drives a matching code change via the extension.
+      // Compare trimmed-vs-trimmed so whitespace alone never counts as a rename.
+      if (text && text !== oldLabel) {
+        emitDiagramEdited(menuNode.id(), oldLabel, text);
+      }
+    } else if (menuEdge) {
+      // Edge/link labels are free-form and may be cleared.
+      menuEdge.data('label', text);
     }
   }
   if (nodeMenu) nodeMenu.hidden = true;
   menuNode = undefined;
+  menuEdge = undefined;
 }
 
 // KAN-14: tell the extension the user edited the diagram directly (here, renamed a
@@ -819,47 +861,51 @@ function openNodeCode(nodeId: string, refIndex: number): void {
   closeNodeMenu(false);
 }
 
-// Populate (and show/hide) the "Code references" section for the menu's node so
-// the user can see — and jump to — the code each node maps to.
-function renderCodeRefs(node: cytoscape.NodeSingular): void {
+// Populate (and show/hide) the "Code references" section for the menu's element
+// (node or edge/link) so the user can see — and jump to — the code it maps to.
+function renderCodeRefs(
+  el: cytoscape.NodeSingular | cytoscape.EdgeSingular,
+): void {
   if (!nodeCodeWrap || !nodeCodeRefs) return;
-  const refs = (node.data('codeRefs') as CodeRef[] | undefined) ?? [];
+  const refs = (el.data('codeRefs') as CodeRef[] | undefined) ?? [];
   nodeCodeRefs.replaceChildren();
   if (refs.length === 0) {
     nodeCodeWrap.hidden = true;
     return;
   }
-  const nodeId = node.id();
+  const id = el.id();
   refs.forEach((ref, index) => {
     const row = document.createElement('button');
     row.type = 'button';
     row.className = 'coderef-row';
     row.title = `Open ${ref.path}${ref.range ? `:${ref.range.startLine}` : ''}`;
     row.textContent = formatCodeRef(ref);
-    row.addEventListener('click', () => openNodeCode(nodeId, index));
+    row.addEventListener('click', () => openNodeCode(id, index));
     nodeCodeRefs.append(row);
   });
   nodeCodeWrap.hidden = false;
 }
 
-// "Center on node" action — re-frame the view on the menu's node.
+// "Center" action — re-frame the view on the menu's node or edge.
 nodeCenterBtn?.addEventListener('click', () => {
-  const node = menuNode;
+  const target = menuNode ?? menuEdge;
   closeNodeMenu(false);
-  if (node)
-    cy.animate({ center: { eles: node }, duration: 200, easing: 'ease-out' });
+  if (target)
+    cy.animate({ center: { eles: target }, duration: 200, easing: 'ease-out' });
 });
 
-// "Explain node" action — ask the extension to have Copilot explain this node;
+// "Explain" action — ask the extension to have Copilot explain this node or link;
 // the full explanation is produced in the CLI (it calls describe_node).
 nodeExplainBtn?.addEventListener('click', () => {
-  const nodeId = menuNode?.id();
+  const id = menuTargetId();
   closeNodeMenu(false);
-  if (nodeId) vscode?.postMessage({ type: 'node_action', action: 'explain', nodeId });
+  if (id)
+    vscode?.postMessage({ type: 'node_action', action: 'explain', nodeId: id });
 });
 
 /* ─── Expand node: dialog to choose the kind & depth of expansion (KAN-11) ─── */
 const expandDialog = document.getElementById('expand-dialog');
+const expandTitle = document.getElementById('expand-title');
 const expandModeSel = document.getElementById('expand-mode');
 const expandDepthSel = document.getElementById('expand-depth');
 const expandFocusInput = document.getElementById('expand-focus');
@@ -870,6 +916,9 @@ let expandNodeId: string | undefined;
 function openExpandDialog(nodeId: string): void {
   if (!expandDialog) return;
   expandNodeId = nodeId;
+  // The same dialog drives node and edge expansion — reflect which in the title.
+  const isEdge = cy.getElementById(nodeId).isEdge();
+  if (expandTitle) expandTitle.textContent = isEdge ? 'Expand link' : 'Expand node';
   if (expandFocusInput instanceof HTMLInputElement) expandFocusInput.value = '';
   expandDialog.hidden = false;
   if (expandModeSel instanceof HTMLSelectElement) expandModeSel.focus();
@@ -904,11 +953,12 @@ function submitExpand(): void {
     });
 }
 
-// "Expand node" action — open the dialog to gather the expansion preferences.
+// "Expand with AI" action — open the dialog to gather the expansion preferences
+// (works for the menu's node or edge).
 nodeExpandBtn?.addEventListener('click', () => {
-  const nodeId = menuNode?.id();
+  const id = menuTargetId();
   closeNodeMenu(false);
-  if (nodeId) openExpandDialog(nodeId);
+  if (id) openExpandDialog(id);
 });
 
 // "Expand element" action — client-side drill-down into the node's neighbourhood
@@ -959,6 +1009,20 @@ cy.on('cxttap', 'node', (event) => {
   const mouse = event.originalEvent as MouseEvent | undefined;
   openNodeMenu(
     node,
+    mouse?.clientX ?? event.renderedPosition.x,
+    mouse?.clientY ?? event.renderedPosition.y,
+  );
+});
+// Right-click an edge/link to open the same menu and select it, so the CLI knows
+// the target for Explain / Expand (edge selection already exists from KAN-28).
+cy.on('cxttap', 'edge', (event) => {
+  const edge = event.target as cytoscape.EdgeSingular;
+  cy.elements().unselect();
+  edge.select();
+  emitSelection([edge.id()]);
+  const mouse = event.originalEvent as MouseEvent | undefined;
+  openEdgeMenu(
+    edge,
     mouse?.clientX ?? event.renderedPosition.x,
     mouse?.clientY ?? event.renderedPosition.y,
   );
