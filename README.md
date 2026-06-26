@@ -13,6 +13,13 @@
 > AI-driven project: these documents are authored first, refined by humans, then
 > handed off to AI agents for autonomous implementation.
 
+## Demo
+
+https://github.com/GF3000/CopilotCanvas/releases/download/v0.1.0/canvas-for-copilot-full.mp4
+
+> If the player doesn't load above,
+> [download / watch the demo video here](https://github.com/GF3000/CopilotCanvas/releases/download/v0.1.0/canvas-for-copilot-full.mp4).
+
 ## 👉 Start here: [`AGENTS.md`](AGENTS.md)
 
 **Before doing anything else, read [`AGENTS.md`](AGENTS.md).** It holds the
