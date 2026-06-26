@@ -576,7 +576,7 @@ const SceneHookCold: React.FC = () => {
   const frame = useCurrentFrame();
   const tick = Math.sin(frame / 4) * 6; // clock wobble
   return (
-    <Scene durationInFrames={180}>
+    <Scene durationInFrames={314}>
       <FileAvalanche />
       <AbsoluteFill
         style={{
@@ -624,8 +624,10 @@ const SceneHookCold: React.FC = () => {
 };
 
 
-const SceneProblem: React.FC = () => (
-  <Scene durationInFrames={270}>
+const SceneProblem: React.FC<{ durationInFrames?: number }> = ({
+  durationInFrames = 270,
+}) => (
+  <Scene durationInFrames={durationInFrames}>
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 34 }}>
       <SectionLabel n="!" title="The problem" color={C.pink} />
       <FakeTerminal />
@@ -652,9 +654,11 @@ const SceneProblem: React.FC = () => (
   </Scene>
 );
 
-const SceneSolution: React.FC = () => {
+const SceneSolution: React.FC<{ durationInFrames?: number }> = ({
+  durationInFrames = 240,
+}) => {
   return (
-    <Scene durationInFrames={240}>
+    <Scene durationInFrames={durationInFrames}>
       <FloatEmojis items={["✨", "🔥", "💯", "🚀"]} count={8} />
       <div style={{ textAlign: "center" }}>
         <Reveal>
@@ -694,8 +698,10 @@ const SceneSolution: React.FC = () => {
 };
 
 // FEATURE 1 — Visualize + explain
-const SceneFeature1: React.FC = () => (
-  <Scene durationInFrames={300}>
+const SceneFeature1: React.FC<{ durationInFrames?: number }> = ({
+  durationInFrames = 300,
+}) => (
+  <Scene durationInFrames={durationInFrames}>
     <FeatureLayout
       n="1"
       title="Visualize + explain"
@@ -724,7 +730,9 @@ const SceneFeature1: React.FC = () => (
 );
 
 // FEATURE 2 — Expand + undo
-const SceneFeature2: React.FC = () => {
+const SceneFeature2: React.FC<{ durationInFrames?: number }> = ({
+  durationInFrames = 300,
+}) => {
   const grown: GNode = {
     id: "expand",
     x: 0.14,
@@ -733,7 +741,7 @@ const SceneFeature2: React.FC = () => {
     color: C.purple,
   };
   return (
-    <Scene durationInFrames={300}>
+    <Scene durationInFrames={durationInFrames}>
       <FeatureLayout
         n="2"
         title="Expand + undo"
@@ -760,8 +768,10 @@ const SceneFeature2: React.FC = () => {
 };
 
 // FEATURE 3 — Search + code reference
-const SceneFeature3: React.FC = () => (
-  <Scene durationInFrames={300}>
+const SceneFeature3: React.FC<{ durationInFrames?: number }> = ({
+  durationInFrames = 300,
+}) => (
+  <Scene durationInFrames={durationInFrames}>
     <FeatureLayout
       n="3"
       title="Search + code reference"
@@ -790,8 +800,10 @@ const SceneFeature3: React.FC = () => (
 );
 
 // FEATURE 4 — Diagram types
-const SceneFeature4: React.FC = () => (
-  <Scene durationInFrames={300}>
+const SceneFeature4: React.FC<{ durationInFrames?: number }> = ({
+  durationInFrames = 300,
+}) => (
+  <Scene durationInFrames={durationInFrames}>
     <FeatureLayout
       n="4"
       title="Diagram types"
@@ -1382,7 +1394,7 @@ const Step: React.FC<{
 );
 
 const SceneDownload: React.FC = () => (
-  <Scene durationInFrames={360}>
+  <Scene durationInFrames={350}>
     <div
       style={{
         display: "flex",
@@ -1579,7 +1591,7 @@ const RoadmapCard: React.FC<{
 };
 
 const SceneFuture: React.FC = () => (
-  <Scene durationInFrames={300}>
+  <Scene durationInFrames={292}>
     <div
       style={{
         display: "flex",
@@ -1716,7 +1728,7 @@ const Avatar: React.FC<{
 };
 
 const SceneTeamOutro: React.FC = () => (
-  <Scene durationInFrames={300}>
+  <Scene durationInFrames={292}>
     <FloatEmojis items={["🎉", "✨", "🏆", "💜", "🚀"]} count={12} />
     <div style={{ textAlign: "center" }}>
       <Kinetic text="SEE your code." size={92} color={C.cyan} delay={6} outline={C.ink} />
@@ -1797,43 +1809,71 @@ export const CanvasForCopilotFull: React.FC = () => {
         volume={(f) =>
           interpolate(
             f,
-            [0, 18, 30, 690, 720, 3580, 3600, 4520, durationInFrames],
-            [0, 0.5, 0.18, 0.18, 0.55, 0.55, 0.18, 0.18, 0],
+            [
+              0, 18, 30, 1205, 1235, 1425, 1445, 1911, 1931, 2573, 2593, 2993,
+              3013, 3301, 3321, 3576, 3596, 3860, 3880, 4329, 4349, 4696, 4716,
+              5630, durationInFrames,
+            ],
+            // 0.18 = ducked under a voiceover · 0.6 = music carries a VO-less
+            // scene (architecture beat + the four muted demo clips).
+            [
+              0, 0.5, 0.18, 0.18, 0.6, 0.6, 0.18, 0.18, 0.6, 0.6, 0.18, 0.18,
+              0.6, 0.6, 0.18, 0.18, 0.6, 0.6, 0.18, 0.18, 0.6, 0.6, 0.18, 0.18,
+              0,
+            ],
             { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
           )
         }
       />
-      {/* Voiceover narration for scenes 1–3 (hook → problem → solution). */}
-      <Sequence durationInFrames={690}>
+      {/* Voiceover narration for scenes 1–3 (hook → problem → solution).
+          Single VO file (scene-1-scene-2-scene-3.m4a, 40.15s ≈ 1205 frames);
+          the hook/problem/solution visuals below are sized to fill it. */}
+      <Sequence durationInFrames={1205}>
         <Audio src={staticFile("audio/scene-1-scene-2-scene-3.m4a")} />
       </Sequence>
-      {/* Voiceover narration for scenes 12–14 (download → future → outro). */}
-      <Sequence from={3591} durationInFrames={960}>
+      {/* Per-feature voiceover (scenes 4/6/8/10); each animated feature scene is
+          sized to its VO file. */}
+      <Sequence from={1445} durationInFrames={466}>
+        <Audio src={staticFile("audio/scene-4-audio-voice-over.m4a")} />
+      </Sequence>
+      <Sequence from={2593} durationInFrames={400}>
+        <Audio src={staticFile("audio/scene-6-voice-over.m4a")} />
+      </Sequence>
+      <Sequence from={3321} durationInFrames={255}>
+        <Audio src={staticFile("audio/scene-8-voice-over.m4a")} />
+      </Sequence>
+      <Sequence from={3880} durationInFrames={449}>
+        <Audio src={staticFile("audio/scene-10-voice-over.m4a")} />
+      </Sequence>
+      {/* Voiceover narration for scenes 12–14 (download → future → outro).
+          Single VO file (scene-12-scene-13-scene-14.m4a, 31.13s ≈ 934 frames);
+          the download/future/outro visuals below are sized to fill it. */}
+      <Sequence from={4716} durationInFrames={934}>
         <Audio src={staticFile("audio/scene-12-scene-13-scene-14.m4a")} />
       </Sequence>
       <Backdrop />
 
-      {/* Cold-open hook → problem → title reveal */}
-      <Sequence durationInFrames={180}>
+      {/* Cold-open hook → problem → title reveal (sized to VO scenes 1–3) */}
+      <Sequence durationInFrames={314}>
         <SceneHookCold />
       </Sequence>
-      <Sequence from={180} durationInFrames={270}>
-        <SceneProblem />
+      <Sequence from={314} durationInFrames={472}>
+        <SceneProblem durationInFrames={472} />
       </Sequence>
-      <Sequence from={450} durationInFrames={240}>
-        <SceneSolution />
+      <Sequence from={786} durationInFrames={419}>
+        <SceneSolution durationInFrames={419} />
       </Sequence>
 
       {/* How it works — architecture / MCP */}
-      <Sequence from={690} durationInFrames={240}>
+      <Sequence from={1205} durationInFrames={240}>
         <SceneArchitecture />
       </Sequence>
 
-      {/* Feature 1 — Visualize + explain: animated, then real clip */}
-      <Sequence from={690} durationInFrames={300}>
-        <SceneFeature1 />
+      {/* Feature 1 — Visualize + explain: animated (VO-sized), then real clip */}
+      <Sequence from={1445} durationInFrames={466}>
+        <SceneFeature1 durationInFrames={466} />
       </Sequence>
-      <Sequence from={990} durationInFrames={682}>
+      <Sequence from={1911} durationInFrames={682}>
         <SceneClip
           src={CLIP_SOURCES.visualize}
           tab="Visualize"
@@ -1844,11 +1884,11 @@ export const CanvasForCopilotFull: React.FC = () => {
         />
       </Sequence>
 
-      {/* Feature 2 — Expand + undo: animated, then real clip */}
-      <Sequence from={1672} durationInFrames={300}>
-        <SceneFeature2 />
+      {/* Feature 2 — Expand + undo: animated (VO-sized), then real clip */}
+      <Sequence from={2593} durationInFrames={400}>
+        <SceneFeature2 durationInFrames={400} />
       </Sequence>
-      <Sequence from={1972} durationInFrames={328}>
+      <Sequence from={2993} durationInFrames={328}>
         <SceneClip
           src={CLIP_SOURCES.expand}
           tab="Expand"
@@ -1859,11 +1899,11 @@ export const CanvasForCopilotFull: React.FC = () => {
         />
       </Sequence>
 
-      {/* Feature 3 — Search + code reference: animated, then real clip */}
-      <Sequence from={2300} durationInFrames={300}>
-        <SceneFeature3 />
+      {/* Feature 3 — Search + code reference: animated (VO-sized), then real clip */}
+      <Sequence from={3321} durationInFrames={255}>
+        <SceneFeature3 durationInFrames={255} />
       </Sequence>
-      <Sequence from={2600} durationInFrames={304}>
+      <Sequence from={3576} durationInFrames={304}>
         <SceneClip
           src={CLIP_SOURCES.search}
           tab="Search"
@@ -1874,11 +1914,11 @@ export const CanvasForCopilotFull: React.FC = () => {
         />
       </Sequence>
 
-      {/* Feature 4 — Diagram types: animated, then real clip */}
-      <Sequence from={2904} durationInFrames={300}>
-        <SceneFeature4 />
+      {/* Feature 4 — Diagram types: animated (VO-sized), then real clip */}
+      <Sequence from={3880} durationInFrames={449}>
+        <SceneFeature4 durationInFrames={449} />
       </Sequence>
-      <Sequence from={3204} durationInFrames={387}>
+      <Sequence from={4329} durationInFrames={387}>
         <SceneClip
           src={CLIP_SOURCES.types}
           tab="Types"
@@ -1889,14 +1929,14 @@ export const CanvasForCopilotFull: React.FC = () => {
         />
       </Sequence>
 
-      {/* How to download → future work → team outro */}
-      <Sequence from={3591} durationInFrames={360}>
+      {/* How to download → future work → team outro (sized to VO scenes 12–14) */}
+      <Sequence from={4716} durationInFrames={350}>
         <SceneDownload />
       </Sequence>
-      <Sequence from={3951} durationInFrames={300}>
+      <Sequence from={5066} durationInFrames={292}>
         <SceneFuture />
       </Sequence>
-      <Sequence from={4251} durationInFrames={300}>
+      <Sequence from={5358} durationInFrames={292}>
         <SceneTeamOutro />
       </Sequence>
     </AbsoluteFill>
