@@ -1458,6 +1458,10 @@ function updateUndoRedoButtons(): void {
 
 /** Record the current (post-change) diagram as the latest version (KAN-34). */
 function recordVersion(): void {
+  // History tracks full, top-level diagrams only. A drill-down ("Focus neighbours")
+  // is a transient view of a subset, not a version — recording it would store a
+  // partial graph. Skip while drilled; the next top-level change records normally.
+  if (scopeStack.length > 0) return;
   undoHistory.record(captureSnapshot());
   afterHistoryChange();
 }
@@ -1499,6 +1503,12 @@ function navigateTo(snapshot: UndoSnapshot | undefined): void {
 }
 
 function performUndo(): void {
+  // While drilled into a sub-scope, Undo first backs out one level (matching the
+  // "Back" breadcrumb) instead of jumping diagrams — and never snapshots the subset.
+  if (scopeStack.length > 0) {
+    scopeBack();
+    return;
+  }
   if (!undoHistory.canUndo()) return;
   undoHistory.replaceCurrent(captureSnapshot()); // remember the current view
   navigateTo(undoHistory.undo());
@@ -1506,13 +1516,14 @@ function performUndo(): void {
 
 function performRedo(): void {
   if (!undoHistory.canRedo()) return;
-  undoHistory.replaceCurrent(captureSnapshot());
+  // Only remember the live view when it's the full top-level diagram, never a subset.
+  if (scopeStack.length === 0) undoHistory.replaceCurrent(captureSnapshot());
   navigateTo(undoHistory.redo());
 }
 
 /** Jump straight to a version from the history list. */
 function performGoto(index: number): void {
-  undoHistory.replaceCurrent(captureSnapshot());
+  if (scopeStack.length === 0) undoHistory.replaceCurrent(captureSnapshot());
   navigateTo(undoHistory.goto(index));
 }
 
