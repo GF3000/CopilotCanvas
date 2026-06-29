@@ -28,21 +28,26 @@ it, search it, jump to the real source, and undo/redo — all locally.
 
 **Requirements:** VS Code, Node.js 20+, and Copilot CLI installed & signed in.
 
-**1 · Install (clone → install)**
+**1 · Install (clone → build the extension)**
 ```bash
 git clone https://github.com/GF3000/CopilotCanvas && cd CopilotCanvas
 npm install
 npm run package          # builds + writes ./canvas-for-copilot.vsix
 code --install-extension canvas-for-copilot.vsix
 ```
-Reload VS Code and accept the one-time **Set up** prompt (registers the Canvas MCP
-server with Copilot CLI). See [`docs/SETUP.md`](docs/SETUP.md) for details / the F5 dev loop.
 
-**2 · Use it.** Open any project, start `copilot` in the integrated terminal, and ask
+**2 · First run.** Restart VS Code. The extension installs like any other — you'll
+find **Canvas for Copilot** in the **Extensions** panel (`Ctrl/Cmd+Shift+X`, search
+"Canvas"). On first activation it shows a one-time **Set up** notification — click
+**OK** and it registers the Canvas MCP server with Copilot CLI (writes
+`~/.copilot/mcp-config.json`). That's it — no F5, no dev window.
+
+**3 · Use it.** Open any project, start `copilot` in the integrated terminal, and ask
 for a diagram — the canvas opens beside the terminal. Then **click nodes** and tell
-Copilot what to do; the diagram updates live.
+Copilot what to do; the diagram updates live. (See [`docs/SETUP.md`](docs/SETUP.md)
+for details / the F5 dev loop.)
 
-**3 · Example prompts (any repo)**
+**Example prompts (any repo)**
 ```
 diagram the architecture of this project
 /diagram-flowchart the login flow
