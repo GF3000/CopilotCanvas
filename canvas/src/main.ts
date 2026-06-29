@@ -696,7 +696,7 @@ function applyNodeColor(color: NodeColor): void {
   if (!menuNode) return;
   colorOverrides.set(menuNode.id(), color);
   styleNodeColor(menuNode, color);
-  recordVersion(); // record the recoloured diagram as a version (KAN-34)
+  recordVersion(false); // recolour is undoable but isn't a logged diagram version
 }
 
 function openNodeMenu(node: cytoscape.NodeSingular, x: number, y: number): void {
@@ -1058,8 +1058,8 @@ function handlePatch(msg: PatchMessage): void {
   // Keep an open search in sync with the mutated graph (matches may have been
   // added/removed) instead of holding stale element references.
   refreshSearchIfOpen();
-  // KAN-34: the patched diagram is a new version in the history.
-  recordVersion();
+  // KAN-34: a Copilot patch (expand / edit) is a new logged diagram version.
+  recordVersion(true);
 }
 
 // Map the whitelisted inline style subset (KAN-26, option B) to Cytoscape
@@ -1456,13 +1456,28 @@ function updateUndoRedoButtons(): void {
   }
 }
 
-/** Record the current (post-change) diagram as the latest version (KAN-34). */
-function recordVersion(): void {
+/* The version log backs the ☰ history menu: an append-only list of the diagrams
+ * Copilot has produced ("major" versions). Unlike the undo timeline it is NEVER
+ * truncated — so going back to an earlier version and changing it doesn't delete the
+ * later ones; every diagram you've made stays in the list. Minor local tweaks
+ * (recolour) are undoable but not logged here, to keep the list meaningful. */
+const versionLog: UndoSnapshot[] = [];
+const VERSION_LOG_LIMIT = 100;
+let currentVersionIndex = -1;
+
+/** Record the current (post-change) diagram. `major` changes (Copilot diagrams /
+ * patches) also append to the ☰ version log; minor edits (recolour) stay undo-only. */
+function recordVersion(major = true): void {
   // History tracks full, top-level diagrams only. A drill-down ("Focus neighbours")
-  // is a transient view of a subset, not a version — recording it would store a
-  // partial graph. Skip while drilled; the next top-level change records normally.
+  // is a transient view of a subset, not a version — skip while drilled.
   if (scopeStack.length > 0) return;
-  undoHistory.record(captureSnapshot());
+  const snapshot = captureSnapshot();
+  undoHistory.record(snapshot);
+  if (major) {
+    versionLog.push(snapshot);
+    while (versionLog.length > VERSION_LOG_LIMIT) versionLog.shift();
+    currentVersionIndex = versionLog.length - 1;
+  }
   afterHistoryChange();
 }
 
@@ -1499,6 +1514,9 @@ function restoreSnapshot(snapshot: UndoSnapshot): void {
 function navigateTo(snapshot: UndoSnapshot | undefined): void {
   if (!snapshot) return;
   restoreSnapshot(snapshot);
+  // If undo/redo landed exactly on a logged version, sync the ☰ "current" marker.
+  const logged = versionLog.indexOf(snapshot);
+  if (logged !== -1) currentVersionIndex = logged;
   afterHistoryChange();
 }
 
@@ -1521,10 +1539,16 @@ function performRedo(): void {
   navigateTo(undoHistory.redo());
 }
 
-/** Jump straight to a version from the history list. */
-function performGoto(index: number): void {
+/** Jump to a logged version from the ☰ history menu. The whole log stays intact
+ * (going back never deletes later versions); the jump is recorded so Undo reverts it. */
+function jumpToVersion(index: number): void {
+  const snapshot = versionLog[index];
+  if (!snapshot) return;
   if (scopeStack.length === 0) undoHistory.replaceCurrent(captureSnapshot());
-  navigateTo(undoHistory.goto(index));
+  currentVersionIndex = index;
+  restoreSnapshot(snapshot);
+  undoHistory.record(snapshot); // make the jump itself an undoable step
+  afterHistoryChange();
 }
 
 undoBtn?.addEventListener('click', () => performUndo());
@@ -1542,11 +1566,12 @@ function closeHistoryMenu(): void {
   historyBtn?.setAttribute('aria-expanded', 'false');
 }
 
-// Rebuild the version list (newest first); the current version is marked.
+// Rebuild the version list (newest first) from the append-only version log; the
+// version currently being worked off is marked. Minor edits (recolour) aren't logged.
 function renderHistoryList(): void {
   if (!historyList) return;
-  const entries = undoHistory.entries();
-  const current = undoHistory.index();
+  const entries = versionLog;
+  const current = currentVersionIndex;
   if (historyBtn instanceof HTMLButtonElement) historyBtn.disabled = entries.length === 0;
   if (historyEmpty) historyEmpty.hidden = entries.length > 0;
 
@@ -1574,7 +1599,7 @@ function renderHistoryList(): void {
 
     item.addEventListener('click', () => {
       closeHistoryMenu();
-      performGoto(i);
+      jumpToVersion(i);
     });
     rows.push(item);
   }
