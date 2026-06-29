@@ -10,6 +10,7 @@ export default [
       '**/node_modules/**',
       '**/*.config.*',
       'examples/**',
+      'video-presentation/**',
     ],
   },
   js.configs.recommended,
