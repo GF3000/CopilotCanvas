@@ -28,7 +28,7 @@ it, search it, jump to the real source, and undo/redo — all locally.
 
 **Requirements:** VS Code, Node.js 20+, and Copilot CLI installed & signed in.
 
-**1 · Install (clone → install, no F5)**
+**1 · Install (clone → install)**
 ```bash
 git clone https://github.com/GF3000/CopilotCanvas && cd CopilotCanvas
 npm install
