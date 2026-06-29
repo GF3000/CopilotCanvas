@@ -17,7 +17,8 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "package": "npm run build && npm run package -w extension"
   },
   "devDependencies": {
     "@eslint/js": "^9.13.0",

@@ -13,6 +13,7 @@
 > AI-driven project: these documents are authored first, refined by humans, then
 > handed off to AI agents for autonomous implementation.
 
+<<<<<<< HEAD
 ## Demo
 
 https://github.com/GF3000/CopilotCanvas/releases/download/v0.1.0/canvas-for-copilot-full.mp4
@@ -20,7 +21,49 @@ https://github.com/GF3000/CopilotCanvas/releases/download/v0.1.0/canvas-for-copi
 > If the player doesn't load above,
 > [download / watch the demo video here](https://github.com/GF3000/CopilotCanvas/releases/download/v0.1.0/canvas-for-copilot-full.mp4).
 
-## 👉 Start here: [`AGENTS.md`](AGENTS.md)
+## 🚀 Getting started (for users)
+
+**What it is.** Ask **Copilot CLI** to explain code and instead of a wall of text you
+get a **live, interactive diagram** in a VS Code tab. Click a node to explain/expand
+it, search it, jump to the real source, and undo/redo — all locally.
+
+**What it can do**
+- Turn any prompt into a diagram: **dependency, flowchart, state machine, class, ER**, or a generic graph.
+- **Click a node** → explain it, **expand** it with AI, or **focus** its neighbours.
+- **Search** big graphs, a colour **legend**, **undo/redo + history**, **export**.
+- **Code links:** click a node to open the exact file; a node maps back to your repo.
+- Runs **100% locally** in one VS Code window; works on **any repo**.
+
+**Requirements:** VS Code, Node.js 20+, and Copilot CLI installed & signed in.
+
+**1 · Install (clone → install, no F5)**
+```bash
+git clone https://github.com/GF3000/CopilotCanvas && cd CopilotCanvas
+npm install
+npm run package          # builds + writes ./canvas-for-copilot.vsix
+code --install-extension canvas-for-copilot.vsix
+```
+Reload VS Code and accept the one-time **Set up** prompt (registers the Canvas MCP
+server with Copilot CLI). See [`docs/SETUP.md`](docs/SETUP.md) for details / the F5 dev loop.
+
+**2 · Use it.** Open any project, start `copilot` in the integrated terminal, and ask
+for a diagram — the canvas opens beside the terminal. Then **click nodes** and tell
+Copilot what to do; the diagram updates live.
+
+**3 · Example prompts (any repo)**
+```
+diagram the architecture of this project
+/diagram-flowchart the login flow
+/diagram-state-machine the order lifecycle
+/diagram-class the models in src/
+/diagram-er the database schema
+explain this node          # after clicking a node
+expand this node           # grows new detail
+show me the code for this  # opens the file
+```
+Tip: `/diagram <anything>` auto-picks the best type. Keep diagrams ~4–12 nodes.
+
+## 👉 Contributors start here: [`AGENTS.md`](AGENTS.md)
 
 **Before doing anything else, read [`AGENTS.md`](AGENTS.md).** It holds the
 mandatory rules every contributor (human or AI) must follow — including the

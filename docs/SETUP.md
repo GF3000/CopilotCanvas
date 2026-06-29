@@ -118,12 +118,17 @@ A second VS Code window opens with the extension loaded from source (the
 dev-host window to pick up changes (or run the `watch-extension` task for rebuild on
 save). Config lives in `.vscode/launch.json` + `.vscode/tasks.json`.
 
-**2. Install a packaged `.vsix` — test as a user.**
+**2. Install a packaged `.vsix` — everyday use, no F5.**
+From a fresh clone, one command builds everything and writes the package to the repo
+root, then install it into VS Code:
 ```bash
-npx @vscode/vsce package                       # → canvas-for-copilot-0.0.0.vsix
-code --install-extension canvas-for-copilot-0.0.0.vsix
+npm install                                  # once
+npm run package                              # → ./canvas-for-copilot.vsix
+code --install-extension canvas-for-copilot.vsix
 ```
-Good for end-to-end / demo recording. Uninstall from the Extensions panel.
+Reload VS Code, accept the one-time **Set up** prompt, then run Copilot CLI in the
+integrated terminal and ask for a diagram. Update later by re-running the two
+commands; uninstall from the Extensions panel.
 
 **3. Automated tests (`@vscode/test-electron`).**
 Headless VS Code that activates the extension and asserts behavior — add for CI once

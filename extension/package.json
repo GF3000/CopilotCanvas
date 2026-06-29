@@ -37,6 +37,6 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "build": "npm run typecheck && esbuild src/extension.ts --bundle --platform=node --format=cjs --target=node18 --external:vscode --outfile=dist/extension.cjs --tsconfig=tsconfig.json && node scripts/copy-canvas.mjs && node scripts/copy-skills.mjs",
     "dev": "esbuild src/extension.ts --bundle --platform=node --format=cjs --target=node18 --external:vscode --outfile=dist/extension.cjs --tsconfig=tsconfig.json --watch",
-    "package": "npx @vscode/vsce package --no-dependencies"
+    "package": "npx @vscode/vsce package --no-dependencies --out ../canvas-for-copilot.vsix"
   }
 }

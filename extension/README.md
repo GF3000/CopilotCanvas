@@ -9,11 +9,22 @@ update diagrams.
 
 ## Use
 
-1. Install the extension (F5 dev host, or install the packaged `.vsix`).
-2. On activation, accept the one-time **Set up** prompt to register the Canvas MCP
-   server with Copilot CLI (writes `~/.copilot/mcp-config.json`).
-3. In the integrated terminal, start a Copilot CLI session and ask for a diagram
-   (e.g. "diagram the auth flow"). The canvas opens beside the terminal.
+Two ways to run it:
+
+- **Everyday use (recommended) — install the packaged extension:**
+  ```bash
+  npm install
+  npm run package                              # → ./canvas-for-copilot.vsix
+  code --install-extension canvas-for-copilot.vsix
+  ```
+  Reload VS Code; no F5 / dev host needed. (Bump `version` in this manifest before
+  re-packaging a new release.)
+- **Development — press F5** to launch an Extension Development Host from source.
+
+After installing, on activation accept the one-time **Set up** prompt to register the
+Canvas MCP server with Copilot CLI (writes `~/.copilot/mcp-config.json`), then in the
+integrated terminal start a Copilot CLI session and ask for a diagram
+(e.g. "diagram the auth flow"). The canvas opens beside the terminal.
 
 Command: **Canvas for Copilot: Open Canvas** opens the example diagram directly.
 
