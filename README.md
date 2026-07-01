@@ -28,7 +28,32 @@ it, search it, jump to the real source, and undo/redo — all locally.
 
 **Requirements:** VS Code, Node.js 20+, and Copilot CLI installed & signed in.
 
-**1 · Install (clone → build the extension)**
+## ⚡ Install & use
+
+Install from the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=msft-hackathon-canvas.canvas-for-copilot):
+
+- **Corporate / managed VS Code** (connected to a private org marketplace — the
+  search bar won't find public extensions). Install it directly by ID:
+  ```bash
+  code --install-extension msft-hackathon-canvas.canvas-for-copilot
+  ```
+  It will appear under **Extensions → Installed**.
+- **Public VS Code** — search **Canvas for Copilot** in the Extensions view and click
+  **Install**, or run the same command:
+  ```bash
+  code --install-extension msft-hackathon-canvas.canvas-for-copilot
+  ```
+
+Open any repo, run
+**Copilot CLI in the VS Code integrated terminal**, and ask it for a diagram —
+for example:
+
+> _"create a flowchart diagram of this project"_
+
+The canvas opens beside the terminal and renders your diagram live. See
+[`docs/SETUP.md`](docs/SETUP.md) for details and the F5 dev loop.
+
+### Build from source
 ```bash
 git clone https://github.com/GF3000/CopilotCanvas && cd CopilotCanvas
 npm install
